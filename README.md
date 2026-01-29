@@ -14,6 +14,8 @@ The name comes from Old Norse *minni* which means memory.
 
 ---
 
+https://github.com/user-attachments/assets/052e5e1a-d691-485d-935f-5697c510ca6b
+
 ## Why Minni?
 
 I'm sick of having a million markdown files
