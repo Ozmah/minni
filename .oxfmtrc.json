@@ -1,0 +1,25 @@
+{
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"ignorePatterns": ["node_modules/**", "dist/**", "build/**"],
+	"useTabs": true,
+	"experimentalSortImports": {},
+	"experimentalSortPackageJson": true,
+	"experimentalTailwindcss": {
+		"functions": ["cn", "clsx", "cva", "tw"]
+	},
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error",
+		"pedantic": "warn",
+		"perf": "warn",
+		"style": "warn",
+		"restriction": "warn"
+	},
+	"plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "import", "jsx-a11y", "promise"],
+	"rules": {
+		"no-console": "error",
+		"unicorn/no-array-for-each": "error",
+		"unicorn/no-null": "warn",
+		"import/no-cycle": "error"
+	}
+}

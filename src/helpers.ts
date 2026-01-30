@@ -1,5 +1,6 @@
-import { drizzle } from "drizzle-orm/tursodatabase/database";
 import { sql, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/tursodatabase/database";
+
 import { projects, tags, memoryTags, memoryPaths, globalContext } from "./schema";
 
 export type MinniDB = ReturnType<typeof drizzle>;
@@ -30,36 +31,15 @@ export const MEMORY_STATUSES = [
 	"deprecated",
 ] as const;
 
-export const MEMORY_PERMISSIONS = [
-	"open",
-	"guarded",
-	"read_only",
-	"locked",
-] as const;
+export const MEMORY_PERMISSIONS = ["open", "guarded", "read_only", "locked"] as const;
 
-export const PROJECT_STATUSES = [
-	"active",
-	"paused",
-	"completed",
-	"archived",
-	"deleted",
-] as const;
+export const PROJECT_STATUSES = ["active", "paused", "completed", "archived", "deleted"] as const;
 
 export const TASK_PRIORITIES = ["high", "medium", "low"] as const;
 
-export const TASK_STATUSES = [
-	"todo",
-	"in_progress",
-	"done",
-	"cancelled",
-] as const;
+export const TASK_STATUSES = ["todo", "in_progress", "done", "cancelled"] as const;
 
-export const GOAL_STATUSES = [
-	"active",
-	"completed",
-	"paused",
-	"cancelled",
-] as const;
+export const GOAL_STATUSES = ["active", "completed", "paused", "cancelled"] as const;
 
 /** Validates a value against an allowed set. Returns the value if valid, or an error string. */
 export function validateEnum(
@@ -146,17 +126,10 @@ export function normalizeSegment(segment: string): string {
  * Resolves a project by name, falling back to the active project.
  * Returns null if no project is found and no active project is set.
  */
-export async function resolveProject(
-	db: MinniDB,
-	name?: string,
-): Promise<ActiveProject> {
+export async function resolveProject(db: MinniDB, name?: string): Promise<ActiveProject> {
 	if (name) {
 		const normalized = normalizeProjectName(name);
-		const found = await db
-			.select()
-			.from(projects)
-			.where(eq(projects.name, normalized))
-			.limit(1);
+		const found = await db.select().from(projects).where(eq(projects.name, normalized)).limit(1);
 		return found[0] ? { id: found[0].id, name: found[0].name } : null;
 	}
 	return activeProject;
@@ -167,24 +140,13 @@ export async function resolveProject(
  * Tags are normalized, inserted if new (via INSERT OR IGNORE),
  * and linked through the memory_tags join table.
  */
-export async function saveTags(
-	db: MinniDB,
-	memoryId: number,
-	tagNames: string[],
-): Promise<void> {
+export async function saveTags(db: MinniDB, memoryId: number, tagNames: string[]): Promise<void> {
 	for (const name of tagNames) {
 		const normalized = name.toLowerCase().trim();
 		await db.run(sql`INSERT OR IGNORE INTO tags (name) VALUES (${normalized})`);
-		const tag = await db
-			.select()
-			.from(tags)
-			.where(eq(tags.name, normalized))
-			.limit(1);
+		const tag = await db.select().from(tags).where(eq(tags.name, normalized)).limit(1);
 		if (tag[0]) {
-			await db
-				.insert(memoryTags)
-				.values({ memoryId, tagId: tag[0].id })
-				.onConflictDoNothing();
+			await db.insert(memoryTags).values({ memoryId, tagId: tag[0].id }).onConflictDoNothing();
 		}
 	}
 }
@@ -194,11 +156,7 @@ export async function saveTags(
  * Each segment is normalized and stored with its positional index
  * for efficient querying via minni_find.
  */
-export async function savePathSegments(
-	db: MinniDB,
-	memoryId: number,
-	path: string,
-): Promise<void> {
+export async function savePathSegments(db: MinniDB, memoryId: number, path: string): Promise<void> {
 	const segments = parsePath(path);
 	for (let i = 0; i < segments.length; i++) {
 		await db.insert(memoryPaths).values({
@@ -230,9 +188,7 @@ export type ActionType = "read" | "update" | "delete";
 /**
  * Result of a guarded action. Discriminated union for type-safe handling.
  */
-export type GuardedResult<T> =
-	| { ok: true; result: T }
-	| { ok: false; error: string };
+export type GuardedResult<T> = { ok: true; result: T } | { ok: false; error: string };
 
 /**
  * OpenCode tool context type (subset we need for permission checks).

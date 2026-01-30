@@ -1,10 +1,5 @@
-import {
-	sqliteTable,
-	text,
-	integer,
-	primaryKey,
-} from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core";
 
 const timestamp = {
 	createdAt: integer("created_at", { mode: "timestamp_ms" as const })
@@ -14,6 +9,8 @@ const timestamp = {
 		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 		.notNull(),
 };
+
+// TON of fixes to make to the DB including adding indexes, some missing updated and created at
 
 /**
  * Root container for organizing memories, goals, milestones, and tasks.

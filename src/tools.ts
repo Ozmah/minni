@@ -1,15 +1,7 @@
 import { tool } from "@opencode-ai/plugin";
 import { sql, count, eq, and, desc, asc } from "drizzle-orm";
-import {
-	projects,
-	memories,
-	goals,
-	milestones,
-	tasks,
-	memoryTags,
-	memoryPaths,
-	globalContext,
-} from "./schema";
+
+import { getViewerPort } from "../viewer/server";
 import {
 	type MinniDB,
 	type ToolContext,
@@ -29,6 +21,16 @@ import {
 	TASK_STATUSES,
 	GOAL_STATUSES,
 } from "./helpers";
+import {
+	projects,
+	memories,
+	goals,
+	milestones,
+	tasks,
+	memoryTags,
+	memoryPaths,
+	globalContext,
+} from "./schema";
 
 /**
  * Creates all Minni tools bound to a specific database instance.
@@ -40,17 +42,14 @@ export function createTools(db: MinniDB) {
 			description:
 				"Create, update, delete (soft), or list projects. Delete sets status to 'deleted' — hard delete via Minni Studio or direct DB access.",
 			args: {
-				action: tool.schema
-					.string()
-					.describe("Action: create, update, delete, list"),
+				action: tool.schema.string().describe("Action: create, update, delete, list"),
 				name: tool.schema
 					.string()
 					.optional()
-					.describe("Project name. Normalized to lowercase + hyphens (e.g. 'vault-101', 'nerv-hq')"),
-				description: tool.schema
-					.string()
-					.optional()
-					.describe("What the project is about"),
+					.describe(
+						"Project name. Normalized to lowercase + hyphens (e.g. 'vault-101', 'nerv-hq')",
+					),
+				description: tool.schema.string().optional().describe("What the project is about"),
 				stack: tool.schema
 					.string()
 					.optional()
@@ -95,19 +94,14 @@ export function createTools(db: MinniDB) {
 						);
 						if (err) return err;
 					}
-					const existing = await db
-						.select()
-						.from(projects)
-						.where(eq(projects.name, name))
-						.limit(1);
-					if (existing[0])
-						return `Project "${name}" already exists. Use action: update.`;
+					const existing = await db.select().from(projects).where(eq(projects.name, name)).limit(1);
+					if (existing[0]) return `Project "${name}" already exists. Use action: update.`;
 
 					const stackJson = args.stack
 						? JSON.stringify(args.stack.split(",").map((s) => s.trim()))
 						: null;
 
-					// NOTE: createdAt/updatedAt passed explicitly — Turso driver (beta) ignores SQLite DEFAULT expressions
+					// NOTE: createdAt/updatedAt passed explicitly. Turso driver (beta) ignores SQLite DEFAULT expressions
 					const result = await db
 						.insert(projects)
 						.values({
@@ -143,11 +137,7 @@ export function createTools(db: MinniDB) {
 						if (err) return err;
 					}
 					const name = normalizeProjectName(args.name);
-					const proj = await db
-						.select()
-						.from(projects)
-						.where(eq(projects.name, name))
-						.limit(1);
+					const proj = await db.select().from(projects).where(eq(projects.name, name)).limit(1);
 					if (!proj[0]) return `Project "${name}" not found.`;
 
 					const result = await guardedAction(
@@ -158,19 +148,14 @@ export function createTools(db: MinniDB) {
 							const updates: Record<string, unknown> = { updatedAt: new Date() };
 							if (args.description) updates.description = args.description;
 							if (args.stack)
-								updates.stack = JSON.stringify(
-									args.stack.split(",").map((s) => s.trim()),
-								);
+								updates.stack = JSON.stringify(args.stack.split(",").map((s) => s.trim()));
 							if (args.status) updates.status = args.status;
 							if (args.permission) updates.permission = args.permission;
 							if (args.default_memory_permission)
 								updates.defaultMemoryPermission = args.default_memory_permission;
-							await db
-								.update(projects)
-								.set(updates)
-								.where(eq(projects.id, proj[0].id));
+							await db.update(projects).set(updates).where(eq(projects.id, proj[0].id));
 							return `Project updated: ${name}`;
-						}
+						},
 					);
 					return result.ok ? result.result : result.error;
 				}
@@ -178,11 +163,7 @@ export function createTools(db: MinniDB) {
 				if (args.action === "delete") {
 					if (!args.name) return "Name is required to identify the project.";
 					const name = normalizeProjectName(args.name);
-					const proj = await db
-						.select()
-						.from(projects)
-						.where(eq(projects.name, name))
-						.limit(1);
+					const proj = await db.select().from(projects).where(eq(projects.name, name)).limit(1);
 					if (!proj[0]) return `Project "${name}" not found.`;
 
 					const result = await guardedAction(
@@ -212,9 +193,7 @@ export function createTools(db: MinniDB) {
 						.where(sql`${projects.status} != 'deleted'`)
 						.orderBy(desc(projects.updatedAt));
 					if (all.length === 0) return "No projects.";
-					return all
-						.map((p) => `[P${p.id}] ${p.name} — ${p.status}`)
-						.join("\n");
+					return all.map((p) => `[P${p.id}] ${p.name} — ${p.status}`).join("\n");
 				}
 
 				return "Unknown action. Use: create, update, delete, list";
@@ -257,11 +236,7 @@ export function createTools(db: MinniDB) {
 				if (!args.project) {
 					await setActiveProject(db, null);
 
-					const ctx = await db
-						.select()
-						.from(globalContext)
-						.where(eq(globalContext.id, 1))
-						.limit(1);
+					const ctx = await db.select().from(globalContext).where(eq(globalContext.id, 1)).limit(1);
 
 					const projectList = await db
 						.select()
@@ -326,20 +301,13 @@ export function createTools(db: MinniDB) {
 				const activeTask = await db
 					.select()
 					.from(tasks)
-					.where(
-						and(
-							eq(tasks.projectId, proj[0].id),
-							eq(tasks.status, "in_progress"),
-						),
-					)
+					.where(and(eq(tasks.projectId, proj[0].id), eq(tasks.status, "in_progress")))
 					.limit(1);
 
 				const nearestGoal = await db
 					.select()
 					.from(goals)
-					.where(
-						and(eq(goals.projectId, proj[0].id), eq(goals.status, "active")),
-					)
+					.where(and(eq(goals.projectId, proj[0].id), eq(goals.status, "active")))
 					.orderBy(asc(goals.createdAt))
 					.limit(1);
 
@@ -385,9 +353,7 @@ export function createTools(db: MinniDB) {
 							`► Task IN_PROGRESS: [T${activeTask[0].id}] ${activeTask[0].title} (${activeTask[0].priority})`,
 						);
 					if (nearestGoal[0])
-						focus.push(
-							`► Nearest Goal: [G${nearestGoal[0].id}] ${nearestGoal[0].title}`,
-						);
+						focus.push(`► Nearest Goal: [G${nearestGoal[0].id}] ${nearestGoal[0].title}`);
 					sections.push(focus.join("\n") + "\n");
 				}
 
@@ -418,10 +384,7 @@ export function createTools(db: MinniDB) {
 			description:
 				"Search memories across all dimensions: title, content, tags, path segments. With active project: returns project results + global results (excluding project). Without active project: returns all.",
 			args: {
-				query: tool.schema
-					.string()
-					.optional()
-					.describe("Search text. Omit to list all."),
+				query: tool.schema.string().optional().describe("Search text. Omit to list all."),
 				type: tool.schema
 					.string()
 					.optional()
@@ -500,17 +463,13 @@ export function createTools(db: MinniDB) {
 				// With active project: two queries
 				const [projectResults, netherResults] = await Promise.all([
 					searchMemories(sql`m.project_id = ${activeProj.id}`),
-					searchMemories(
-						sql`(m.project_id IS NULL OR m.project_id != ${activeProj.id})`,
-					),
+					searchMemories(sql`(m.project_id IS NULL OR m.project_id != ${activeProj.id})`),
 				]);
 
 				const sections: string[] = [];
 
 				if (projectResults.length > 0) {
-					sections.push(
-						`## In Project: ${activeProj.name} (${projectResults.length} matches)`,
-					);
+					sections.push(`## In Project: ${activeProj.name} (${projectResults.length} matches)`);
 					sections.push(projectResults.map(formatRow).join("\n"));
 				}
 
@@ -552,11 +511,7 @@ export function createTools(db: MinniDB) {
 				id: tool.schema.number().describe("Memory ID"),
 			},
 			async execute(args) {
-				const mem = await db
-					.select()
-					.from(memories)
-					.where(eq(memories.id, args.id))
-					.limit(1);
+				const mem = await db.select().from(memories).where(eq(memories.id, args.id)).limit(1);
 
 				if (!mem[0]) return `Memory ${args.id} not found.`;
 				if (mem[0].permission === "locked")
@@ -569,10 +524,7 @@ export function createTools(db: MinniDB) {
         `);
 				const tagNames = memTags.map((t) => t.name);
 
-				const lines: string[] = [
-					`## [${mem[0].id}] ${mem[0].title}`,
-					`Type: ${mem[0].type}`,
-				];
+				const lines: string[] = [`## [${mem[0].id}] ${mem[0].title}`, `Type: ${mem[0].type}`];
 				if (mem[0].path) lines.push(`Path: ${mem[0].path}`);
 				lines.push(`Status: ${mem[0].status}`);
 				lines.push(`Permission: ${mem[0].permission}`);
@@ -599,10 +551,7 @@ export function createTools(db: MinniDB) {
 					.describe(
 						'Classification pipe, e.g. "Combat -> Titan -> Colossal" or "Config -> Auth -> OAuth"',
 					),
-				project: tool.schema
-					.string()
-					.optional()
-					.describe("Project name. Default: active project."),
+				project: tool.schema.string().optional().describe("Project name. Default: active project."),
 				status: tool.schema
 					.string()
 					.optional()
@@ -628,11 +577,7 @@ export function createTools(db: MinniDB) {
 					if (statusErr) return statusErr;
 				}
 				if (args.permission) {
-					const permErr = validateEnum(
-						args.permission,
-						MEMORY_PERMISSIONS,
-						"permission",
-					);
+					const permErr = validateEnum(args.permission, MEMORY_PERMISSIONS, "permission");
 					if (permErr) return permErr;
 				}
 
@@ -649,11 +594,7 @@ export function createTools(db: MinniDB) {
 					resolvedPermission = fullProj[0]?.defaultMemoryPermission ?? undefined;
 				}
 				if (!resolvedPermission) {
-					const ctx = await db
-						.select()
-						.from(globalContext)
-						.where(eq(globalContext.id, 1))
-						.limit(1);
+					const ctx = await db.select().from(globalContext).where(eq(globalContext.id, 1)).limit(1);
 					if (ctx[0]?.preferences) {
 						try {
 							const prefs = JSON.parse(ctx[0].preferences);
@@ -665,7 +606,7 @@ export function createTools(db: MinniDB) {
 				}
 				resolvedPermission = resolvedPermission ?? "guarded";
 
-				// NOTE: createdAt/updatedAt passed explicitly — Turso driver (beta) ignores SQLite DEFAULT expressions
+				// NOTE: createdAt/updatedAt passed explicitly. Turso driver (beta) ignores SQLite DEFAULT expressions
 				const result = await db
 					.insert(memories)
 					.values({
@@ -688,7 +629,10 @@ export function createTools(db: MinniDB) {
 				}
 
 				if (args.tags) {
-					const tagNames = args.tags.split(",").map((t) => t.trim()).filter(Boolean);
+					const tagNames = args.tags
+						.split(",")
+						.map((t) => t.trim())
+						.filter(Boolean);
 					await saveTags(db, memId, tagNames);
 				}
 
@@ -707,20 +651,11 @@ export function createTools(db: MinniDB) {
 				status: tool.schema
 					.string()
 					.optional()
-					.describe(
-						"New maturity: draft, experimental, proven, battle_tested, deprecated",
-					),
-				tags: tool.schema
-					.string()
-					.optional()
-					.describe("Replace tags. Comma-separated."),
+					.describe("New maturity: draft, experimental, proven, battle_tested, deprecated"),
+				tags: tool.schema.string().optional().describe("Replace tags. Comma-separated."),
 			},
 			async execute(args, context) {
-				const mem = await db
-					.select()
-					.from(memories)
-					.where(eq(memories.id, args.id))
-					.limit(1);
+				const mem = await db.select().from(memories).where(eq(memories.id, args.id)).limit(1);
 
 				if (!mem[0]) return `Memory ${args.id} not found.`;
 
@@ -749,12 +684,15 @@ export function createTools(db: MinniDB) {
 
 						if (args.tags) {
 							await db.delete(memoryTags).where(eq(memoryTags.memoryId, args.id));
-							const tagNames = args.tags.split(",").map((t) => t.trim()).filter(Boolean);
+							const tagNames = args.tags
+								.split(",")
+								.map((t) => t.trim())
+								.filter(Boolean);
 							await saveTags(db, args.id, tagNames);
 						}
 
 						return `Updated: [${args.id}] ${args.title ?? mem[0].title}`;
-					}
+					},
 				);
 
 				return result.ok ? result.result : result.error;
@@ -765,25 +703,11 @@ export function createTools(db: MinniDB) {
 			description:
 				"Get, create, update, delete, or list goals for a project. Delete cascades to milestones and tasks.",
 			args: {
-				action: tool.schema
-					.string()
-					.describe("Action: get, create, update, delete, list"),
-				project: tool.schema
-					.string()
-					.optional()
-					.describe("Project name. Default: active project."),
-				id: tool.schema
-					.number()
-					.optional()
-					.describe("Goal ID (for get/update/delete)"),
-				title: tool.schema
-					.string()
-					.optional()
-					.describe("Goal title (for create)"),
-				description: tool.schema
-					.string()
-					.optional()
-					.describe("Goal description"),
+				action: tool.schema.string().describe("Action: get, create, update, delete, list"),
+				project: tool.schema.string().optional().describe("Project name. Default: active project."),
+				id: tool.schema.number().optional().describe("Goal ID (for get/update/delete)"),
+				title: tool.schema.string().optional().describe("Goal title (for create)"),
+				description: tool.schema.string().optional().describe("Goal description"),
 				status: tool.schema
 					.string()
 					.optional()
@@ -815,11 +739,7 @@ export function createTools(db: MinniDB) {
 
 				if (args.action === "update") {
 					if (!args.id) return "Goal ID is required.";
-					const goal = await db
-						.select()
-						.from(goals)
-						.where(eq(goals.id, args.id))
-						.limit(1);
+					const goal = await db.select().from(goals).where(eq(goals.id, args.id)).limit(1);
 					if (!goal[0]) return `Goal ${args.id} not found.`;
 					const updates: Record<string, unknown> = { updatedAt: new Date() };
 					if (args.title) updates.title = args.title;
@@ -831,23 +751,15 @@ export function createTools(db: MinniDB) {
 
 				if (args.action === "delete") {
 					if (!args.id) return "Goal ID is required.";
-					const goal = await db
-						.select()
-						.from(goals)
-						.where(eq(goals.id, args.id))
-						.limit(1);
+					const goal = await db.select().from(goals).where(eq(goals.id, args.id)).limit(1);
 					if (!goal[0]) return `Goal ${args.id} not found.`;
 					await db.delete(goals).where(eq(goals.id, args.id));
 					return `Deleted: [G${args.id}] ${goal[0].title} (milestones and tasks cascaded)`;
-                }
+				}
 
 				if (args.action === "get") {
 					if (!args.id) return "Goal ID is required.";
-					const goal = await db
-						.select()
-						.from(goals)
-						.where(eq(goals.id, args.id))
-						.limit(1);
+					const goal = await db.select().from(goals).where(eq(goals.id, args.id)).limit(1);
 					if (!goal[0]) return `Goal ${args.id} not found.`;
 
 					const lines: string[] = [
@@ -870,9 +782,7 @@ export function createTools(db: MinniDB) {
 						.where(eq(goals.projectId, proj.id))
 						.orderBy(asc(goals.createdAt));
 					if (all.length === 0) return "No goals.";
-					return all
-						.map((g) => `[G${g.id}] ${g.title} — ${g.status}`)
-						.join("\n");
+					return all.map((g) => `[G${g.id}] ${g.title} — ${g.status}`).join("\n");
 				}
 
 				return "Unknown action. Use: get, create, update, delete, list";
@@ -883,22 +793,11 @@ export function createTools(db: MinniDB) {
 			description:
 				"Get, create, update, delete, or list milestones for a goal. Delete cascades to tasks.",
 			args: {
-				action: tool.schema
-					.string()
-					.describe("Action: get, create, update, delete, list"),
-				goal_id: tool.schema
-					.number()
-					.optional()
-					.describe("Parent goal ID (for create/list)"),
-				id: tool.schema
-					.number()
-					.optional()
-					.describe("Milestone ID (for get/update/delete)"),
+				action: tool.schema.string().describe("Action: get, create, update, delete, list"),
+				goal_id: tool.schema.number().optional().describe("Parent goal ID (for create/list)"),
+				id: tool.schema.number().optional().describe("Milestone ID (for get/update/delete)"),
 				title: tool.schema.string().optional().describe("Milestone title"),
-				description: tool.schema
-					.string()
-					.optional()
-					.describe("Milestone description"),
+				description: tool.schema.string().optional().describe("Milestone description"),
 				status: tool.schema
 					.string()
 					.optional()
@@ -914,14 +813,10 @@ export function createTools(db: MinniDB) {
 					if (!args.title) return "Title is required.";
 
 					// Validate goal exists (milestone inherits project from goal)
-					const goal = await db
-						.select()
-						.from(goals)
-						.where(eq(goals.id, args.goal_id))
-						.limit(1);
+					const goal = await db.select().from(goals).where(eq(goals.id, args.goal_id)).limit(1);
 					if (!goal[0]) return `Goal ${args.goal_id} not found.`;
 
-					// NOTE: createdAt/updatedAt passed explicitly — Turso driver (beta) ignores SQLite DEFAULT expressions
+					// NOTE: createdAt/updatedAt passed explicitly. Turso driver (beta) ignores SQLite DEFAULT expressions
 					const result = await db
 						.insert(milestones)
 						.values({
@@ -947,10 +842,7 @@ export function createTools(db: MinniDB) {
 					if (args.title) updates.title = args.title;
 					if (args.description) updates.description = args.description;
 					if (args.status) updates.status = args.status;
-					await db
-						.update(milestones)
-						.set(updates)
-						.where(eq(milestones.id, args.id));
+					await db.update(milestones).set(updates).where(eq(milestones.id, args.id));
 					return `Milestone updated: [M${args.id}]`;
 				}
 
@@ -999,9 +891,7 @@ export function createTools(db: MinniDB) {
 						.where(eq(milestones.goalId, args.goal_id))
 						.orderBy(asc(milestones.createdAt));
 					if (all.length === 0) return "No milestones.";
-					return all
-						.map((m) => `[M${m.id}] ${m.title} — ${m.status}`)
-						.join("\n");
+					return all.map((m) => `[M${m.id}] ${m.title} — ${m.status}`).join("\n");
 				}
 
 				return "Unknown action. Use: get, create, update, delete, list";
@@ -1012,24 +902,13 @@ export function createTools(db: MinniDB) {
 			description:
 				"Get, create, update, delete, or list tasks. Tasks can belong to a project, goal, milestone, or be standalone.",
 			args: {
-				action: tool.schema
-					.string()
-					.describe("Action: get, create, update, delete, list"),
-				id: tool.schema
-					.number()
-					.optional()
-					.describe("Task ID (for get/update/delete)"),
+				action: tool.schema.string().describe("Action: get, create, update, delete, list"),
+				id: tool.schema.number().optional().describe("Task ID (for get/update/delete)"),
 				project: tool.schema.string().optional().describe("Project name"),
 				goal_id: tool.schema.number().optional().describe("Parent goal ID"),
-				milestone_id: tool.schema
-					.number()
-					.optional()
-					.describe("Parent milestone ID"),
+				milestone_id: tool.schema.number().optional().describe("Parent milestone ID"),
 				title: tool.schema.string().optional().describe("Task title"),
-				description: tool.schema
-					.string()
-					.optional()
-					.describe("Task description"),
+				description: tool.schema.string().optional().describe("Task description"),
 				priority: tool.schema
 					.string()
 					.optional()
@@ -1070,11 +949,7 @@ export function createTools(db: MinniDB) {
 						derivedProjectId = milestone[0].goals.projectId;
 					} else if (args.goal_id) {
 						// Level 2: Under goal — derive project from goal
-						const goal = await db
-							.select()
-							.from(goals)
-							.where(eq(goals.id, args.goal_id))
-							.limit(1);
+						const goal = await db.select().from(goals).where(eq(goals.id, args.goal_id)).limit(1);
 						if (!goal[0]) return `Goal ${args.goal_id} not found.`;
 						derivedGoalId = args.goal_id;
 						derivedProjectId = goal[0].projectId;
@@ -1105,11 +980,7 @@ export function createTools(db: MinniDB) {
 
 				if (args.action === "update") {
 					if (!args.id) return "Task ID is required.";
-					const task = await db
-						.select()
-						.from(tasks)
-						.where(eq(tasks.id, args.id))
-						.limit(1);
+					const task = await db.select().from(tasks).where(eq(tasks.id, args.id)).limit(1);
 					if (!task[0]) return `Task ${args.id} not found.`;
 					const updates: Record<string, unknown> = { updatedAt: new Date() };
 					if (args.title) updates.title = args.title;
@@ -1122,11 +993,7 @@ export function createTools(db: MinniDB) {
 
 				if (args.action === "delete") {
 					if (!args.id) return "Task ID is required.";
-					const task = await db
-						.select()
-						.from(tasks)
-						.where(eq(tasks.id, args.id))
-						.limit(1);
+					const task = await db.select().from(tasks).where(eq(tasks.id, args.id)).limit(1);
 					if (!task[0]) return `Task ${args.id} not found.`;
 					await db.delete(tasks).where(eq(tasks.id, args.id));
 					return `Deleted: [T${args.id}] ${task[0].title}`;
@@ -1134,11 +1001,7 @@ export function createTools(db: MinniDB) {
 
 				if (args.action === "get") {
 					if (!args.id) return "Task ID is required.";
-					const task = await db
-						.select()
-						.from(tasks)
-						.where(eq(tasks.id, args.id))
-						.limit(1);
+					const task = await db.select().from(tasks).where(eq(tasks.id, args.id)).limit(1);
 					if (!task[0]) return `Task ${args.id} not found.`;
 
 					const lines: string[] = [
@@ -1157,11 +1020,7 @@ export function createTools(db: MinniDB) {
 					}
 
 					if (task[0].goalId) {
-						const goal = await db
-							.select()
-							.from(goals)
-							.where(eq(goals.id, task[0].goalId))
-							.limit(1);
+						const goal = await db.select().from(goals).where(eq(goals.id, task[0].goalId)).limit(1);
 						if (goal[0]) lines.push(`Goal: [G${goal[0].id}] ${goal[0].title}`);
 					}
 
@@ -1212,19 +1071,12 @@ export function createTools(db: MinniDB) {
 							.where(eq(tasks.projectId, proj.id))
 							.orderBy(desc(tasks.createdAt));
 					} else {
-						all = await db
-							.select()
-							.from(tasks)
-							.orderBy(desc(tasks.createdAt))
-							.limit(20);
+						all = await db.select().from(tasks).orderBy(desc(tasks.createdAt)).limit(20);
 					}
 
 					if (all.length === 0) return "No tasks.";
 					return all
-						.map(
-							(t) =>
-								`[T${t.id}] [${t.priority.toUpperCase()}] ${t.title} — ${t.status}`,
-						)
+						.map((t) => `[T${t.id}] [${t.priority.toUpperCase()}] ${t.title} — ${t.status}`)
 						.join("\n");
 				}
 
@@ -1239,11 +1091,7 @@ export function createTools(db: MinniDB) {
 				id: tool.schema.number().describe("Memory ID to delete"),
 			},
 			async execute(args, context) {
-				const mem = await db
-					.select()
-					.from(memories)
-					.where(eq(memories.id, args.id))
-					.limit(1);
+				const mem = await db.select().from(memories).where(eq(memories.id, args.id)).limit(1);
 
 				if (!mem[0]) return `Memory ${args.id} not found.`;
 
@@ -1256,7 +1104,7 @@ export function createTools(db: MinniDB) {
 						await db.delete(memoryPaths).where(eq(memoryPaths.memoryId, args.id));
 						await db.delete(memories).where(eq(memories.id, args.id));
 						return `Deleted: [${args.id}] ${mem[0].title}`;
-					}
+					},
 				);
 
 				return result.ok ? result.result : result.error;
@@ -1267,9 +1115,7 @@ export function createTools(db: MinniDB) {
 			description:
 				"Save or overwrite context summary. With active project: updates project context. Without project: updates global context.",
 			args: {
-				summary: tool.schema
-					.string()
-					.describe("Session summary / context narrative"),
+				summary: tool.schema.string().describe("Session summary / context narrative"),
 				project: tool.schema
 					.string()
 					.optional()
@@ -1292,11 +1138,7 @@ export function createTools(db: MinniDB) {
 				}
 
 				// Get full project with permission
-				const proj = await db
-					.select()
-					.from(projects)
-					.where(eq(projects.id, resolved.id))
-					.limit(1);
+				const proj = await db.select().from(projects).where(eq(projects.id, resolved.id)).limit(1);
 				if (!proj[0]) return "Project not found.";
 
 				const result = await guardedAction(
@@ -1313,10 +1155,66 @@ export function createTools(db: MinniDB) {
 							})
 							.where(eq(projects.id, proj[0].id));
 						return `Context updated for ${proj[0].name}`;
-					}
+					},
 				);
 
 				return result.ok ? result.result : result.error;
+			},
+		}),
+
+		minni_canvas: tool({
+			description:
+				"Send markdown content to the Minni Viewer canvas for beautiful rendering. Use this to show formatted content, code, tables, or any markdown to the user without creating files.",
+			args: {
+				content: tool.schema.string().describe("Markdown content to display in the canvas"),
+				action: tool.schema
+					.string()
+					.optional()
+					.describe(
+						"Action: show (default), open (show + open browser), save (show + save as memory)",
+					),
+			},
+			async execute(args) {
+				const action = args.action ?? "show";
+				const viewerPort = getViewerPort();
+
+				if (!viewerPort) {
+					return "Minni Viewer is not running. Restart OpenCode to start the viewer.";
+				}
+
+				const viewerUrl = `http://localhost:${viewerPort}`;
+
+				// Send content to viewer
+				try {
+					const response = await fetch(`${viewerUrl}/canvas/push`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ content: args.content }),
+					});
+
+					if (!response.ok) {
+						return `Failed to send to canvas: ${response.statusText}. Is the viewer running?`;
+					}
+
+					await response.json();
+
+					if (action === "open") {
+						// Open browser - works on Linux (xdg-open), macOS (open), Windows (start)
+						const { platform } = process;
+						const cmd =
+							platform === "darwin" ? "open" : platform === "win32" ? "start" : "xdg-open";
+						Bun.spawn([cmd, viewerUrl]);
+					}
+
+					if (action === "save") {
+						// TODO: Implement save to memory
+						return `Content sent to canvas (${args.content.length} chars). Save to memory: coming soon. View at ${viewerUrl}`;
+					}
+
+					return `Content sent to canvas (${args.content.length} chars). View at ${viewerUrl}`;
+				} catch (e) {
+					return `Error connecting to viewer at ${viewerUrl}: ${e instanceof Error ? e.message : String(e)}. Make sure OpenCode started the Minni plugin.`;
+				}
 			},
 		}),
 	};

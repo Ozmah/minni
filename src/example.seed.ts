@@ -121,12 +121,13 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-import { drizzle } from "drizzle-orm/tursodatabase/database";
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/tursodatabase/database";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { globalContext, projects } from "./schema";
+
 import { initializeDatabase } from "./init";
+import { globalContext, projects } from "./schema";
 // ============================================================================
 // IDENTITY
 // ============================================================================
@@ -353,9 +354,7 @@ async function seed() {
 	console.log("  Identity: configured");
 	console.log("  Preferences: configured");
 	console.log(
-		INITIAL_CONTEXT_SUMMARY
-			? "  Context summary: set"
-			: "  Context summary: empty (fresh start)",
+		INITIAL_CONTEXT_SUMMARY ? "  Context summary: set" : "  Context summary: empty (fresh start)",
 	);
 	console.log();
 
