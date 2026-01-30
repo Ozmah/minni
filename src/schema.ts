@@ -150,91 +150,28 @@ export const memories = sqliteTable("memories", {
 });
 
 /**
- * Long-term objectives that belong to a project.
+ * Specific actionable items — work to be done.
  *
- * Goals sit at the top of the planning hierarchy: Project > Goal > Milestone > Task.
- * A goal always belongs to a project and can have multiple milestones beneath it.
+ * Tasks are separate from memories: memories are knowledge that matures,
+ * tasks are work items that get completed. Different lifecycles, different purposes.
  *
- * @example
- * // project: "vault-101"
- * { title: "Escape the Vault", description: "Find dad and get out of Vault 101 alive" }
- *
- * // project: "nakatomi-plaza"
- * { title: "Neutralize Hans Gruber", description: "Save hostages from the 30th floor" }
- *
- * @field id - Auto-incrementing primary key.
- * @field projectId - FK to projects.id. Required — goals cannot be standalone.
- * @field title - Short description of the objective.
- * @field description - Detailed explanation or acceptance criteria.
- * @field status - Lifecycle state: "active" | "completed" | "paused" | "cancelled".
- * @field createdAt - Row creation timestamp in milliseconds since epoch.
- * @field updatedAt - Last modification timestamp in milliseconds since epoch.
- */
-export const goals = sqliteTable("goals", {
-	id: integer("id").primaryKey({ autoIncrement: true }),
-	projectId: integer("project_id")
-		.notNull()
-		.references(() => projects.id, { onDelete: "cascade" }),
-	title: text("title").notNull(),
-	description: text("description"),
-	status: text("status").notNull().default("active"),
-	...timestamp,
-});
-
-/**
- * Intermediate checkpoints within a goal.
- *
- * Milestones break a goal into measurable progress markers.
- * They always belong to a goal and can have tasks beneath them.
+ * Tasks support hierarchy via parent_id for subtasks:
+ * - Top-level task: parent_id = null
+ * - Subtask: parent_id = parent task's id
  *
  * @example
- * // goal: "Escape the Vault"
- * { title: "Obtain the Pip-Boy", status: "completed" }
- * { title: "Reach the Vault door", status: "active" }
- * { title: "Survive the Wasteland entrance", status: "active" }
+ * // Project-scoped task
+ * { title: "Implement auth flow", priority: "high", status: "in_progress", projectId: 1 }
  *
- * @field id - Auto-incrementing primary key.
- * @field goalId - FK to goals.id. Required — milestones cannot be standalone.
- * @field title - Short description of the checkpoint.
- * @field description - Detailed explanation or deliverables.
- * @field status - Lifecycle state: "active" | "completed" | "paused" | "cancelled".
- * @field createdAt - Row creation timestamp in milliseconds since epoch.
- * @field updatedAt - Last modification timestamp in milliseconds since epoch.
- */
-export const milestones = sqliteTable("milestones", {
-	id: integer("id").primaryKey({ autoIncrement: true }),
-	goalId: integer("goal_id")
-		.notNull()
-		.references(() => goals.id, { onDelete: "cascade" }),
-	title: text("title").notNull(),
-	description: text("description"),
-	status: text("status").notNull().default("active"),
-	...timestamp,
-});
-
-/**
- * Specific actionable items. The most flexible entity in the planning system.
+ * // Subtask under a parent
+ * { title: "Add OAuth providers", priority: "medium", status: "todo", parentId: 42 }
  *
- * A task can belong to any level of the hierarchy or none at all:
- * - Attached to a milestone (most specific)
- * - Attached to a goal directly (skipping milestones)
- * - Attached to a project directly (general project work)
- * - Standalone (floating task, no parent)
- *
- * @example
- * // milestone-scoped: "Reach the Vault door"
- * { title: "Get the password from the Overseer's terminal", priority: "high", status: "in_progress" }
- *
- * // project-scoped, no milestone: "nerv-hq"
- * { title: "Calibrate Unit-01 sync ratio", priority: "medium", status: "todo" }
- *
- * // standalone, floating
+ * // Standalone floating task
  * { title: "Remember to feed Ein", priority: "low", status: "todo" }
  *
  * @field id - Auto-incrementing primary key.
  * @field projectId - FK to projects.id. Null for standalone tasks.
- * @field goalId - FK to goals.id. Null if not goal-scoped.
- * @field milestoneId - FK to milestones.id. Null if not milestone-scoped.
+ * @field parentId - FK to tasks.id. Null for top-level tasks. Creates subtask hierarchy.
  * @field title - Short description of the action.
  * @field description - Detailed explanation, steps, or acceptance criteria.
  * @field priority - Urgency level: "high" | "medium" | "low". Defaults to "medium".
@@ -247,10 +184,7 @@ export const tasks = sqliteTable("tasks", {
 	projectId: integer("project_id").references(() => projects.id, {
 		onDelete: "cascade",
 	}),
-	goalId: integer("goal_id").references(() => goals.id, {
-		onDelete: "cascade",
-	}),
-	milestoneId: integer("milestone_id").references(() => milestones.id, {
+	parentId: integer("parent_id").references((): any => tasks.id, {
 		onDelete: "cascade",
 	}),
 	title: text("title").notNull(),

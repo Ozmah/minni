@@ -7,6 +7,8 @@
 		<link rel="stylesheet" href="/styles.css" />
 		<!-- Marked for markdown rendering -->
 		<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+		<!-- DOMPurify for XSS sanitization -->
+		<script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
 		<!-- Prism for syntax highlighting -->
 		<link
 			rel="stylesheet"
@@ -54,7 +56,6 @@
 						<option value="memories">Memories</option>
 						<option value="projects">Projects</option>
 						<option value="tasks">Tasks</option>
-						<option value="goals">Goals</option>
 					</select>
 					<select id="project-filter">
 						<option value="">All Projects</option>
@@ -129,8 +130,9 @@
 			}
 
 			function renderCanvas(markdown) {
-				const html = marked.parse(markdown);
-				$("#canvas-content").innerHTML = html;
+				const rawHtml = marked.parse(markdown);
+				const cleanHtml = DOMPurify.sanitize(rawHtml);
+				$("#canvas-content").innerHTML = cleanHtml;
 				// Highlight code blocks
 				$$("#canvas-content pre code").forEach((block) => {
 					Prism.highlightElement(block);
@@ -146,7 +148,6 @@
           <span>Memories: ${stats.memories}</span>
           <span>Projects: ${stats.projects}</span>
           <span>Tasks: ${stats.tasks}</span>
-          <span>Goals: ${stats.goals}</span>
         `;
 				} catch (e) {
 					$("#stats").textContent = "Error loading stats";
@@ -198,7 +199,6 @@
 					memories: ["id", "type", "title", "status", "permission", "updatedAt"],
 					projects: ["id", "name", "status", "stack", "updatedAt"],
 					tasks: ["id", "title", "priority", "status", "updatedAt"],
-					goals: ["id", "title", "status", "updatedAt"],
 				};
 
 				const cols = columns[table] || Object.keys(data[0]);
@@ -264,7 +264,7 @@
             <span class="badge">${memory.permission}</span>
           </div>
           ${memory.path ? `<p class="memory-path">${memory.path}</p>` : ""}
-          <div class="memory-content">${marked.parse(memory.content)}</div>
+          <div class="memory-content">${DOMPurify.sanitize(marked.parse(memory.content))}</div>
         `;
 
 					$("#memory-detail").innerHTML = html;

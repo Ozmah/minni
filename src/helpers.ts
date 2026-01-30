@@ -39,8 +39,6 @@ export const TASK_PRIORITIES = ["high", "medium", "low"] as const;
 
 export const TASK_STATUSES = ["todo", "in_progress", "done", "cancelled"] as const;
 
-export const GOAL_STATUSES = ["active", "completed", "paused", "cancelled"] as const;
-
 /** Validates a value against an allowed set. Returns the value if valid, or an error string. */
 export function validateEnum(
 	value: string,

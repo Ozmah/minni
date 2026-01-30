@@ -1,5 +1,5 @@
 import { tool } from "@opencode-ai/plugin";
-import { sql, count, eq, and, desc, asc } from "drizzle-orm";
+import { sql, count, eq, and, desc } from "drizzle-orm";
 
 import { getViewerPort } from "../viewer/server";
 import {
@@ -19,18 +19,8 @@ import {
 	PROJECT_STATUSES,
 	TASK_PRIORITIES,
 	TASK_STATUSES,
-	GOAL_STATUSES,
 } from "./helpers";
-import {
-	projects,
-	memories,
-	goals,
-	milestones,
-	tasks,
-	memoryTags,
-	memoryPaths,
-	globalContext,
-} from "./schema";
+import { projects, memories, tasks, memoryTags, memoryPaths, globalContext } from "./schema";
 
 /**
  * Creates all Minni tools bound to a specific database instance.
@@ -39,39 +29,29 @@ import {
 export function createTools(db: MinniDB) {
 	return {
 		minni_project: tool({
-			description:
-				"Create, update, delete (soft), or list projects. Delete sets status to 'deleted' — hard delete via Minni Studio or direct DB access.",
+			description: "CRUD projects. Output: `[P{id}] {name} — {status}`",
 			args: {
-				action: tool.schema.string().describe("Action: create, update, delete, list"),
+				action: tool.schema.enum(["create", "update", "delete", "list"]),
 				name: tool.schema
 					.string()
 					.optional()
-					.describe(
-						"Project name. Normalized to lowercase + hyphens (e.g. 'vault-101', 'nerv-hq')",
-					),
-				description: tool.schema.string().optional().describe("What the project is about"),
+					.describe("Required for create/update/delete. Normalized to lowercase + hyphens"),
+				description: tool.schema.string().optional(),
 				stack: tool.schema
 					.string()
 					.optional()
 					.describe(
-						'Comma-separated tools or technologies, e.g. "TanStack Start, ElysiaJS" or "Pip-Boy, VATS, Power Armor"',
+						"Comma-separated, e.g. 'TanStack Start, ElysiaJS, Bun' or 'Dutch Oven, Stand Mixer' or 'Stethoscope, Otoscope, EKG'",
 					),
-				status: tool.schema
-					.string()
-					.optional()
-					.describe("Status: active, paused, completed, archived"),
+				status: tool.schema.enum(["active", "paused", "completed", "archived"]).optional(),
 				permission: tool.schema
-					.string()
+					.enum(["open", "guarded", "read_only", "locked"])
 					.optional()
-					.describe(
-						"Permission for the project itself: open, guarded, read_only, locked. Default: guarded",
-					),
+					.describe("Default: guarded"),
 				default_memory_permission: tool.schema
-					.string()
+					.enum(["open", "guarded", "read_only", "locked"])
 					.optional()
-					.describe(
-						"Permission inherited by new memories: open, guarded, read_only, locked. Default: guarded",
-					),
+					.describe("Inherited by new memories. Default: guarded"),
 			},
 			async execute(args, context) {
 				if (args.action === "create") {
@@ -201,7 +181,7 @@ export function createTools(db: MinniDB) {
 		}),
 
 		minni_ping: tool({
-			description: "Check Minni database connection and show stats",
+			description: "DB health check + stats",
 			args: {},
 			async execute() {
 				const memoryCount = await db.select({ total: count() }).from(memories);
@@ -223,13 +203,9 @@ export function createTools(db: MinniDB) {
 		}),
 
 		minni_load: tool({
-			description:
-				"Load a project context or return to global mode. With project: loads project briefing. Without project: exits to global mode with system overview.",
+			description: "Load project context or exit to global mode. Output: briefing + inventory",
 			args: {
-				project: tool.schema
-					.string()
-					.optional()
-					.describe("Project name to load. Omit to return to global mode."),
+				project: tool.schema.string().optional().describe("Omit to exit to global mode"),
 			},
 			async execute(args) {
 				// No project = global mode
@@ -304,29 +280,11 @@ export function createTools(db: MinniDB) {
 					.where(and(eq(tasks.projectId, proj[0].id), eq(tasks.status, "in_progress")))
 					.limit(1);
 
-				const nearestGoal = await db
-					.select()
-					.from(goals)
-					.where(and(eq(goals.projectId, proj[0].id), eq(goals.status, "active")))
-					.orderBy(asc(goals.createdAt))
-					.limit(1);
-
 				const taskCounts = await db
 					.select({ status: tasks.status, total: count() })
 					.from(tasks)
 					.where(eq(tasks.projectId, proj[0].id))
 					.groupBy(tasks.status);
-
-				const goalCount = await db
-					.select({ total: count() })
-					.from(goals)
-					.where(eq(goals.projectId, proj[0].id));
-
-				const milestoneCount = await db
-					.select({ total: count() })
-					.from(milestones)
-					.innerJoin(goals, eq(milestones.goalId, goals.id))
-					.where(eq(goals.projectId, proj[0].id));
 
 				const sections: string[] = [];
 
@@ -346,14 +304,11 @@ export function createTools(db: MinniDB) {
 					sections.push(`### Last Context\n${proj[0].contextSummary}\n`);
 				}
 
-				if (activeTask[0] || nearestGoal[0]) {
+				if (activeTask[0]) {
 					const focus: string[] = ["### Active Focus"];
-					if (activeTask[0])
-						focus.push(
-							`► Task IN_PROGRESS: [T${activeTask[0].id}] ${activeTask[0].title} (${activeTask[0].priority})`,
-						);
-					if (nearestGoal[0])
-						focus.push(`► Nearest Goal: [G${nearestGoal[0].id}] ${nearestGoal[0].title}`);
+					focus.push(
+						`► Task IN_PROGRESS: [T${activeTask[0].id}] ${activeTask[0].title} (${activeTask[0].priority})`,
+					);
 					sections.push(focus.join("\n") + "\n");
 				}
 
@@ -366,14 +321,12 @@ export function createTools(db: MinniDB) {
 				} else {
 					inventory.push("- Memories: 0");
 				}
-				inventory.push(`- Goals: ${goalCount[0].total}`);
 
 				const taskTotal = taskCounts.reduce((sum, c) => sum + c.total, 0);
 				const pendingTasks = taskCounts.find((c) => c.status === "todo");
 				inventory.push(
 					`- Tasks: ${taskTotal}${pendingTasks ? ` (${pendingTasks.total} pending)` : ""}`,
 				);
-				inventory.push(`- Milestones: ${milestoneCount[0].total}`);
 				sections.push(inventory.join("\n"));
 
 				return sections.join("\n");
@@ -382,15 +335,24 @@ export function createTools(db: MinniDB) {
 
 		minni_find: tool({
 			description:
-				"Search memories across all dimensions: title, content, tags, path segments. With active project: returns project results + global results (excluding project). Without active project: returns all.",
+				"Search memories by title/content/tags/path. For tasks → minni_task. Output: `[{id}] [{type}] {title}`",
 			args: {
-				query: tool.schema.string().optional().describe("Search text. Omit to list all."),
+				query: tool.schema.string().optional().describe("Omit to list all"),
 				type: tool.schema
-					.string()
-					.optional()
-					.describe(
-						"Filter by memory type: skill, pattern, anti_pattern, decision, insight, comparison, note, link, article, video, documentation",
-					),
+					.enum([
+						"skill",
+						"pattern",
+						"anti_pattern",
+						"decision",
+						"insight",
+						"comparison",
+						"note",
+						"link",
+						"article",
+						"video",
+						"documentation",
+					])
+					.optional(),
 			},
 			async execute(args) {
 				const activeProj = getActiveProject();
@@ -506,9 +468,9 @@ export function createTools(db: MinniDB) {
 		}),
 
 		minni_get: tool({
-			description: "Load a specific memory by ID with full content.",
+			description: "Load memory by ID. For tasks → minni_task action:get",
 			args: {
-				id: tool.schema.number().describe("Memory ID"),
+				id: tool.schema.number(),
 			},
 			async execute(args) {
 				const mem = await db.select().from(memories).where(eq(memories.id, args.id)).limit(1);
@@ -536,38 +498,38 @@ export function createTools(db: MinniDB) {
 		}),
 
 		minni_save: tool({
-			description: "Save a new memory to Minni.",
+			description:
+				"Create memory (knowledge). For tasks → minni_task. Output: `[{id}] [{type}] {title}`",
 			args: {
-				type: tool.schema
-					.string()
-					.describe(
-						"Memory type: skill, pattern, anti_pattern, decision, insight, comparison, note, link, article, video, documentation",
-					),
-				title: tool.schema.string().describe("Memory title"),
-				content: tool.schema.string().describe("Memory content"),
+				type: tool.schema.enum([
+					"skill",
+					"pattern",
+					"anti_pattern",
+					"decision",
+					"insight",
+					"comparison",
+					"note",
+					"link",
+					"article",
+					"video",
+					"documentation",
+				]),
+				title: tool.schema.string(),
+				content: tool.schema.string(),
 				path: tool.schema
 					.string()
 					.optional()
-					.describe(
-						'Classification pipe, e.g. "Combat -> Titan -> Colossal" or "Config -> Auth -> OAuth"',
-					),
-				project: tool.schema.string().optional().describe("Project name. Default: active project."),
+					.describe("e.g. 'Config -> Auth -> OAuth' or 'Cooking -> Sourdough -> Timing'"),
+				project: tool.schema.string().optional().describe("Default: active project"),
 				status: tool.schema
-					.string()
+					.enum(["draft", "experimental", "proven", "battle_tested", "deprecated"])
 					.optional()
-					.describe(
-						"Maturity: draft, experimental, proven, battle_tested, deprecated. Default: draft",
-					),
+					.describe("Default: draft"),
 				permission: tool.schema
-					.string()
+					.enum(["open", "guarded", "read_only"])
 					.optional()
-					.describe(
-						"Access level: open, guarded, read_only. Cascade: explicit → project.defaultMemoryPermission → preferences → guarded",
-					),
-				tags: tool.schema
-					.string()
-					.optional()
-					.describe("Comma-separated tags, e.g. 'xenomorph, lv-426, survival'"),
+					.describe("Default: project setting or guarded"),
+				tags: tool.schema.string().optional().describe("Comma-separated"),
 			},
 			async execute(args) {
 				const typeErr = validateEnum(args.type, MEMORY_TYPES, "type");
@@ -584,27 +546,28 @@ export function createTools(db: MinniDB) {
 				const proj = await resolveProject(db, args.project);
 
 				// Permission cascade: explicit → project.defaultMemoryPermission → preferences → "guarded"
-				let resolvedPermission = args.permission;
+				type PermissionType = "open" | "guarded" | "read_only";
+				let resolvedPermission: PermissionType | undefined = args.permission;
 				if (!resolvedPermission && proj) {
 					const fullProj = await db
 						.select()
 						.from(projects)
 						.where(eq(projects.id, proj.id))
 						.limit(1);
-					resolvedPermission = fullProj[0]?.defaultMemoryPermission ?? undefined;
+					resolvedPermission = fullProj[0]?.defaultMemoryPermission as PermissionType | undefined;
 				}
 				if (!resolvedPermission) {
 					const ctx = await db.select().from(globalContext).where(eq(globalContext.id, 1)).limit(1);
 					if (ctx[0]?.preferences) {
 						try {
 							const prefs = JSON.parse(ctx[0].preferences);
-							resolvedPermission = prefs?.memory?.defaultPermission;
+							resolvedPermission = prefs?.memory?.defaultPermission as PermissionType | undefined;
 						} catch {
 							// Invalid JSON, ignore
 						}
 					}
 				}
-				resolvedPermission = resolvedPermission ?? "guarded";
+				const finalPermission: PermissionType = resolvedPermission ?? "guarded";
 
 				// NOTE: createdAt/updatedAt passed explicitly. Turso driver (beta) ignores SQLite DEFAULT expressions
 				const result = await db
@@ -616,7 +579,7 @@ export function createTools(db: MinniDB) {
 						content: args.content,
 						path: args.path ?? null,
 						status: args.status ?? "draft",
-						permission: resolvedPermission,
+						permission: finalPermission,
 						createdAt: new Date(),
 						updatedAt: new Date(),
 					})
@@ -641,18 +604,16 @@ export function createTools(db: MinniDB) {
 		}),
 
 		minni_update: tool({
-			description:
-				"Update an existing memory. Cannot change permission or type — use Minni Studio for that.",
+			description: "Update memory. Cannot change type/permission",
 			args: {
-				id: tool.schema.number().describe("Memory ID to update"),
-				title: tool.schema.string().optional().describe("New title"),
-				content: tool.schema.string().optional().describe("New content"),
-				path: tool.schema.string().optional().describe("New path"),
+				id: tool.schema.number(),
+				title: tool.schema.string().optional(),
+				content: tool.schema.string().optional(),
+				path: tool.schema.string().optional(),
 				status: tool.schema
-					.string()
-					.optional()
-					.describe("New maturity: draft, experimental, proven, battle_tested, deprecated"),
-				tags: tool.schema.string().optional().describe("Replace tags. Comma-separated."),
+					.enum(["draft", "experimental", "proven", "battle_tested", "deprecated"])
+					.optional(),
+				tags: tool.schema.string().optional().describe("Replaces existing tags"),
 			},
 			async execute(args, context) {
 				const mem = await db.select().from(memories).where(eq(memories.id, args.id)).limit(1);
@@ -699,224 +660,21 @@ export function createTools(db: MinniDB) {
 			},
 		}),
 
-		minni_goal: tool({
-			description:
-				"Get, create, update, delete, or list goals for a project. Delete cascades to milestones and tasks.",
-			args: {
-				action: tool.schema.string().describe("Action: get, create, update, delete, list"),
-				project: tool.schema.string().optional().describe("Project name. Default: active project."),
-				id: tool.schema.number().optional().describe("Goal ID (for get/update/delete)"),
-				title: tool.schema.string().optional().describe("Goal title (for create)"),
-				description: tool.schema.string().optional().describe("Goal description"),
-				status: tool.schema
-					.string()
-					.optional()
-					.describe("Status: active, completed, paused, cancelled"),
-			},
-			async execute(args) {
-				if (args.status) {
-					const err = validateEnum(args.status, GOAL_STATUSES, "status");
-					if (err) return err;
-				}
-				const proj = await resolveProject(db, args.project);
-				if (!proj) return "No active project. Use minni_load first.";
-
-				if (args.action === "create") {
-					if (!args.title) return "Title is required.";
-					// NOTE: createdAt/updatedAt passed explicitly — Turso driver (beta) ignores SQLite DEFAULT expressions
-					const result = await db
-						.insert(goals)
-						.values({
-							projectId: proj.id,
-							title: args.title,
-							description: args.description ?? null,
-							createdAt: new Date(),
-							updatedAt: new Date(),
-						})
-						.returning({ id: goals.id });
-					return `Goal created: [G${result[0].id}] ${args.title}`;
-				}
-
-				if (args.action === "update") {
-					if (!args.id) return "Goal ID is required.";
-					const goal = await db.select().from(goals).where(eq(goals.id, args.id)).limit(1);
-					if (!goal[0]) return `Goal ${args.id} not found.`;
-					const updates: Record<string, unknown> = { updatedAt: new Date() };
-					if (args.title) updates.title = args.title;
-					if (args.description) updates.description = args.description;
-					if (args.status) updates.status = args.status;
-					await db.update(goals).set(updates).where(eq(goals.id, args.id));
-					return `Goal updated: [G${args.id}]`;
-				}
-
-				if (args.action === "delete") {
-					if (!args.id) return "Goal ID is required.";
-					const goal = await db.select().from(goals).where(eq(goals.id, args.id)).limit(1);
-					if (!goal[0]) return `Goal ${args.id} not found.`;
-					await db.delete(goals).where(eq(goals.id, args.id));
-					return `Deleted: [G${args.id}] ${goal[0].title} (milestones and tasks cascaded)`;
-				}
-
-				if (args.action === "get") {
-					if (!args.id) return "Goal ID is required.";
-					const goal = await db.select().from(goals).where(eq(goals.id, args.id)).limit(1);
-					if (!goal[0]) return `Goal ${args.id} not found.`;
-
-					const lines: string[] = [
-						`## [G${goal[0].id}] ${goal[0].title}`,
-						`Status: ${goal[0].status}`,
-						`Project: ${proj.name}`,
-					];
-
-					if (goal[0].description) {
-						lines.push(`\n---\n\n${goal[0].description}`);
-					}
-
-					return lines.join("\n");
-				}
-
-				if (args.action === "list") {
-					const all = await db
-						.select()
-						.from(goals)
-						.where(eq(goals.projectId, proj.id))
-						.orderBy(asc(goals.createdAt));
-					if (all.length === 0) return "No goals.";
-					return all.map((g) => `[G${g.id}] ${g.title} — ${g.status}`).join("\n");
-				}
-
-				return "Unknown action. Use: get, create, update, delete, list";
-			},
-		}),
-
-		minni_milestone: tool({
-			description:
-				"Get, create, update, delete, or list milestones for a goal. Delete cascades to tasks.",
-			args: {
-				action: tool.schema.string().describe("Action: get, create, update, delete, list"),
-				goal_id: tool.schema.number().optional().describe("Parent goal ID (for create/list)"),
-				id: tool.schema.number().optional().describe("Milestone ID (for get/update/delete)"),
-				title: tool.schema.string().optional().describe("Milestone title"),
-				description: tool.schema.string().optional().describe("Milestone description"),
-				status: tool.schema
-					.string()
-					.optional()
-					.describe("Status: active, completed, paused, cancelled"),
-			},
-			async execute(args) {
-				if (args.status) {
-					const err = validateEnum(args.status, GOAL_STATUSES, "status");
-					if (err) return err;
-				}
-				if (args.action === "create") {
-					if (!args.goal_id) return "goal_id is required.";
-					if (!args.title) return "Title is required.";
-
-					// Validate goal exists (milestone inherits project from goal)
-					const goal = await db.select().from(goals).where(eq(goals.id, args.goal_id)).limit(1);
-					if (!goal[0]) return `Goal ${args.goal_id} not found.`;
-
-					// NOTE: createdAt/updatedAt passed explicitly. Turso driver (beta) ignores SQLite DEFAULT expressions
-					const result = await db
-						.insert(milestones)
-						.values({
-							goalId: args.goal_id,
-							title: args.title,
-							description: args.description ?? null,
-							createdAt: new Date(),
-							updatedAt: new Date(),
-						})
-						.returning({ id: milestones.id });
-					return `Milestone created: [M${result[0].id}] ${args.title}`;
-				}
-
-				if (args.action === "update") {
-					if (!args.id) return "Milestone ID is required.";
-					const milestone = await db
-						.select()
-						.from(milestones)
-						.where(eq(milestones.id, args.id))
-						.limit(1);
-					if (!milestone[0]) return `Milestone ${args.id} not found.`;
-					const updates: Record<string, unknown> = { updatedAt: new Date() };
-					if (args.title) updates.title = args.title;
-					if (args.description) updates.description = args.description;
-					if (args.status) updates.status = args.status;
-					await db.update(milestones).set(updates).where(eq(milestones.id, args.id));
-					return `Milestone updated: [M${args.id}]`;
-				}
-
-				if (args.action === "delete") {
-					if (!args.id) return "Milestone ID is required.";
-					const milestone = await db
-						.select()
-						.from(milestones)
-						.where(eq(milestones.id, args.id))
-						.limit(1);
-					if (!milestone[0]) return `Milestone ${args.id} not found.`;
-					await db.delete(milestones).where(eq(milestones.id, args.id));
-					return `Deleted: [M${args.id}] ${milestone[0].title} (tasks cascaded)`;
-				}
-
-				if (args.action === "get") {
-					if (!args.id) return "Milestone ID is required.";
-					const milestone = await db
-						.select()
-						.from(milestones)
-						.innerJoin(goals, eq(milestones.goalId, goals.id))
-						.innerJoin(projects, eq(goals.projectId, projects.id))
-						.where(eq(milestones.id, args.id))
-						.limit(1);
-					if (!milestone[0]) return `Milestone ${args.id} not found.`;
-
-					const lines: string[] = [
-						`## [M${milestone[0].milestones.id}] ${milestone[0].milestones.title}`,
-						`Status: ${milestone[0].milestones.status}`,
-						`Goal: [G${milestone[0].goals.id}] ${milestone[0].goals.title}`,
-						`Project: ${milestone[0].projects.name}`,
-					];
-
-					if (milestone[0].milestones.description) {
-						lines.push(`\n---\n\n${milestone[0].milestones.description}`);
-					}
-
-					return lines.join("\n");
-				}
-
-				if (args.action === "list") {
-					if (!args.goal_id) return "goal_id is required.";
-					const all = await db
-						.select()
-						.from(milestones)
-						.where(eq(milestones.goalId, args.goal_id))
-						.orderBy(asc(milestones.createdAt));
-					if (all.length === 0) return "No milestones.";
-					return all.map((m) => `[M${m.id}] ${m.title} — ${m.status}`).join("\n");
-				}
-
-				return "Unknown action. Use: get, create, update, delete, list";
-			},
-		}),
-
 		minni_task: tool({
 			description:
-				"Get, create, update, delete, or list tasks. Tasks can belong to a project, goal, milestone, or be standalone.",
+				"CRUD work items. For knowledge → minni_save. Output: `[T{id}] {title} — {status}`",
 			args: {
-				action: tool.schema.string().describe("Action: get, create, update, delete, list"),
-				id: tool.schema.number().optional().describe("Task ID (for get/update/delete)"),
-				project: tool.schema.string().optional().describe("Project name"),
-				goal_id: tool.schema.number().optional().describe("Parent goal ID"),
-				milestone_id: tool.schema.number().optional().describe("Parent milestone ID"),
-				title: tool.schema.string().optional().describe("Task title"),
-				description: tool.schema.string().optional().describe("Task description"),
+				action: tool.schema.enum(["get", "create", "update", "delete", "list"]),
+				id: tool.schema.number().optional().describe("For get/update/delete"),
+				project: tool.schema.string().optional().describe("Default: active project"),
+				parent_id: tool.schema.number().optional().describe("Creates subtask under parent"),
+				title: tool.schema.string().optional().describe("For create"),
+				description: tool.schema.string().optional(),
 				priority: tool.schema
-					.string()
+					.enum(["high", "medium", "low"])
 					.optional()
-					.describe("Priority: high, medium, low. Default: medium"),
-				status: tool.schema
-					.string()
-					.optional()
-					.describe("Status: todo, in_progress, done, cancelled"),
+					.describe("Default: medium"),
+				status: tool.schema.enum(["todo", "in_progress", "done", "cancelled"]).optional(),
 			},
 			async execute(args) {
 				if (args.priority) {
@@ -930,44 +688,33 @@ export function createTools(db: MinniDB) {
 				if (args.action === "create") {
 					if (!args.title) return "Title is required.";
 
-					// Derive project from parent hierarchy (milestone > goal > explicit > floating)
 					let derivedProjectId: number | null = null;
-					let derivedGoalId: number | null = null;
-					let derivedMilestoneId: number | null = null;
 
-					if (args.milestone_id) {
-						// Level 3: Under milestone — derive goal and project from milestone's goal
-						const milestone = await db
+					if (args.parent_id) {
+						// Subtask: inherit project from parent
+						const parent = await db
 							.select()
-							.from(milestones)
-							.innerJoin(goals, eq(milestones.goalId, goals.id))
-							.where(eq(milestones.id, args.milestone_id))
+							.from(tasks)
+							.where(eq(tasks.id, args.parent_id))
 							.limit(1);
-						if (!milestone[0]) return `Milestone ${args.milestone_id} not found.`;
-						derivedMilestoneId = args.milestone_id;
-						derivedGoalId = milestone[0].milestones.goalId;
-						derivedProjectId = milestone[0].goals.projectId;
-					} else if (args.goal_id) {
-						// Level 2: Under goal — derive project from goal
-						const goal = await db.select().from(goals).where(eq(goals.id, args.goal_id)).limit(1);
-						if (!goal[0]) return `Goal ${args.goal_id} not found.`;
-						derivedGoalId = args.goal_id;
-						derivedProjectId = goal[0].projectId;
+						if (!parent[0]) return `Parent task ${args.parent_id} not found.`;
+						derivedProjectId = parent[0].projectId;
 					} else if (args.project) {
-						// Level 1: Project surface — explicit project
+						// Explicit project
 						const proj = await resolveProject(db, args.project);
 						if (!proj) return `Project "${args.project}" not found.`;
 						derivedProjectId = proj.id;
+					} else {
+						// Use active project if any
+						const active = getActiveProject();
+						derivedProjectId = active?.id ?? null;
 					}
-					// Level 0: Floating — all nulls (default)
 
-					// NOTE: createdAt/updatedAt passed explicitly — Turso driver (beta) ignores SQLite DEFAULT expressions
 					const result = await db
 						.insert(tasks)
 						.values({
 							projectId: derivedProjectId,
-							goalId: derivedGoalId,
-							milestoneId: derivedMilestoneId,
+							parentId: args.parent_id ?? null,
 							title: args.title,
 							description: args.description ?? null,
 							priority: args.priority ?? "medium",
@@ -1019,18 +766,26 @@ export function createTools(db: MinniDB) {
 						if (proj[0]) lines.push(`Project: ${proj[0].name}`);
 					}
 
-					if (task[0].goalId) {
-						const goal = await db.select().from(goals).where(eq(goals.id, task[0].goalId)).limit(1);
-						if (goal[0]) lines.push(`Goal: [G${goal[0].id}] ${goal[0].title}`);
+					if (task[0].parentId) {
+						const parent = await db
+							.select()
+							.from(tasks)
+							.where(eq(tasks.id, task[0].parentId))
+							.limit(1);
+						if (parent[0]) lines.push(`Parent: [T${parent[0].id}] ${parent[0].title}`);
 					}
 
-					if (task[0].milestoneId) {
-						const milestone = await db
-							.select()
-							.from(milestones)
-							.where(eq(milestones.id, task[0].milestoneId))
-							.limit(1);
-						if (milestone[0]) lines.push(`Milestone: [M${milestone[0].id}] ${milestone[0].title}`);
+					// Show subtasks if any
+					const subtasks = await db
+						.select()
+						.from(tasks)
+						.where(eq(tasks.parentId, task[0].id))
+						.orderBy(desc(tasks.createdAt));
+					if (subtasks.length > 0) {
+						lines.push(`\n### Subtasks (${subtasks.length})`);
+						for (const st of subtasks) {
+							lines.push(`- [T${st.id}] ${st.title} — ${st.status}`);
+						}
 					}
 
 					if (task[0].description) {
@@ -1048,30 +803,33 @@ export function createTools(db: MinniDB) {
 						title: string;
 						priority: string;
 						status: string;
+						parentId: number | null;
 					};
 
 					let all: TaskRow[];
 
-					if (args.milestone_id) {
+					if (args.parent_id) {
+						// List subtasks of a specific parent
 						all = await db
 							.select()
 							.from(tasks)
-							.where(eq(tasks.milestoneId, args.milestone_id))
-							.orderBy(desc(tasks.createdAt));
-					} else if (args.goal_id) {
-						all = await db
-							.select()
-							.from(tasks)
-							.where(eq(tasks.goalId, args.goal_id))
+							.where(eq(tasks.parentId, args.parent_id))
 							.orderBy(desc(tasks.createdAt));
 					} else if (proj) {
+						// List top-level tasks for project (parentId is null)
 						all = await db
 							.select()
 							.from(tasks)
-							.where(eq(tasks.projectId, proj.id))
+							.where(and(eq(tasks.projectId, proj.id), sql`${tasks.parentId} IS NULL`))
 							.orderBy(desc(tasks.createdAt));
 					} else {
-						all = await db.select().from(tasks).orderBy(desc(tasks.createdAt)).limit(20);
+						// List all top-level tasks
+						all = await db
+							.select()
+							.from(tasks)
+							.where(sql`${tasks.parentId} IS NULL`)
+							.orderBy(desc(tasks.createdAt))
+							.limit(20);
 					}
 
 					if (all.length === 0) return "No tasks.";
@@ -1085,10 +843,9 @@ export function createTools(db: MinniDB) {
 		}),
 
 		minni_delete: tool({
-			description:
-				"Delete a memory by ID. Respects permissions: locked and read_only cannot be deleted. Guarded requires user confirmation.",
+			description: "Delete memory. Respects permissions",
 			args: {
-				id: tool.schema.number().describe("Memory ID to delete"),
+				id: tool.schema.number(),
 			},
 			async execute(args, context) {
 				const mem = await db.select().from(memories).where(eq(memories.id, args.id)).limit(1);
@@ -1112,14 +869,10 @@ export function createTools(db: MinniDB) {
 		}),
 
 		minni_summary: tool({
-			description:
-				"Save or overwrite context summary. With active project: updates project context. Without project: updates global context.",
+			description: "Save context summary for project or global",
 			args: {
-				summary: tool.schema.string().describe("Session summary / context narrative"),
-				project: tool.schema
-					.string()
-					.optional()
-					.describe("Project name. Omit to use active project or global context."),
+				summary: tool.schema.string(),
+				project: tool.schema.string().optional().describe("Default: active project or global"),
 			},
 			async execute(args, context) {
 				const resolved = await resolveProject(db, args.project);
@@ -1163,16 +916,13 @@ export function createTools(db: MinniDB) {
 		}),
 
 		minni_canvas: tool({
-			description:
-				"Send markdown content to the Minni Viewer canvas for beautiful rendering. Use this to show formatted content, code, tables, or any markdown to the user without creating files.",
+			description: "Send markdown to Minni Viewer. Output: viewer URL",
 			args: {
-				content: tool.schema.string().describe("Markdown content to display in the canvas"),
+				content: tool.schema.string(),
 				action: tool.schema
-					.string()
+					.enum(["show", "open", "save"])
 					.optional()
-					.describe(
-						"Action: show (default), open (show + open browser), save (show + save as memory)",
-					),
+					.describe("show=default, open=launch browser"),
 			},
 			async execute(args) {
 				const action = args.action ?? "show";
