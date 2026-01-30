@@ -4,7 +4,7 @@
 
 Minni is a plugin for [OpenCode](https://opencode.ai) that gives your AI agents long-term memory backed by a local [Turso Database](https://docs.turso.tech/introduction) file. Everything your agents learn, whether it's skills, decisions, patterns, anti-patterns, references, all persists across sessions and projects. Copy the file, move it to another machine, and your agents remember everything.
 
-The name comes from Old Norse *minni* which means memory.
+The name comes from Old Norse _minni_ which means memory.
 
 > **Status:** VERY Early development. The core plugin works. APIs may change. Right now Turso database is accesible using the Drizzle beta driver with limitations, still no multi access.
 
@@ -58,11 +58,11 @@ Add these to `~/.config/opencode/package.json`:
 
 ```json
 {
-  "dependencies": {
-    "@opencode-ai/plugin": "latest",
-    "@tursodatabase/database": "^0.4.3",
-    "drizzle-orm": "^0.44.2"
-  }
+	"dependencies": {
+		"@opencode-ai/plugin": "latest",
+		"@tursodatabase/database": "^0.4.3",
+		"drizzle-orm": "^0.44.2"
+	}
 }
 ```
 
@@ -158,29 +158,29 @@ Every memory has a **type** that classifies what kind of knowledge it is.
 
 ### Technical — Executable knowledge
 
-| Type | What it is |
-|------|-----------|
-| `skill` | How to do something. Procedural, may contain code. |
-| `pattern` | Reusable pattern with trade-offs. |
-| `anti_pattern` | What NOT to do and why. |
+| Type           | What it is                                         |
+| -------------- | -------------------------------------------------- |
+| `skill`        | How to do something. Procedural, may contain code. |
+| `pattern`      | Reusable pattern with trade-offs.                  |
+| `anti_pattern` | What NOT to do and why.                            |
 
 ### Knowledge — Understanding
 
-| Type | What it is |
-|------|-----------|
-| `decision` | Why you chose X over Y (ADR). |
-| `insight` | Discovery, aha moment. |
-| `comparison` | A vs B analysis. |
-| `note` | Free-form, no structure imposed. |
+| Type         | What it is                       |
+| ------------ | -------------------------------- |
+| `decision`   | Why you chose X over Y (ADR).    |
+| `insight`    | Discovery, aha moment.           |
+| `comparison` | A vs B analysis.                 |
+| `note`       | Free-form, no structure imposed. |
 
 ### Reference — External resources
 
-| Type | What it is |
-|------|-----------|
-| `article` | Blog post, tweet thread, technical writing. |
-| `video` | YouTube, conference talk, tutorial. |
-| `documentation` | Official docs, guides, references. |
-| `link` | Anything else with a URL and a personal note. |
+| Type            | What it is                                    |
+| --------------- | --------------------------------------------- |
+| `article`       | Blog post, tweet thread, technical writing.   |
+| `video`         | YouTube, conference talk, tutorial.           |
+| `documentation` | Official docs, guides, references.            |
+| `link`          | Anything else with a URL and a personal note. |
 
 ---
 
@@ -212,13 +212,13 @@ Paths are optional. A memory works fine without one.
 
 Knowledge matures as it's validated:
 
-| Status | Meaning |
-|--------|---------|
-| `draft` | Just captured. Not validated. **Default.** |
-| `experimental` | Being tested. May work, may not. |
-| `proven` | Worked at least once in a real scenario. |
+| Status          | Meaning                                     |
+| --------------- | ------------------------------------------- |
+| `draft`         | Just captured. Not validated. **Default.**  |
+| `experimental`  | Being tested. May work, may not.            |
+| `proven`        | Worked at least once in a real scenario.    |
 | `battle_tested` | Used successfully across multiple projects. |
-| `deprecated` | No longer recommended. Kept for history. |
+| `deprecated`    | No longer recommended. Kept for history.    |
 
 ---
 
@@ -226,12 +226,12 @@ Knowledge matures as it's validated:
 
 Permissions are enforced programmatically — the LLM cannot bypass them.
 
-| Permission | Read | Write | Change permission |
-|------------|------|-------|-------------------|
-| `open` | Yes | Yes | Minni Studio only |
-| `guarded` | Yes | User confirmation required | Minni Studio only |
-| `read_only` | Yes | Blocked | Minni Studio only |
-| `locked` | Invisible | Blocked | Minni Studio only |
+| Permission  | Read      | Write                      | Change permission |
+| ----------- | --------- | -------------------------- | ----------------- |
+| `open`      | Yes       | Yes                        | Minni Studio only |
+| `guarded`   | Yes       | User confirmation required | Minni Studio only |
+| `read_only` | Yes       | Blocked                    | Minni Studio only |
+| `locked`    | Invisible | Blocked                    | Minni Studio only |
 
 `locked` memories do not appear in any search, list, or tool response. The LLM does not know they exist.
 
@@ -245,20 +245,20 @@ Permissions are enforced programmatically — the LLM cannot bypass them.
 
 Minni registers **12 tools** that the LLM can use:
 
-| Tool | Action | Writes? |
-|------|--------|---------|
-| `minni_ping` | Health check + stats | No |
-| `minni_project` | Create, update, or list projects | Yes |
-| `minni_load` | Boot sequence: briefing with inventory, focus, context | No |
-| `minni_find` | Universal search across title, content, tags, paths | No |
-| `minni_get` | Read full memory content by ID | No |
-| `minni_save` | Create a new memory | Yes |
-| `minni_update` | Modify an existing memory (permission enforced) | Yes |
-| `minni_delete` | Delete a memory (permission enforced) | Yes |
-| `minni_goal` | Create, update, or list goals | Yes |
-| `minni_milestone` | Create, update, or list milestones | Yes |
-| `minni_task` | Create, update, or list tasks | Yes |
-| `minni_summary` | Overwrite project context summary | Yes |
+| Tool              | Action                                                 | Writes? |
+| ----------------- | ------------------------------------------------------ | ------- |
+| `minni_ping`      | Health check + stats                                   | No      |
+| `minni_project`   | Create, update, or list projects                       | Yes     |
+| `minni_load`      | Boot sequence: briefing with inventory, focus, context | No      |
+| `minni_find`      | Universal search across title, content, tags, paths    | No      |
+| `minni_get`       | Read full memory content by ID                         | No      |
+| `minni_save`      | Create a new memory                                    | Yes     |
+| `minni_update`    | Modify an existing memory (permission enforced)        | Yes     |
+| `minni_delete`    | Delete a memory (permission enforced)                  | Yes     |
+| `minni_goal`      | Create, update, or list goals                          | Yes     |
+| `minni_milestone` | Create, update, or list milestones                     | Yes     |
+| `minni_task`      | Create, update, or list tasks                          | Yes     |
+| `minni_summary`   | Overwrite project context summary                      | Yes     |
 
 ---
 
@@ -497,8 +497,8 @@ Planned configuration file at `~/.config/opencode/minni.config.json`:
 When OpenCode compacts a session, Minni hooks into the process:
 
 1. **Injects project context** — If a project is loaded, its `contextSummary` is included in the compaction input so the compacted session retains project awareness.
-2. **Custom prompts** *(planned)* — Replace OpenCode's default compaction prompt with a project-specific or global prompt that generates structured summaries.
-3. **Auto-capture** *(planned)* — Automatically save the compaction result back to the project's `contextSummary`, so the next session picks up where this one left off.
+2. **Custom prompts** _(planned)_ — Replace OpenCode's default compaction prompt with a project-specific or global prompt that generates structured summaries.
+3. **Auto-capture** _(planned)_ — Automatically save the compaction result back to the project's `contextSummary`, so the next session picks up where this one left off.
 
 ---
 
