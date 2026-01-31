@@ -70,29 +70,29 @@ export function normalizeProjectName(name: string): string {
 		.replace(/^-|-$/g, "");
 }
 
-let activeProject: ActiveProject = null;
-
-/** Returns the currently loaded project, or null if none is active (global mode). */
-export function getActiveProject(): ActiveProject {
-	return activeProject;
-}
-
 /**
- * Loads the active project from global_context on plugin startup.
- * This is the ENTRY POINT — must be called once when the plugin initializes.
+ * Returns the currently loaded project, or null if none is active (global mode).
+ * Reads directly from DB.
+ *
+ * ============================================================================
+ * SQLite is fast enough for this use case. If scaling requires caching,
+ * add Redis here.
+ * ============================================================================
  */
-export async function loadActiveProject(db: MinniDB): Promise<void> {
+export async function getActiveProject(db: MinniDB): Promise<ActiveProject> {
 	const ctx = await db.select().from(globalContext).where(eq(globalContext.id, 1)).limit(1);
+
 	if (!ctx[0]?.activeProjectId) {
-		activeProject = null;
-		return;
+		return null;
 	}
+
 	const proj = await db
 		.select()
 		.from(projects)
 		.where(eq(projects.id, ctx[0].activeProjectId))
 		.limit(1);
-	activeProject = proj[0] ? { id: proj[0].id, name: proj[0].name } : null;
+
+	return proj[0] ? { id: proj[0].id, name: proj[0].name } : null;
 }
 
 /**
@@ -100,7 +100,6 @@ export async function loadActiveProject(db: MinniDB): Promise<void> {
  * Pass null to switch to global mode (no active project).
  */
 export async function setActiveProject(db: MinniDB, project: ActiveProject): Promise<void> {
-	activeProject = project;
 	await db
 		.update(globalContext)
 		.set({
@@ -130,7 +129,7 @@ export async function resolveProject(db: MinniDB, name?: string): Promise<Active
 		const found = await db.select().from(projects).where(eq(projects.name, normalized)).limit(1);
 		return found[0] ? { id: found[0].id, name: found[0].name } : null;
 	}
-	return activeProject;
+	return getActiveProject(db);
 }
 
 /**
@@ -171,8 +170,7 @@ export async function savePathSegments(db: MinniDB, memoryId: number, path: stri
 
 /**
  * Entity protected by the permission system.
- * Only memories and projects have permissions; planning entities (goals,
- * milestones, tasks) are always open.
+ * Only memories and projects have permissions; tasks are always open.
  */
 export type ProtectedEntity = {
 	id: number;
@@ -183,10 +181,13 @@ export type ProtectedEntity = {
 
 export type ActionType = "read" | "update" | "delete";
 
+// Re-export Result type for convenience
+export { type Result, ok, err, tryAsync } from "./result";
+
 /**
- * Result of a guarded action. Discriminated union for type-safe handling.
+ * @deprecated Use Result<T> instead. GuardedResult is kept for backward compatibility.
  */
-export type GuardedResult<T> = { ok: true; result: T } | { ok: false; error: string };
+export type GuardedResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
 /**
  * OpenCode tool context type (subset we need for permission checks).
@@ -230,7 +231,7 @@ export type ToolContext = {
  *   }
  * );
  * if (!result.ok) return result.error;
- * return result.result;
+ * return result.value;
  */
 export async function guardedAction<T>(
 	context: ToolContext,
@@ -266,7 +267,6 @@ export async function guardedAction<T>(
 				metadata: { entityType: type, entityId: id },
 			});
 		} catch {
-			// User rejected the permission request
 			return {
 				ok: false,
 				error: `CANCELLED: User denied ${action} on ${type} [${id}] "${name}".`,
@@ -276,8 +276,8 @@ export async function guardedAction<T>(
 
 	// Open or confirmed: execute
 	try {
-		const result = await executor();
-		return { ok: true, result };
+		const value = await executor();
+		return { ok: true, value };
 	} catch (err) {
 		return {
 			ok: false,

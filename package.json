@@ -1,10 +1,19 @@
 {
+	"name": "minni",
+	"version": "0.1.0",
+	"description": "Persistent structured memory plugin for OpenCode AI agents",
+	"license": "MIT",
+	"author": "Ozmah",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Ozmah/minni"
+	},
 	"scripts": {
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check",
-		"sync": "rsync -av --delete --include='minni.ts' --include='src/***' --include='viewer/***' --include='package.json' --include='tsconfig.json' --exclude='*' ./ ~/.config/opencode/plugins/"
+		"sync": "rsync -av --delete --exclude='viewer/node_modules' --exclude='viewer/.git' --include='minni.ts' --include='src/***' --include='viewer/***' --include='package.json' --include='tsconfig.json' --exclude='*' ./ ~/.config/opencode/plugins/minni/"
 	},
 	"dependencies": {
 		"@opencode-ai/plugin": "1.1.42",
