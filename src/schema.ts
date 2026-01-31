@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, type AnyColumn } from "drizzle-orm";
 import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core";
 
 const timestamp = {
@@ -10,15 +10,13 @@ const timestamp = {
 		.notNull(),
 };
 
-// TON of fixes to make to the DB including adding indexes, some missing updated and created at
-
 /**
- * Root container for organizing memories, goals, milestones, and tasks.
+ * Root container for organizing memories and tasks.
  *
  * A project represents a codebase, initiative, or any logical grouping.
  * Not limited to software — a project can track anything: a campaign, a recipe book,
- * a research expedition, a home renovation. Memories can exist without a project
- * (global), but goals always require one.
+ * a research expedition, a home renovation. Memories and tasks can exist without
+ * a project (global scope).
  *
  * Names are normalized on write: lowercase, alphanumeric + hyphens only.
  * "Nakatomi Plaza" becomes "nakatomi-plaza". "NERV HQ" becomes "nerv-hq".
@@ -184,7 +182,7 @@ export const tasks = sqliteTable("tasks", {
 	projectId: integer("project_id").references(() => projects.id, {
 		onDelete: "cascade",
 	}),
-	parentId: integer("parent_id").references((): any => tasks.id, {
+	parentId: integer("parent_id").references((): AnyColumn => tasks.id, {
 		onDelete: "cascade",
 	}),
 	title: text("title").notNull(),
