@@ -70,6 +70,18 @@ function createRouter(db: MinniDB, distPath: string) {
 			return Response.json(getRuntimeInfo());
 		}
 
+		// Debug distPath
+		if (path === "/api/debug-path") {
+			const indexFile = Bun.file(join(distPath, "index.html"));
+			const assetsDir = join(distPath, "assets");
+			return Response.json({
+				distPath,
+				importMetaDir: import.meta.dir,
+				indexExists: await indexFile.exists(),
+				assetsPath: assetsDir,
+			});
+		}
+
 		// Database API
 		if (path === "/api/stats") {
 			return handleStats(db);
@@ -99,7 +111,9 @@ export async function startViewerServer(db: MinniDB) {
 		return { server: viewerServer, port: activePort };
 	}
 
-	const distPath = join(import.meta.dir, "../../viewer/dist");
+	// import.meta.dir points to this file's directory (src/server/)
+	// Go up to root, then into viewer/dist
+	const distPath = join(import.meta.dir, "..", "..", "viewer", "dist");
 	const router = createRouter(db, distPath);
 
 	// Try preferred port first

@@ -12,6 +12,7 @@
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.0.6",
 		"@tanstack/react-devtools": "^0.7.0",
+		"@tanstack/react-query": "^5.90.20",
 		"@tanstack/react-router": "^1.132.0",
 		"@tanstack/react-router-devtools": "^1.132.0",
 		"@tanstack/react-store": "^0.8.0",
@@ -27,6 +28,7 @@
 	"devDependencies": {
 		"@tanstack/devtools-event-client": "^0.4.0",
 		"@tanstack/devtools-vite": "^0.3.11",
+		"@tanstack/router-plugin": "^1.157.18",
 		"@testing-library/dom": "^10.4.0",
 		"@testing-library/react": "^16.2.0",
 		"@types/node": "^22.10.2",

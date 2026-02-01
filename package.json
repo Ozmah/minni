@@ -17,8 +17,11 @@
 	},
 	"dependencies": {
 		"@opencode-ai/plugin": "1.1.42",
-		"@tursodatabase/database": "^0.4.3",
-		"drizzle-orm": "^1.0.0-beta.12-a5629fb"
+		"@tursodatabase/database": "^0.4.4",
+		"better-result": "^2.7.0",
+		"drizzle-orm": "^1.0.0-beta.9-e89174b",
+		"drizzle-zod": "^0.8.3",
+		"zod": "^4.3.6"
 	},
 	"devDependencies": {
 		"bun-types": "^1.3.8",
