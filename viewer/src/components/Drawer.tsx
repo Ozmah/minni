@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { X } from "lucide-react";
+import { useEffect } from "react";
 
 interface DrawerProps {
 	open: boolean;
@@ -37,7 +37,7 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
 
 			{/* Panel */}
 			<aside
-				className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-xl flex-col bg-gray-900 shadow-xl transition-transform ${
+				className={`fixed top-0 right-0 z-50 flex h-full w-full max-w-xl flex-col bg-gray-900 shadow-xl transition-transform ${
 					open ? "translate-x-0" : "translate-x-full"
 				}`}
 			>

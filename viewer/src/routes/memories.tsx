@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { Brain, Clock, Tag, FolderOpen } from "lucide-react";
+
 import { api, type Memory } from "@/lib/api";
 
 export const Route = createFileRoute("/memories")({
@@ -8,7 +9,11 @@ export const Route = createFileRoute("/memories")({
 });
 
 function MemoriesPage() {
-	const { data: memories, isLoading, error } = useQuery({
+	const {
+		data: memories,
+		isLoading,
+		error,
+	} = useQuery({
 		queryKey: ["memories"],
 		queryFn: () => api.memories({ limit: 100 }),
 	});
@@ -47,34 +52,32 @@ function MemoriesPage() {
 }
 
 function MemoryCard({ memory }: { memory: Memory }) {
-	const typeColor = {
-		skill: "bg-blue-500/20 text-blue-300",
-		pattern: "bg-green-500/20 text-green-300",
-		anti_pattern: "bg-red-500/20 text-red-300",
-		decision: "bg-purple-500/20 text-purple-300",
-		insight: "bg-yellow-500/20 text-yellow-300",
-		comparison: "bg-cyan-500/20 text-cyan-300",
-		note: "bg-gray-500/20 text-gray-300",
-		link: "bg-indigo-500/20 text-indigo-300",
-		article: "bg-orange-500/20 text-orange-300",
-		video: "bg-pink-500/20 text-pink-300",
-		documentation: "bg-teal-500/20 text-teal-300",
-	}[memory.type] || "bg-gray-500/20 text-gray-300";
+	const typeColor =
+		{
+			skill: "bg-blue-500/20 text-blue-300",
+			pattern: "bg-green-500/20 text-green-300",
+			anti_pattern: "bg-red-500/20 text-red-300",
+			decision: "bg-purple-500/20 text-purple-300",
+			insight: "bg-yellow-500/20 text-yellow-300",
+			comparison: "bg-cyan-500/20 text-cyan-300",
+			note: "bg-gray-500/20 text-gray-300",
+			link: "bg-indigo-500/20 text-indigo-300",
+			article: "bg-orange-500/20 text-orange-300",
+			video: "bg-pink-500/20 text-pink-300",
+			documentation: "bg-teal-500/20 text-teal-300",
+		}[memory.type] || "bg-gray-500/20 text-gray-300";
 
-	const statusBadge = {
-		draft: "text-gray-400",
-		experimental: "text-yellow-400",
-		proven: "text-green-400",
-		battle_tested: "text-blue-400",
-		deprecated: "text-red-400",
-	}[memory.status] || "text-gray-400";
+	const statusBadge =
+		{
+			draft: "text-gray-400",
+			experimental: "text-yellow-400",
+			proven: "text-green-400",
+			battle_tested: "text-blue-400",
+			deprecated: "text-red-400",
+		}[memory.status] || "text-gray-400";
 
 	return (
-		<Link
-			to="/memories/$id"
-			params={{ id: memory.id.toString() }}
-			className="block"
-		>
+		<Link to="/memories/$id" params={{ id: memory.id.toString() }} className="block">
 			<article className="rounded-lg border border-gray-700 bg-gray-800/50 p-4 transition-colors hover:border-gray-600 hover:bg-gray-800">
 				<div className="flex items-start justify-between gap-4">
 					<div className="flex-1">
@@ -92,9 +95,7 @@ function MemoryCard({ memory }: { memory: Memory }) {
 							</div>
 						)}
 
-						<p className="mt-2 line-clamp-2 text-sm text-gray-400">
-							{memory.content}
-						</p>
+						<p className="mt-2 line-clamp-2 text-sm text-gray-400">{memory.content}</p>
 					</div>
 
 					<span className={`text-xs ${statusBadge}`}>{memory.status}</span>

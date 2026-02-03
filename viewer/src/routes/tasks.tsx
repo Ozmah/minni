@@ -1,14 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
-import { ListTodo, Clock, Circle, CircleCheck, CircleDot, CircleX } from "lucide-react";
+import { ListTodo, Clock, Circle } from "lucide-react";
+
 import { api, type Task } from "@/lib/api";
+import { TASK_STATUS_CONFIG, TASK_PRIORITY_CONFIG } from "@/lib/config";
 
 export const Route = createFileRoute("/tasks")({
 	component: TasksPage,
 });
 
 function TasksPage() {
-	const { data: tasks, isLoading, error } = useQuery({
+	const {
+		data: tasks,
+		isLoading,
+		error,
+	} = useQuery({
 		queryKey: ["tasks"],
 		queryFn: () => api.tasks({ limit: 100 }),
 	});
@@ -47,46 +53,24 @@ function TasksPage() {
 }
 
 function TaskCard({ task }: { task: Task }) {
-	const StatusIcon = {
-		todo: Circle,
-		in_progress: CircleDot,
-		done: CircleCheck,
-		cancelled: CircleX,
-	}[task.status] || Circle;
-
-	const statusColor = {
-		todo: "text-gray-400",
-		in_progress: "text-yellow-400",
-		done: "text-green-400",
-		cancelled: "text-red-400",
-	}[task.status] || "text-gray-400";
-
-	const priorityBadge = {
-		high: "bg-red-500/20 text-red-300",
-		medium: "bg-yellow-500/20 text-yellow-300",
-		low: "bg-gray-500/20 text-gray-300",
-	}[task.priority] || "bg-gray-500/20 text-gray-300";
+	const statusConfig = TASK_STATUS_CONFIG[task.status] ?? TASK_STATUS_CONFIG.todo;
+	const priorityConfig = TASK_PRIORITY_CONFIG[task.priority] ?? TASK_PRIORITY_CONFIG.medium;
+	const StatusIcon = statusConfig.icon ?? Circle;
 
 	return (
-		<Link
-			to="/tasks/$id"
-			params={{ id: task.id.toString() }}
-			className="block"
-		>
+		<Link to="/tasks/$id" params={{ id: task.id.toString() }} className="block">
 			<article className="flex items-start gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-3 transition-colors hover:border-gray-600 hover:bg-gray-800">
-				<StatusIcon size={20} className={statusColor} />
+				<StatusIcon size={20} className={statusConfig.color} />
 				<div className="flex-1">
 					<div className="flex items-center gap-2">
 						<h3 className="font-medium text-white">{task.title}</h3>
-						<span className={`rounded px-1.5 py-0.5 text-xs ${priorityBadge}`}>
+						<span className={`rounded px-1.5 py-0.5 text-xs ${priorityConfig.color}`}>
 							{task.priority}
 						</span>
 					</div>
 
 					{task.description && (
-						<p className="mt-1 line-clamp-1 text-sm text-gray-400">
-							{task.description}
-						</p>
+						<p className="mt-1 line-clamp-1 text-sm text-gray-400">{task.description}</p>
 					)}
 
 					<div className="mt-2 flex items-center gap-1 text-xs text-gray-500">

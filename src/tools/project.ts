@@ -8,10 +8,11 @@ import {
 	normalizeProjectName,
 	validateEnum,
 	guardedAction,
-	MEMORY_PERMISSIONS,
-	PROJECT_STATUSES,
 } from "../helpers";
-import { projects, memories, tasks, globalContext } from "../schema";
+import { projects, memories, tasks, globalContext, PERMISSION, PROJECT_STATUS } from "../schema";
+
+// Project status includes "deleted" for soft-delete
+const PROJECT_STATUSES = [...PROJECT_STATUS, "deleted"] as const;
 
 /**
  * Creates project-related tools: minni_project, minni_load
@@ -53,13 +54,13 @@ export function projectTools(db: MinniDB) {
 						if (err) return err;
 					}
 					if (args.permission) {
-						const err = validateEnum(args.permission, MEMORY_PERMISSIONS, "permission");
+						const err = validateEnum(args.permission, PERMISSION, "permission");
 						if (err) return err;
 					}
 					if (args.default_memory_permission) {
 						const err = validateEnum(
 							args.default_memory_permission,
-							MEMORY_PERMISSIONS,
+							PERMISSION,
 							"default_memory_permission",
 						);
 						if (err) return err;
@@ -95,13 +96,13 @@ export function projectTools(db: MinniDB) {
 						if (err) return err;
 					}
 					if (args.permission) {
-						const err = validateEnum(args.permission, MEMORY_PERMISSIONS, "permission");
+						const err = validateEnum(args.permission, PERMISSION, "permission");
 						if (err) return err;
 					}
 					if (args.default_memory_permission) {
 						const err = validateEnum(
 							args.default_memory_permission,
-							MEMORY_PERMISSIONS,
+							PERMISSION,
 							"default_memory_permission",
 						);
 						if (err) return err;

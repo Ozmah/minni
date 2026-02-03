@@ -26,7 +26,13 @@ export const MEMORY_TYPE = [
 	"video",
 	"documentation",
 ] as const;
-export const MEMORY_STATUS = ["draft", "experimental", "proven", "battle_tested", "deprecated"] as const;
+export const MEMORY_STATUS = [
+	"draft",
+	"experimental",
+	"proven",
+	"battle_tested",
+	"deprecated",
+] as const;
 export const TASK_PRIORITY = ["high", "medium", "low"] as const;
 export const TASK_STATUS = ["todo", "in_progress", "done", "cancelled"] as const;
 

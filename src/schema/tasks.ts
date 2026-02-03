@@ -1,8 +1,10 @@
 import type { AnyColumn } from "drizzle-orm";
+
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import { timestamp, TASK_PRIORITY, TASK_STATUS } from "./base";
+
+import { timestamp, TASK_PRIORITY, TASK_STATUS, type TaskPriority, type TaskStatus } from "./base";
 import { projects } from "./projects";
 
 export const tasks = sqliteTable("tasks", {
@@ -15,8 +17,8 @@ export const tasks = sqliteTable("tasks", {
 	}),
 	title: text("title").notNull(),
 	description: text("description"),
-	priority: text("priority").notNull().default("medium"),
-	status: text("status").notNull().default("todo"),
+	priority: text("priority").$type<TaskPriority>().notNull().default("medium"),
+	status: text("status").$type<TaskStatus>().notNull().default("todo"),
 	...timestamp,
 });
 

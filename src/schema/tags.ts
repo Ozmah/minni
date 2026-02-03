@@ -1,5 +1,6 @@
 import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+
 import { memories } from "./memories";
 
 export const tags = sqliteTable("tags", {

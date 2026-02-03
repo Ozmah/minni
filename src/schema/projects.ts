@@ -1,16 +1,20 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import { timestamp, PROJECT_STATUS, PERMISSION } from "./base";
+
+import { timestamp, PROJECT_STATUS, PERMISSION, type ProjectStatus, type Permission } from "./base";
 
 export const projects = sqliteTable("projects", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
 	name: text("name").notNull().unique(),
 	description: text("description"),
 	stack: text("stack"),
-	status: text("status").notNull().default("active"),
-	permission: text("permission").notNull().default("guarded"),
-	defaultMemoryPermission: text("default_memory_permission").notNull().default("guarded"),
+	status: text("status").$type<ProjectStatus>().notNull().default("active"),
+	permission: text("permission").$type<Permission>().notNull().default("guarded"),
+	defaultMemoryPermission: text("default_memory_permission")
+		.$type<Permission>()
+		.notNull()
+		.default("guarded"),
 	contextSummary: text("context_summary"),
 	contextUpdatedAt: integer("context_updated_at", { mode: "timestamp_ms" }),
 	...timestamp,

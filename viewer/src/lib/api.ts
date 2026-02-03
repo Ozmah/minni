@@ -2,6 +2,11 @@ import type { Project, Memory, Task } from "../../../src/schema";
 
 export type { Project, Memory, Task };
 
+/** Task with joined project data (returned by /api/tasks/:id) */
+export interface TaskDetail extends Task {
+	projectName: string | null;
+}
+
 export interface Stats {
 	projects: number;
 	memories: number;
@@ -35,5 +40,5 @@ export const api = {
 		const query = search.toString();
 		return fetchJson<Task[]>(`/api/tasks${query ? `?${query}` : ""}`);
 	},
-	task: (id: number) => fetchJson<Task>(`/api/tasks/${id}`),
+	task: (id: number) => fetchJson<TaskDetail>(`/api/tasks/${id}`),
 };

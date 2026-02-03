@@ -1,43 +1,11 @@
 import { sql, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/tursodatabase/database";
 
-import { projects, tags, memoryTags, memoryPaths, globalContext } from "./schema";
+import { projects, tags, memoryTags, memoryPaths, globalContext, type Permission } from "./schema";
 
 export type MinniDB = ReturnType<typeof drizzle>;
 
 export type ActiveProject = { id: number; name: string } | null;
-
-export const MEMORY_TYPES = [
-	"skill",
-	"pattern",
-	"anti_pattern",
-	"decision",
-	"insight",
-	"comparison",
-	"note",
-	"link",
-	"article",
-	"video",
-	"documentation",
-] as const;
-
-export type MemoryType = (typeof MEMORY_TYPES)[number];
-
-export const MEMORY_STATUSES = [
-	"draft",
-	"experimental",
-	"proven",
-	"battle_tested",
-	"deprecated",
-] as const;
-
-export const MEMORY_PERMISSIONS = ["open", "guarded", "read_only", "locked"] as const;
-
-export const PROJECT_STATUSES = ["active", "paused", "completed", "archived", "deleted"] as const;
-
-export const TASK_PRIORITIES = ["high", "medium", "low"] as const;
-
-export const TASK_STATUSES = ["todo", "in_progress", "done", "cancelled"] as const;
 
 /** Validates a value against an allowed set. Returns the value if valid, or an error string. */
 export function validateEnum(
@@ -176,18 +144,28 @@ export type ProtectedEntity = {
 	id: number;
 	name: string;
 	type: "memory" | "project";
-	permission: string;
+	permission: Permission;
 };
 
 export type ActionType = "read" | "update" | "delete";
 
-// Re-export Result type for convenience
-export { type Result, ok, err, tryAsync } from "./result";
-
 /**
- * @deprecated Use Result<T> instead. GuardedResult is kept for backward compatibility.
+ * ╔═══════════════════════════════════════════════════════════════════════════════╗
+ * ║  ⚠️  MIGRATION PENDING: result.ts → better-result                             ║
+ * ╠═══════════════════════════════════════════════════════════════════════════════╣
+ * ║  This file re-exports the LOCAL result.ts implementation.                     ║
+ * ║  The project is migrating to the `better-result` library.                     ║
+ * ║                                                                               ║
+ * ║  TODO: Replace imports from "./result" with "better-result"                   ║
+ * ║        - ok/err → Result.ok / Result.err                                      ║
+ * ║        - tryAsync → Result.try (async version)                                ║
+ * ║        - Update all consumers to import from "better-result" directly         ║
+ * ║                                                                               ║
+ * ║  After all files are migrated, src/result.ts will be deleted.                 ║
+ * ╚═══════════════════════════════════════════════════════════════════════════════╝
  */
-export type GuardedResult<T> = { ok: true; value: T } | { ok: false; error: string };
+import { type Result, ok, err, tryAsync } from "./result";
+export { type Result, ok, err, tryAsync };
 
 /**
  * OpenCode tool context type (subset we need for permission checks).
@@ -218,7 +196,7 @@ export type ToolContext = {
  * @param entity - The entity being accessed
  * @param action - What we're trying to do
  * @param executor - Function that performs the actual operation
- * @returns GuardedResult with either the result or an error message
+ * @returns Result with either the value or an error message
  *
  * @example
  * const result = await guardedAction(
@@ -238,7 +216,7 @@ export async function guardedAction<T>(
 	entity: ProtectedEntity,
 	action: ActionType,
 	executor: () => Promise<T>,
-): Promise<GuardedResult<T>> {
+): Promise<Result<T>> {
 	const { permission, id, name, type } = entity;
 
 	// Locked: completely invisible, block everything

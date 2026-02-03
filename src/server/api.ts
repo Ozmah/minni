@@ -2,7 +2,7 @@
  * Database API handlers for the viewer.
  */
 
-import { desc, eq, sql, count } from "drizzle-orm";
+import { desc, eq, sql, count, getColumns } from "drizzle-orm";
 
 import type { MinniDB } from "../helpers";
 
@@ -38,11 +38,7 @@ export async function handleProjects(db: MinniDB): Promise<Response> {
 }
 
 export async function handleProject(db: MinniDB, id: number): Promise<Response> {
-	const result = await db
-		.select()
-		.from(projects)
-		.where(eq(projects.id, id))
-		.limit(1);
+	const result = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
 
 	if (!result.length) {
 		return Response.json({ error: "Project not found" }, { status: 404 });
@@ -82,28 +78,10 @@ export async function handleMemories(db: MinniDB, url: URL): Promise<Response> {
 }
 
 export async function handleMemory(db: MinniDB, id: number): Promise<Response> {
-	const result = await db
-		.select()
-		.from(memories)
-		.where(eq(memories.id, id))
-		.limit(1);
+	const result = await db.select().from(memories).where(eq(memories.id, id)).limit(1);
 
 	if (!result.length) {
 		return Response.json({ error: "Memory not found" }, { status: 404 });
-	}
-
-	return Response.json(result[0]);
-}
-
-export async function handleTask(db: MinniDB, id: number): Promise<Response> {
-	const result = await db
-		.select()
-		.from(tasks)
-		.where(eq(tasks.id, id))
-		.limit(1);
-
-	if (!result.length) {
-		return Response.json({ error: "Task not found" }, { status: 404 });
 	}
 
 	return Response.json(result[0]);
@@ -131,4 +109,22 @@ export async function handleTasks(db: MinniDB, url: URL): Promise<Response> {
 
 	const result = await db.select().from(tasks).orderBy(desc(tasks.updatedAt)).limit(safeLimit);
 	return Response.json(result);
+}
+
+export async function handleTask(db: MinniDB, id: number): Promise<Response> {
+	const result = await db
+		.select({
+			...getColumns(tasks),
+			projectName: projects.name,
+		})
+		.from(tasks)
+		.leftJoin(projects, eq(tasks.projectId, projects.id))
+		.where(eq(tasks.id, id))
+		.limit(1);
+
+	if (!result.length) {
+		return Response.json({ error: "Task not found" }, { status: 404 });
+	}
+
+	return Response.json(result[0]);
 }

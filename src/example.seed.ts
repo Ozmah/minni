@@ -36,9 +36,8 @@
  * All timestamps (createdAt, updatedAt) must be passed explicitly in INSERT
  * statements. This is a workaround until the driver reaches stable release.
  *
- * THE DATABASE IS THE SOURCE OF TRUTH
+ * THE minni.db FILE IS THE SOURCE OF TRUTH
  * ────────────────────────────────────
- * The minni.db file is the single source of truth.
  *
  * Any agent, tool, or human can modify the database at any time. Therefore:
  *   - minni_load ALWAYS fetches fresh data from the database
@@ -57,7 +56,7 @@
  *   where the last left off. The brain provides continuity across sessions.
  *   You work with one drone, but the Overmind remembers everything.
  *
- *   Swarm style: Multiple agents in parallel (Ralph Loops, multi-agent systems).
+ *   Swarm style: Multiple agents in parallel (Loops, multi-agent systems).
  *   What one agent learns, all know. The brain synchronizes the hive.
  *   True swarm intelligence, many drones, one mind.
  *
@@ -137,7 +136,7 @@ import { globalContext, projects } from "./schema";
 // use case. Here are three known patterns:
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// PATTERN 1: Human User Identity (most common)
+// PATTERN 1: Human User Identity (Minni's main focus)
 // ─────────────────────────────────────────────────────────────────────────────
 // You're a developer using Minni to remember things about yourself.
 // The LLM learns who YOU are and adapts to your style.

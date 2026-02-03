@@ -88,7 +88,7 @@ export function Canvas() {
 
 			{/* Footer */}
 			{page && (
-				<div className="border-t border-gray-700 px-4 py-2 text-xs text-gray-500">
+				<div className="border-t border-gray-700 px-4 py-4 text-xs text-gray-500">
 					{new Date(page.timestamp).toLocaleString()}
 				</div>
 			)}

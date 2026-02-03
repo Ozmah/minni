@@ -1,8 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ListTodo, Circle, CircleCheck, CircleDot, CircleX, Clock, AlertTriangle, FolderKanban, GitBranch } from "lucide-react";
-import { api, type Task } from "@/lib/api";
+import {
+	ListTodo,
+	Circle,
+	AlertTriangle,
+	Clock,
+	FolderKanban,
+	GitBranch,
+	Workflow,
+} from "lucide-react";
+
 import { Drawer } from "@/components/Drawer";
+import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
+import { api, type TaskDetail } from "@/lib/api";
+import {
+	TASK_STATUS_CONFIG,
+	TASK_PRIORITY_CONFIG,
+	getStatusConfig,
+	type StatusConfigWithIcon,
+} from "@/lib/config";
+import { formatDate } from "@/lib/utils";
 
 export const Route = createFileRoute("/tasks/$id")({
 	component: TaskDetail,
@@ -12,7 +29,11 @@ function TaskDetail() {
 	const { id } = Route.useParams();
 	const navigate = useNavigate();
 
-	const { data: task, isLoading, error } = useQuery({
+	const {
+		data: task,
+		isLoading,
+		error,
+	} = useQuery({
 		queryKey: ["task", id],
 		queryFn: () => api.task(Number(id)),
 	});
@@ -21,29 +42,21 @@ function TaskDetail() {
 
 	return (
 		<Drawer open={true} onClose={handleClose} title={task?.title ?? "Task"}>
-			{isLoading && <LoadingState />}
+			{isLoading && <LoadingState message="Loading task..." />}
 			{error && <ErrorState error={error} />}
 			{task && <TaskContent task={task} />}
 		</Drawer>
 	);
 }
 
-function TaskContent({ task }: { task: Task }) {
-	const statusConfig: Record<string, { color: string; label: string; icon: typeof Circle }> = {
-		todo: { color: "bg-gray-500/20 text-gray-400", label: "To Do", icon: Circle },
-		in_progress: { color: "bg-yellow-500/20 text-yellow-400", label: "In Progress", icon: CircleDot },
-		done: { color: "bg-green-500/20 text-green-400", label: "Done", icon: CircleCheck },
-		cancelled: { color: "bg-red-500/20 text-red-400", label: "Cancelled", icon: CircleX },
+function TaskContent({ task }: { task: TaskDetail }) {
+	const statusDefault: StatusConfigWithIcon = {
+		color: "bg-gray-500/20 text-gray-400",
+		label: task.status,
+		icon: Circle,
 	};
-
-	const priorityConfig: Record<string, { color: string; label: string }> = {
-		high: { color: "bg-red-500/20 text-red-400", label: "High" },
-		medium: { color: "bg-yellow-500/20 text-yellow-400", label: "Medium" },
-		low: { color: "bg-gray-500/20 text-gray-400", label: "Low" },
-	};
-
-	const status = statusConfig[task.status] ?? { color: "bg-gray-500/20 text-gray-400", label: task.status, icon: Circle };
-	const priority = priorityConfig[task.priority] ?? { color: "bg-gray-500/20 text-gray-400", label: task.priority };
+	const status = TASK_STATUS_CONFIG[task.status] ?? statusDefault;
+	const priority = getStatusConfig(TASK_PRIORITY_CONFIG, task.priority, task.priority);
 	const StatusIcon = status.icon;
 
 	return (
@@ -56,11 +69,15 @@ function TaskContent({ task }: { task: Task }) {
 				<div className="flex-1">
 					<h3 className="text-xl font-semibold text-white">{task.title}</h3>
 					<div className="mt-1 flex items-center gap-2">
-						<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status.color}`}>
+						<span
+							className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status.color}`}
+						>
 							<StatusIcon size={10} />
 							{status.label}
 						</span>
-						<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${priority.color}`}>
+						<span
+							className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${priority.color}`}
+						>
 							<AlertTriangle size={10} />
 							{priority.label}
 						</span>
@@ -68,20 +85,14 @@ function TaskContent({ task }: { task: Task }) {
 				</div>
 			</div>
 
-			{/* Description */}
-			{task.description && (
-				<Section title="Description">
-					<div className="rounded-lg bg-gray-800/50 p-4">
-						<p className="whitespace-pre-wrap text-sm text-gray-300">{task.description}</p>
-					</div>
-				</Section>
-			)}
-
 			{/* Relations */}
 			<Section title="Relations">
 				<div className="space-y-2">
 					{task.projectId && (
-						<InfoItem icon={FolderKanban} label="Project ID" value={String(task.projectId)} />
+						<>
+							<InfoItem icon={FolderKanban} label="Project ID" value={String(task.projectId)} />
+							<InfoItem icon={Workflow} label="Project Name" value={String(task.projectName)} />
+						</>
 					)}
 					{task.parentId && (
 						<InfoItem icon={GitBranch} label="Parent Task ID" value={String(task.parentId)} />
@@ -99,43 +110,15 @@ function TaskContent({ task }: { task: Task }) {
 					<InfoItem icon={Clock} label="Updated" value={formatDate(task.updatedAt)} />
 				</div>
 			</Section>
+
+			{/* Description */}
+			{task.description && (
+				<Section title="Description">
+					<div className="rounded-lg bg-gray-800/50 p-4">
+						<p className="text-sm whitespace-pre-wrap text-gray-300">{task.description}</p>
+					</div>
+				</Section>
+			)}
 		</div>
 	);
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-	return (
-		<section>
-			<h4 className="mb-2 text-sm font-medium uppercase tracking-wider text-gray-500">{title}</h4>
-			{children}
-		</section>
-	);
-}
-
-function InfoItem({ icon: Icon, label, value }: { icon: typeof Clock; label: string; value: string }) {
-	return (
-		<div className="flex items-center gap-2 text-gray-400">
-			<Icon size={14} />
-			<span className="text-gray-500">{label}:</span>
-			<span className="text-gray-300">{value}</span>
-		</div>
-	);
-}
-
-function formatDate(date: string | Date | number): string {
-	return new Date(date).toLocaleDateString(undefined, {
-		year: "numeric",
-		month: "short",
-		day: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-}
-
-function LoadingState() {
-	return <div className="text-gray-400">Loading task...</div>;
-}
-
-function ErrorState({ error }: { error: Error }) {
-	return <div className="text-red-400">Error: {error.message}</div>;
 }

@@ -10,7 +10,15 @@ import { join } from "node:path";
 
 import type { MinniDB } from "../helpers";
 
-import { handleStats, handleProjects, handleProject, handleMemories, handleMemory, handleTask, handleTasks } from "./api";
+import {
+	handleStats,
+	handleProjects,
+	handleProject,
+	handleMemories,
+	handleMemory,
+	handleTask,
+	handleTasks,
+} from "./api";
 import {
 	handleStream,
 	handleGetPages,

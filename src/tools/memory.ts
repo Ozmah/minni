@@ -10,11 +10,24 @@ import {
 	savePathSegments,
 	validateEnum,
 	guardedAction,
-	MEMORY_TYPES,
-	MEMORY_STATUSES,
-	MEMORY_PERMISSIONS,
 } from "../helpers";
-import { projects, memories, memoryTags, memoryPaths, globalContext } from "../schema";
+import {
+	projects,
+	memories,
+	memoryTags,
+	memoryPaths,
+	globalContext,
+	MEMORY_TYPE,
+	MEMORY_STATUS,
+	PERMISSION,
+	type Permission,
+	type MemoryType,
+	type MemoryStatus,
+} from "../schema";
+
+/** Permission types allowed when creating/updating memories (excludes "locked") */
+// TODO centralize all types including specific permission
+type WritablePermission = Exclude<Permission, "locked">;
 
 /**
  * Creates memory-related tools: minni_find, minni_get, minni_save, minni_update, minni_delete
@@ -47,10 +60,10 @@ export function memoryTools(db: MinniDB) {
 
 				type MemoryRow = {
 					id: number;
-					type: string;
+					type: MemoryType;
 					title: string;
 					path: string | null;
-					status: string;
+					status: MemoryStatus;
 					project_id: number | null;
 					project_name: string | null;
 				};
@@ -222,42 +235,47 @@ export function memoryTools(db: MinniDB) {
 				tags: tool.schema.string().optional().describe("Comma-separated"),
 			},
 			async execute(args) {
-				const typeErr = validateEnum(args.type, MEMORY_TYPES, "type");
+				const typeErr = validateEnum(args.type, MEMORY_TYPE, "type");
 				if (typeErr) return typeErr;
 				if (args.status) {
-					const statusErr = validateEnum(args.status, MEMORY_STATUSES, "status");
+					const statusErr = validateEnum(args.status, MEMORY_STATUS, "status");
 					if (statusErr) return statusErr;
 				}
 				if (args.permission) {
-					const permErr = validateEnum(args.permission, MEMORY_PERMISSIONS, "permission");
+					const permErr = validateEnum(args.permission, PERMISSION, "permission");
 					if (permErr) return permErr;
 				}
 
 				const proj = await resolveProject(db, args.project);
 
 				// Permission cascade: explicit → project.defaultMemoryPermission → preferences → "guarded"
-				type PermissionType = "open" | "guarded" | "read_only";
-				let resolvedPermission: PermissionType | undefined = args.permission;
+				let resolvedPermission: WritablePermission | undefined = args.permission as
+					| WritablePermission
+					| undefined;
 				if (!resolvedPermission && proj) {
 					const fullProj = await db
 						.select()
 						.from(projects)
 						.where(eq(projects.id, proj.id))
 						.limit(1);
-					resolvedPermission = fullProj[0]?.defaultMemoryPermission as PermissionType | undefined;
+					resolvedPermission = fullProj[0]?.defaultMemoryPermission as
+						| WritablePermission
+						| undefined;
 				}
 				if (!resolvedPermission) {
 					const ctx = await db.select().from(globalContext).where(eq(globalContext.id, 1)).limit(1);
 					if (ctx[0]?.preferences) {
 						try {
 							const prefs = JSON.parse(ctx[0].preferences);
-							resolvedPermission = prefs?.memory?.defaultPermission as PermissionType | undefined;
+							resolvedPermission = prefs?.memory?.defaultPermission as
+								| WritablePermission
+								| undefined;
 						} catch {
 							// Invalid JSON, ignore
 						}
 					}
 				}
-				const finalPermission: PermissionType = resolvedPermission ?? "guarded";
+				const finalPermission: WritablePermission = resolvedPermission ?? "guarded";
 
 				// NOTE: createdAt/updatedAt passed explicitly. Turso driver (beta) ignores SQLite DEFAULT expressions
 				const result = await db
@@ -311,7 +329,7 @@ export function memoryTools(db: MinniDB) {
 				if (!mem[0]) return `Memory ${args.id} not found.`;
 
 				if (args.status) {
-					const statusErr = validateEnum(args.status, MEMORY_STATUSES, "status");
+					const statusErr = validateEnum(args.status, MEMORY_STATUS, "status");
 					if (statusErr) return statusErr;
 				}
 

@@ -1,15 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
-import { Result } from "better-result";
 import { FolderKanban, Clock, CircleDot } from "lucide-react";
+
 import { api, type Project } from "@/lib/api";
+import { parseJsonArray, extractDescription } from "@/lib/utils";
 
 export const Route = createFileRoute("/projects")({
 	component: ProjectsPage,
 });
 
 function ProjectsPage() {
-	const { data: projects, isLoading, error } = useQuery({
+	const {
+		data: projects,
+		isLoading,
+		error,
+	} = useQuery({
 		queryKey: ["projects"],
 		queryFn: api.projects,
 	});
@@ -47,21 +52,16 @@ function ProjectsPage() {
 	);
 }
 
-function parseStack(stack: string | null): string[] {
-	if (!stack) return [];
-	return Result.try(() => JSON.parse(stack))
-		.map((parsed) => (Array.isArray(parsed) ? parsed : []))
-		.unwrapOr([]);
-}
-
 function ProjectCard({ project }: { project: Project }) {
-	const stack = parseStack(project.stack);
-	const statusColor = {
-		active: "text-green-400",
-		paused: "text-yellow-400",
-		completed: "text-blue-400",
-		archived: "text-gray-500",
-	}[project.status] || "text-gray-400";
+	const stack = parseJsonArray(project.stack);
+	const description = extractDescription(project.description);
+	const statusColor =
+		{
+			active: "text-green-400",
+			paused: "text-yellow-400",
+			completed: "text-blue-400",
+			archived: "text-gray-500",
+		}[project.status] || "text-gray-400";
 
 	return (
 		<Link
@@ -80,9 +80,7 @@ function ProjectCard({ project }: { project: Project }) {
 				</span>
 			</div>
 
-			{project.description && (
-				<p className="mt-2 text-sm text-gray-400">{project.description}</p>
-			)}
+			{description && <p className="mt-2 text-sm text-gray-400">{description}</p>}
 
 			{stack.length > 0 && (
 				<div className="mt-3 flex flex-wrap gap-1">
@@ -110,7 +108,15 @@ function PageError({ error }: { error: Error }) {
 	return <div className="p-6 text-red-400">Error: {error.message}</div>;
 }
 
-function PageEmpty({ icon: Icon, title, description }: { icon: typeof FolderKanban; title: string; description: string }) {
+function PageEmpty({
+	icon: Icon,
+	title,
+	description,
+}: {
+	icon: typeof FolderKanban;
+	title: string;
+	description: string;
+}) {
 	return (
 		<div className="flex flex-col items-center justify-center p-12 text-gray-400">
 			<Icon size={48} className="mb-4 opacity-50" />

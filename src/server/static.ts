@@ -22,7 +22,7 @@ export async function handleStatic(path: string, distPath: string): Promise<Resp
 		});
 	}
 
-	// SPA fallback - serve index.html for client-side routing
+	// SPA fallback
 	return new Response(Bun.file(join(distPath, "index.html")), {
 		headers: { "Content-Type": "text/html" },
 	});

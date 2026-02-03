@@ -1,3 +1,18 @@
+/**
+ * ╔═══════════════════════════════════════════════════════════════════════════════╗
+ * ║  ⚠️  MIGRATION PENDING: result.ts → better-result                             ║
+ * ╠═══════════════════════════════════════════════════════════════════════════════╣
+ * ║  This file uses the LOCAL result.ts implementation.                           ║
+ * ║  The project is migrating to the `better-result` library.                     ║
+ * ║                                                                               ║
+ * ║  TODO: Replace imports from "../result" with "better-result"                  ║
+ * ║        - tryAsync → Result.try (async version)                                ║
+ * ║        - Result type → Result from better-result                              ║
+ * ║                                                                               ║
+ * ║  After all files are migrated, src/result.ts will be deleted.                 ║
+ * ╚═══════════════════════════════════════════════════════════════════════════════╝
+ */
+
 import { tool } from "@opencode-ai/plugin";
 
 import { tryAsync, type Result } from "../result";
@@ -153,7 +168,6 @@ export function canvasTools() {
 				}
 
 				if (action === "save") {
-					// TODO: Implement save to memory
 					return `Content sent to canvas (${args.content.length} chars). Save to memory: coming soon. View at ${viewerUrl}`;
 				}
 

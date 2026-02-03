@@ -1,7 +1,16 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import { timestamp, MEMORY_TYPE, MEMORY_STATUS, PERMISSION } from "./base";
+
+import {
+	timestamp,
+	MEMORY_TYPE,
+	MEMORY_STATUS,
+	PERMISSION,
+	type MemoryType,
+	type MemoryStatus,
+	type Permission,
+} from "./base";
 import { projects } from "./projects";
 
 export const memories = sqliteTable("memories", {
@@ -9,12 +18,12 @@ export const memories = sqliteTable("memories", {
 	projectId: integer("project_id").references(() => projects.id, {
 		onDelete: "cascade",
 	}),
-	type: text("type").notNull(),
+	type: text("type").$type<MemoryType>().notNull(),
 	title: text("title").notNull(),
 	content: text("content").notNull(),
 	path: text("path"),
-	status: text("status").notNull().default("draft"),
-	permission: text("permission").notNull().default("guarded"),
+	status: text("status").$type<MemoryStatus>().notNull().default("draft"),
+	permission: text("permission").$type<Permission>().notNull().default("guarded"),
 	...timestamp,
 });
 

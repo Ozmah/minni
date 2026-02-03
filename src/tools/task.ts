@@ -1,15 +1,15 @@
 import { tool } from "@opencode-ai/plugin";
 import { sql, eq, desc } from "drizzle-orm";
 
+import { type MinniDB, getActiveProject, resolveProject, validateEnum } from "../helpers";
 import {
-	type MinniDB,
-	getActiveProject,
-	resolveProject,
-	validateEnum,
-	TASK_PRIORITIES,
-	TASK_STATUSES,
-} from "../helpers";
-import { projects, tasks } from "../schema";
+	projects,
+	tasks,
+	TASK_PRIORITY,
+	TASK_STATUS,
+	type TaskPriority,
+	type TaskStatus,
+} from "../schema";
 
 /**
  * Creates task-related tools: minni_task
@@ -34,11 +34,11 @@ export function taskTools(db: MinniDB) {
 			},
 			async execute(args) {
 				if (args.priority) {
-					const err = validateEnum(args.priority, TASK_PRIORITIES, "priority");
+					const err = validateEnum(args.priority, TASK_PRIORITY, "priority");
 					if (err) return err;
 				}
 				if (args.status) {
-					const err = validateEnum(args.status, TASK_STATUSES, "status");
+					const err = validateEnum(args.status, TASK_STATUS, "status");
 					if (err) return err;
 				}
 
@@ -158,8 +158,8 @@ export function taskTools(db: MinniDB) {
 					type TaskRow = {
 						id: number;
 						title: string;
-						priority: string;
-						status: string;
+						priority: TaskPriority;
+						status: TaskStatus;
 						parentId: number | null;
 					};
 

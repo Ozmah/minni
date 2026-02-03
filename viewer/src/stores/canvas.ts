@@ -1,5 +1,7 @@
 import { Store, Derived } from "@tanstack/store";
 
+import { notifyCanvasContent } from "./ui";
+
 export interface CanvasPage {
 	id: string;
 	markdown: string;
@@ -79,6 +81,7 @@ export const addPage = (page: CanvasPage) => {
 		if (s.pages.some((p) => p.id === page.id)) return s;
 		const newPages = [...s.pages, page];
 		saveToStorage(newPages);
+		notifyCanvasContent();
 		return {
 			...s,
 			pages: newPages,
@@ -168,6 +171,8 @@ currentPageNumber.mount();
 // === SSE Connection ===
 
 let eventSource: EventSource | null = null;
+let reconnectDelay = 1000;
+const MAX_RECONNECT_DELAY = 30000;
 
 export const connectToCanvas = () => {
 	if (eventSource) return;
@@ -175,7 +180,10 @@ export const connectToCanvas = () => {
 	setConnectionStatus("connecting");
 	eventSource = new EventSource("/api/canvas/stream");
 
-	eventSource.onopen = () => setConnectionStatus("connected");
+	eventSource.onopen = () => {
+		reconnectDelay = 1000; // Reset on successful connection
+		setConnectionStatus("connected");
+	};
 
 	eventSource.onmessage = (event) => {
 		const data = JSON.parse(event.data);
@@ -203,7 +211,8 @@ export const connectToCanvas = () => {
 		setConnectionStatus("error");
 		eventSource?.close();
 		eventSource = null;
-		setTimeout(connectToCanvas, 2000);
+		setTimeout(connectToCanvas, reconnectDelay);
+		reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
 	};
 };
 

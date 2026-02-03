@@ -1,5 +1,18 @@
 /**
  * Canvas state management and API handlers.
+ *
+ * ╔═══════════════════════════════════════════════════════════════════════════════╗
+ * ║  ⚠️  MIGRATION PENDING: result.ts → better-result                             ║
+ * ╠═══════════════════════════════════════════════════════════════════════════════╣
+ * ║  This file uses the LOCAL result.ts implementation.                           ║
+ * ║  The project is migrating to the `better-result` library.                     ║
+ * ║                                                                               ║
+ * ║  TODO: Replace imports from "../result" with "better-result"                  ║
+ * ║        - ok/err → Result.ok / Result.err                                      ║
+ * ║        - Result type → Result from better-result                              ║
+ * ║                                                                               ║
+ * ║  After all files are migrated, src/result.ts will be deleted.                 ║
+ * ╚═══════════════════════════════════════════════════════════════════════════════╝
  */
 
 import { type Result, ok, err } from "../result";

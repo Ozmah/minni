@@ -1,4 +1,22 @@
 /**
+ * ╔═══════════════════════════════════════════════════════════════════════════════╗
+ * ║  ⚠️  DEPRECATED: This file will be deleted after migration                    ║
+ * ╠═══════════════════════════════════════════════════════════════════════════════╣
+ * ║  The project is migrating to the `better-result` library.                     ║
+ * ║  This local implementation remains only for backward compatibility.           ║
+ * ║                                                                               ║
+ * ║  Files still using this:                                                      ║
+ * ║    - src/tools/canvas.ts                                                      ║
+ * ║    - src/server/canvas.ts                                                     ║
+ * ║    - src/helpers.ts (re-exports)                                              ║
+ * ║                                                                               ║
+ * ║  DO NOT add new usages. Use `better-result` instead:                          ║
+ * ║    import { Result } from "better-result";                                    ║
+ * ║    Result.try(() => ...).map(...).unwrapOr(...)                               ║
+ * ║                                                                               ║
+ * ║  Once all files are migrated, DELETE THIS FILE.                               ║
+ * ╚═══════════════════════════════════════════════════════════════════════════════╝
+ *
  * Discriminated union for type-safe error handling.
  * Eliminates try/catch scattered throughout the codebase.
  *

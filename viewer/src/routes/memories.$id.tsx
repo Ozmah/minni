@@ -1,8 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Brain, CircleDot, Clock, Shield, FolderOpen, Tag } from "lucide-react";
-import { api, type Memory } from "@/lib/api";
+
 import { Drawer } from "@/components/Drawer";
+import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
+import { api, type Memory } from "@/lib/api";
+import { MEMORY_TYPE_CONFIG, MEMORY_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
+import { formatDate } from "@/lib/utils";
 
 export const Route = createFileRoute("/memories/$id")({
 	component: MemoryDetail,
@@ -12,7 +16,11 @@ function MemoryDetail() {
 	const { id } = Route.useParams();
 	const navigate = useNavigate();
 
-	const { data: memory, isLoading, error } = useQuery({
+	const {
+		data: memory,
+		isLoading,
+		error,
+	} = useQuery({
 		queryKey: ["memory", id],
 		queryFn: () => api.memory(Number(id)),
 	});
@@ -21,7 +29,7 @@ function MemoryDetail() {
 
 	return (
 		<Drawer open={true} onClose={handleClose} title={memory?.title ?? "Memory"}>
-			{isLoading && <LoadingState />}
+			{isLoading && <LoadingState message="Loading memory..." />}
 			{error && <ErrorState error={error} />}
 			{memory && <MemoryContent memory={memory} />}
 		</Drawer>
@@ -29,30 +37,8 @@ function MemoryDetail() {
 }
 
 function MemoryContent({ memory }: { memory: Memory }) {
-	const typeConfig: Record<string, { color: string; label: string }> = {
-		skill: { color: "bg-blue-500/20 text-blue-400", label: "Skill" },
-		pattern: { color: "bg-green-500/20 text-green-400", label: "Pattern" },
-		anti_pattern: { color: "bg-red-500/20 text-red-400", label: "Anti-Pattern" },
-		decision: { color: "bg-purple-500/20 text-purple-400", label: "Decision" },
-		insight: { color: "bg-yellow-500/20 text-yellow-400", label: "Insight" },
-		comparison: { color: "bg-cyan-500/20 text-cyan-400", label: "Comparison" },
-		note: { color: "bg-gray-500/20 text-gray-400", label: "Note" },
-		link: { color: "bg-indigo-500/20 text-indigo-400", label: "Link" },
-		article: { color: "bg-orange-500/20 text-orange-400", label: "Article" },
-		video: { color: "bg-pink-500/20 text-pink-400", label: "Video" },
-		documentation: { color: "bg-teal-500/20 text-teal-400", label: "Documentation" },
-	};
-
-	const statusConfig: Record<string, { color: string; label: string }> = {
-		draft: { color: "bg-gray-500/20 text-gray-400", label: "Draft" },
-		experimental: { color: "bg-yellow-500/20 text-yellow-400", label: "Experimental" },
-		proven: { color: "bg-green-500/20 text-green-400", label: "Proven" },
-		battle_tested: { color: "bg-blue-500/20 text-blue-400", label: "Battle Tested" },
-		deprecated: { color: "bg-red-500/20 text-red-400", label: "Deprecated" },
-	};
-
-	const type = typeConfig[memory.type] ?? { color: "bg-gray-500/20 text-gray-400", label: memory.type };
-	const status = statusConfig[memory.status] ?? { color: "bg-gray-500/20 text-gray-400", label: memory.status };
+	const type = getStatusConfig(MEMORY_TYPE_CONFIG, memory.type, memory.type);
+	const status = getStatusConfig(MEMORY_STATUS_CONFIG, memory.status, memory.status);
 
 	return (
 		<div className="space-y-6">
@@ -64,11 +50,15 @@ function MemoryContent({ memory }: { memory: Memory }) {
 				<div className="flex-1">
 					<h3 className="text-xl font-semibold text-white">{memory.title}</h3>
 					<div className="mt-1 flex items-center gap-2">
-						<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${type.color}`}>
+						<span
+							className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${type.color}`}
+						>
 							<Tag size={10} />
 							{type.label}
 						</span>
-						<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status.color}`}>
+						<span
+							className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status.color}`}
+						>
 							<CircleDot size={10} />
 							{status.label}
 						</span>
@@ -79,7 +69,7 @@ function MemoryContent({ memory }: { memory: Memory }) {
 			{/* Content */}
 			<Section title="Content">
 				<div className="rounded-lg bg-gray-800/50 p-4">
-					<p className="whitespace-pre-wrap text-sm text-gray-300">{memory.content}</p>
+					<p className="text-sm whitespace-pre-wrap text-gray-300">{memory.content}</p>
 				</div>
 			</Section>
 
@@ -107,41 +97,4 @@ function MemoryContent({ memory }: { memory: Memory }) {
 			</Section>
 		</div>
 	);
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-	return (
-		<section>
-			<h4 className="mb-2 text-sm font-medium uppercase tracking-wider text-gray-500">{title}</h4>
-			{children}
-		</section>
-	);
-}
-
-function InfoItem({ icon: Icon, label, value }: { icon: typeof Clock; label: string; value: string }) {
-	return (
-		<div className="flex items-center gap-2 text-gray-400">
-			<Icon size={14} />
-			<span className="text-gray-500">{label}:</span>
-			<span className="text-gray-300">{value}</span>
-		</div>
-	);
-}
-
-function formatDate(date: string | Date | number): string {
-	return new Date(date).toLocaleDateString(undefined, {
-		year: "numeric",
-		month: "short",
-		day: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-}
-
-function LoadingState() {
-	return <div className="text-gray-400">Loading memory...</div>;
-}
-
-function ErrorState({ error }: { error: Error }) {
-	return <div className="text-red-400">Error: {error.message}</div>;
 }
