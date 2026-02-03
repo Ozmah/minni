@@ -2,17 +2,13 @@
 
 **Persistent structured memory for AI agents.** One database file. Multiple agents. Shared brain.
 
-Minni is a plugin for [OpenCode](https://opencode.ai) that gives your AI agents long-term memory backed by a local [Turso Database](https://docs.turso.tech/introduction) file. Everything your agents learn persists across sessions and projects. Copy the file, move it to another machine, and your agents remember everything.
+Currently available as an [OpenCode](https://opencode.ai) plugin. Everything your agents learn persists across sessions and projects, backed by a local [Turso Database](https://docs.turso.tech/introduction) file. Copy the file, move it to another machine, and your agents remember everything.
 
 The name comes from Old Norse _minni_ which means memory.
 
-> **Status:** Early development. The core plugin works. APIs may change.
+> **Status:** Early development. Changes are still very wide and breaking across all application.
 
-> **Models:** Tested primarily with Anthropic models.
-
----
-
-https://github.com/user-attachments/assets/052e5e1a-d691-485d-935f-5697c510ca6b
+> **Testing Models:** Works good with Opus and Sonnet, good enough with GPT 5.2 and inconsistent with Kimi K2.5 model.
 
 ---
 
@@ -20,10 +16,11 @@ https://github.com/user-attachments/assets/052e5e1a-d691-485d-935f-5697c510ca6b
 
 - **Memories** — Skills, patterns, decisions, insights, links, and more
 - **Projects** — Organize work with context summaries that persist between sessions
-- **Tasks** — Track work items with subtask hierarchy
+- **Tasks** — Track work items with unlimited subtask hierarchy
 - **Viewer** — Real-time web UI with canvas for LLM-to-human communication
 - **Permission System** — Protect sensitive memories from modification
 - **Session Compaction** — Inject context when OpenCode compacts conversations
+- **Default Skills** — Two built-in skills for writing project descriptions (technical & human projects)
 
 ---
 
@@ -42,11 +39,11 @@ Add to `~/.config/opencode/package.json`:
 
 ```json
 {
-	"dependencies": {
-		"@opencode-ai/plugin": "latest",
-		"@tursodatabase/database": "^0.4.3",
-		"drizzle-orm": "^1.0.0-beta.12-a5629fb"
-	}
+  "dependencies": {
+    "@opencode-ai/plugin": "latest",
+    "@tursodatabase/database": "^0.4.3",
+    "drizzle-orm": "^1.0.0-beta.12-a5629fb"
+  }
 }
 ```
 
@@ -71,12 +68,27 @@ After restart, ask the LLM to check Minni status. You should see:
 ```
 Minni DB: Connected
 Projects: 0
-Memories: 0
+Memories: 2  (default skills)
 Mode: Global
 ```
 
 Database file: `~/.config/opencode/minni.db`  
 Viewer: `http://localhost:8593`
+
+---
+
+## Human Projects, Not Just Code
+
+Minni is designed for **human projects** — not just software development. Projects can be:
+
+- **Technical** — Software, hardware, automation (Role: Executor/User/Meta)
+- **Non-technical** — Recipes, hobbies, learning, collections (Role: Advisor)
+
+The key difference is the **agent role**:
+- **Executor/User/Meta**: Agent does or uses the work directly
+- **Advisor**: Agent guides step-by-step, human executes physically
+
+Two default skills are installed automatically to help write effective project descriptions for both types.
 
 ---
 
@@ -93,16 +105,17 @@ A single local Turso Database file (`minni.db`) with 7 tables:
 | `memories`       | All knowledge: skills, decisions, patterns, notes, links |
 | `tasks`          | Work items with optional subtask hierarchy               |
 | `tags`           | Reusable labels                                          |
-| `memory_tags`    | Many-to-many: memories <-> tags                          |
+| `memory_tags`    | Many-to-many: memories ↔ tags                            |
 | `memory_paths`   | Indexed path segments for classification queries         |
 
 ### Viewer
 
-A React web app served by Bun on port 8593. Features:
+A React web app served by Bun on port 8593. Built with TanStack Router + Query + Store.
 
-- **Canvas** — Real-time markdown display via SSE
-- **Copy buttons** — Markdown, plain text, HTML
-- **Page navigation** — Browse canvas history
+Features:
+- **Canvas** — Real-time markdown display via SSE with exponential backoff
+- **Project/Memory/Task views** — Browse and inspect all data
+- **Detail drawers** — Click any item to see full details
 
 The viewer runs in the same process as the plugin, sharing the database instance.
 
@@ -110,7 +123,7 @@ The viewer runs in the same process as the plugin, sharing the database instance
 
 ## Tools
 
-Minni registers **12 tools**:
+Minni registers **11 tools**:
 
 | Tool            | Description                                   | Writes? |
 | --------------- | --------------------------------------------- | ------- |
@@ -162,7 +175,7 @@ Knowledge matures as it's validated:
 
 ## Permission System
 
-Permissions are enforced programmatically.
+Permissions are enforced **programmatically**, not by asking the LLM nicely.
 
 | Permission  | Read      | Write             | Notes                           |
 | ----------- | --------- | ----------------- | ------------------------------- |
@@ -231,15 +244,24 @@ This ensures compacted sessions retain project awareness.
 ```
 ~/.config/opencode/plugins/minni/
 ├── minni.ts              # Entry point: DB init, compaction hook, tools
-├── package.json          # Plugin dependencies
+├── package.json          # Plugin manifest
 ├── src/
-│   ├── schema.ts         # Drizzle table definitions
-│   ├── helpers.ts        # Types, constants, utilities
-│   ├── init.ts           # Database bootstrap (CREATE TABLE IF NOT EXISTS)
-│   └── tools.ts          # All 12 tools
+│   ├── schema/           # Drizzle table definitions (modular)
+│   │   ├── base.ts       # Centralized enums and types
+│   │   ├── projects.ts
+│   │   ├── memories.ts
+│   │   ├── tasks.ts
+│   │   └── ...
+│   ├── server/           # HTTP API + SSE for viewer
+│   ├── tools/            # MCP tool implementations
+│   ├── helpers.ts        # Utilities and type helpers
+│   └── init.ts           # Database bootstrap + default skills
 └── viewer/
-    ├── server.ts         # Bun HTTP server + SSE
-    ├── src/              # React app source
+    ├── src/              # React app (TanStack Router/Query/Store)
+    │   ├── routes/       # File-based routing
+    │   ├── stores/       # TanStack Store
+    │   ├── components/   # UI components
+    │   └── lib/          # API client, utils, config
     └── dist/             # Built viewer (served by Bun)
 ```
 
@@ -260,6 +282,8 @@ cd viewer && bun install && bun run build && cd ..
 
 # Sync to plugins folder
 bun run sync
+
+# Restart OpenCode to test changes
 ```
 
 The `sync` script rsyncs source files to `~/.config/opencode/plugins/minni/`.
@@ -268,12 +292,7 @@ The `sync` script rsyncs source files to `~/.config/opencode/plugins/minni/`.
 
 ## Roadmap
 
-- [ ] Global context configuration UI
-- [ ] Custom compaction prompts
-- [ ] Auto-capture compaction results
-- [ ] Minni Studio (dedicated web app for direct DB access)
-- [ ] Export/import for sharing memory sets
-- [ ] MCP server adapter for non-OpenCode editors
+Minni is still changing too much. Exploring the idea of moving towards a more general-purpose shared brain for AI agents with a primary focus on OpenCode. No clear roadmap yet.
 
 ---
 
