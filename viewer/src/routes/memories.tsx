@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { Brain, Clock, Tag, FolderOpen } from "lucide-react";
 import { api, type Memory } from "@/lib/api";
 
@@ -32,14 +32,17 @@ function MemoriesPage() {
 	}
 
 	return (
-		<div className="p-6">
-			<h2 className="mb-6 text-2xl font-semibold tracking-tight">Memories</h2>
-			<div className="space-y-3">
-				{memories.map((memory) => (
-					<MemoryCard key={memory.id} memory={memory} />
-				))}
+		<>
+			<div className="p-6">
+				<h2 className="mb-6 text-2xl font-semibold tracking-tight">Memories</h2>
+				<div className="space-y-3">
+					{memories.map((memory) => (
+						<MemoryCard key={memory.id} memory={memory} />
+					))}
+				</div>
 			</div>
-		</div>
+			<Outlet />
+		</>
 	);
 }
 
@@ -67,35 +70,41 @@ function MemoryCard({ memory }: { memory: Memory }) {
 	}[memory.status] || "text-gray-400";
 
 	return (
-		<article className="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
-			<div className="flex items-start justify-between gap-4">
-				<div className="flex-1">
-					<div className="flex items-center gap-2">
-						<span className={`rounded px-2 py-0.5 text-xs font-medium ${typeColor}`}>
-							{memory.type}
-						</span>
-						<h3 className="font-medium text-white">{memory.title}</h3>
+		<Link
+			to="/memories/$id"
+			params={{ id: memory.id.toString() }}
+			className="block"
+		>
+			<article className="rounded-lg border border-gray-700 bg-gray-800/50 p-4 transition-colors hover:border-gray-600 hover:bg-gray-800">
+				<div className="flex items-start justify-between gap-4">
+					<div className="flex-1">
+						<div className="flex items-center gap-2">
+							<span className={`rounded px-2 py-0.5 text-xs font-medium ${typeColor}`}>
+								{memory.type}
+							</span>
+							<h3 className="font-medium text-white">{memory.title}</h3>
+						</div>
+
+						{memory.path && (
+							<div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
+								<FolderOpen size={12} />
+								{memory.path}
+							</div>
+						)}
+
+						<p className="mt-2 line-clamp-2 text-sm text-gray-400">
+							{memory.content}
+						</p>
 					</div>
 
-					{memory.path && (
-						<div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
-							<FolderOpen size={12} />
-							{memory.path}
-						</div>
-					)}
-
-					<p className="mt-2 line-clamp-2 text-sm text-gray-400">
-						{memory.content}
-					</p>
+					<span className={`text-xs ${statusBadge}`}>{memory.status}</span>
 				</div>
 
-				<span className={`text-xs ${statusBadge}`}>{memory.status}</span>
-			</div>
-
-			<div className="mt-3 flex items-center gap-1 text-xs text-gray-500">
-				<Clock size={12} />
-				{new Date(memory.updatedAt).toLocaleDateString()}
-			</div>
-		</article>
+				<div className="mt-3 flex items-center gap-1 text-xs text-gray-500">
+					<Clock size={12} />
+					{new Date(memory.updatedAt).toLocaleDateString()}
+				</div>
+			</article>
+		</Link>
 	);
 }

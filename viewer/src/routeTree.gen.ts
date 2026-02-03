@@ -14,6 +14,9 @@ import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as MemoriesRouteImport } from './routes/memories'
 import { Route as CanvasRouteImport } from './routes/canvas'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TasksIdRouteImport } from './routes/tasks.$id'
+import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
+import { Route as MemoriesIdRouteImport } from './routes/memories.$id'
 
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
@@ -40,43 +43,92 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TasksIdRoute = TasksIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => TasksRoute,
+} as any)
+const ProjectsIdRoute = ProjectsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProjectsRoute,
+} as any)
+const MemoriesIdRoute = MemoriesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => MemoriesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
-  '/memories': typeof MemoriesRoute
-  '/projects': typeof ProjectsRoute
-  '/tasks': typeof TasksRoute
+  '/memories': typeof MemoriesRouteWithChildren
+  '/projects': typeof ProjectsRouteWithChildren
+  '/tasks': typeof TasksRouteWithChildren
+  '/memories/$id': typeof MemoriesIdRoute
+  '/projects/$id': typeof ProjectsIdRoute
+  '/tasks/$id': typeof TasksIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
-  '/memories': typeof MemoriesRoute
-  '/projects': typeof ProjectsRoute
-  '/tasks': typeof TasksRoute
+  '/memories': typeof MemoriesRouteWithChildren
+  '/projects': typeof ProjectsRouteWithChildren
+  '/tasks': typeof TasksRouteWithChildren
+  '/memories/$id': typeof MemoriesIdRoute
+  '/projects/$id': typeof ProjectsIdRoute
+  '/tasks/$id': typeof TasksIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
-  '/memories': typeof MemoriesRoute
-  '/projects': typeof ProjectsRoute
-  '/tasks': typeof TasksRoute
+  '/memories': typeof MemoriesRouteWithChildren
+  '/projects': typeof ProjectsRouteWithChildren
+  '/tasks': typeof TasksRouteWithChildren
+  '/memories/$id': typeof MemoriesIdRoute
+  '/projects/$id': typeof ProjectsIdRoute
+  '/tasks/$id': typeof TasksIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/canvas' | '/memories' | '/projects' | '/tasks'
+  fullPaths:
+    | '/'
+    | '/canvas'
+    | '/memories'
+    | '/projects'
+    | '/tasks'
+    | '/memories/$id'
+    | '/projects/$id'
+    | '/tasks/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/canvas' | '/memories' | '/projects' | '/tasks'
-  id: '__root__' | '/' | '/canvas' | '/memories' | '/projects' | '/tasks'
+  to:
+    | '/'
+    | '/canvas'
+    | '/memories'
+    | '/projects'
+    | '/tasks'
+    | '/memories/$id'
+    | '/projects/$id'
+    | '/tasks/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/canvas'
+    | '/memories'
+    | '/projects'
+    | '/tasks'
+    | '/memories/$id'
+    | '/projects/$id'
+    | '/tasks/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CanvasRoute: typeof CanvasRoute
-  MemoriesRoute: typeof MemoriesRoute
-  ProjectsRoute: typeof ProjectsRoute
-  TasksRoute: typeof TasksRoute
+  MemoriesRoute: typeof MemoriesRouteWithChildren
+  ProjectsRoute: typeof ProjectsRouteWithChildren
+  TasksRoute: typeof TasksRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -116,15 +168,70 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tasks/$id': {
+      id: '/tasks/$id'
+      path: '/$id'
+      fullPath: '/tasks/$id'
+      preLoaderRoute: typeof TasksIdRouteImport
+      parentRoute: typeof TasksRoute
+    }
+    '/projects/$id': {
+      id: '/projects/$id'
+      path: '/$id'
+      fullPath: '/projects/$id'
+      preLoaderRoute: typeof ProjectsIdRouteImport
+      parentRoute: typeof ProjectsRoute
+    }
+    '/memories/$id': {
+      id: '/memories/$id'
+      path: '/$id'
+      fullPath: '/memories/$id'
+      preLoaderRoute: typeof MemoriesIdRouteImport
+      parentRoute: typeof MemoriesRoute
+    }
   }
 }
+
+interface MemoriesRouteChildren {
+  MemoriesIdRoute: typeof MemoriesIdRoute
+}
+
+const MemoriesRouteChildren: MemoriesRouteChildren = {
+  MemoriesIdRoute: MemoriesIdRoute,
+}
+
+const MemoriesRouteWithChildren = MemoriesRoute._addFileChildren(
+  MemoriesRouteChildren,
+)
+
+interface ProjectsRouteChildren {
+  ProjectsIdRoute: typeof ProjectsIdRoute
+}
+
+const ProjectsRouteChildren: ProjectsRouteChildren = {
+  ProjectsIdRoute: ProjectsIdRoute,
+}
+
+const ProjectsRouteWithChildren = ProjectsRoute._addFileChildren(
+  ProjectsRouteChildren,
+)
+
+interface TasksRouteChildren {
+  TasksIdRoute: typeof TasksIdRoute
+}
+
+const TasksRouteChildren: TasksRouteChildren = {
+  TasksIdRoute: TasksIdRoute,
+}
+
+const TasksRouteWithChildren = TasksRoute._addFileChildren(TasksRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CanvasRoute: CanvasRoute,
-  MemoriesRoute: MemoriesRoute,
-  ProjectsRoute: ProjectsRoute,
-  TasksRoute: TasksRoute,
+  MemoriesRoute: MemoriesRouteWithChildren,
+  ProjectsRoute: ProjectsRouteWithChildren,
+  TasksRoute: TasksRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

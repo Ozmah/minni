@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import { Result } from "better-result";
 import { FolderKanban, Clock, CircleDot } from "lucide-react";
 import { api, type Project } from "@/lib/api";
 
@@ -32,19 +33,29 @@ function ProjectsPage() {
 	}
 
 	return (
-		<div className="p-6">
-			<h2 className="mb-6 text-2xl font-semibold tracking-tight">Projects</h2>
-			<div className="space-y-3">
-				{projects.map((project) => (
-					<ProjectCard key={project.id} project={project} />
-				))}
+		<>
+			<div className="p-6">
+				<h2 className="mb-6 text-2xl font-semibold tracking-tight">Projects</h2>
+				<div className="space-y-3">
+					{projects.map((project) => (
+						<ProjectCard key={project.id} project={project} />
+					))}
+				</div>
 			</div>
-		</div>
+			<Outlet />
+		</>
 	);
 }
 
+function parseStack(stack: string | null): string[] {
+	if (!stack) return [];
+	return Result.try(() => JSON.parse(stack))
+		.map((parsed) => (Array.isArray(parsed) ? parsed : []))
+		.unwrapOr([]);
+}
+
 function ProjectCard({ project }: { project: Project }) {
-	const stack = project.stack ? JSON.parse(project.stack) : [];
+	const stack = parseStack(project.stack);
 	const statusColor = {
 		active: "text-green-400",
 		paused: "text-yellow-400",
@@ -53,7 +64,11 @@ function ProjectCard({ project }: { project: Project }) {
 	}[project.status] || "text-gray-400";
 
 	return (
-		<article className="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+		<Link
+			to="/projects/$id"
+			params={{ id: String(project.id) }}
+			className="block rounded-lg border border-gray-700 bg-gray-800/50 p-4 transition-colors hover:border-gray-600 hover:bg-gray-800"
+		>
 			<div className="flex items-start justify-between">
 				<div className="flex items-center gap-2">
 					<FolderKanban size={18} className="text-gray-400" />
@@ -83,7 +98,7 @@ function ProjectCard({ project }: { project: Project }) {
 				<Clock size={12} />
 				{new Date(project.updatedAt).toLocaleDateString()}
 			</div>
-		</article>
+		</Link>
 	);
 }
 

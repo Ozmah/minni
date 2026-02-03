@@ -19,6 +19,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 export const api = {
 	stats: () => fetchJson<Stats>("/api/stats"),
 	projects: () => fetchJson<Project[]>("/api/projects"),
+	project: (id: number) => fetchJson<Project>(`/api/projects/${id}`),
 	memories: (params?: { project?: number; limit?: number }) => {
 		const search = new URLSearchParams();
 		if (params?.project) search.set("project", String(params.project));
@@ -26,6 +27,7 @@ export const api = {
 		const query = search.toString();
 		return fetchJson<Memory[]>(`/api/memories${query ? `?${query}` : ""}`);
 	},
+	memory: (id: number) => fetchJson<Memory>(`/api/memories/${id}`),
 	tasks: (params?: { project?: number; limit?: number }) => {
 		const search = new URLSearchParams();
 		if (params?.project) search.set("project", String(params.project));
@@ -33,4 +35,5 @@ export const api = {
 		const query = search.toString();
 		return fetchJson<Task[]>(`/api/tasks${query ? `?${query}` : ""}`);
 	},
+	task: (id: number) => fetchJson<Task>(`/api/tasks/${id}`),
 };

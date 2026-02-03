@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { ListTodo, Clock, Circle, CircleCheck, CircleDot, CircleX } from "lucide-react";
 import { api, type Task } from "@/lib/api";
 
@@ -32,14 +32,17 @@ function TasksPage() {
 	}
 
 	return (
-		<div className="p-6">
-			<h2 className="mb-6 text-2xl font-semibold tracking-tight">Tasks</h2>
-			<div className="space-y-2">
-				{tasks.map((task) => (
-					<TaskCard key={task.id} task={task} />
-				))}
+		<>
+			<div className="p-6">
+				<h2 className="mb-6 text-2xl font-semibold tracking-tight">Tasks</h2>
+				<div className="space-y-2">
+					{tasks.map((task) => (
+						<TaskCard key={task.id} task={task} />
+					))}
+				</div>
 			</div>
-		</div>
+			<Outlet />
+		</>
 	);
 }
 
@@ -65,27 +68,33 @@ function TaskCard({ task }: { task: Task }) {
 	}[task.priority] || "bg-gray-500/20 text-gray-300";
 
 	return (
-		<article className="flex items-start gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-3">
-			<StatusIcon size={20} className={statusColor} />
-			<div className="flex-1">
-				<div className="flex items-center gap-2">
-					<h3 className="font-medium text-white">{task.title}</h3>
-					<span className={`rounded px-1.5 py-0.5 text-xs ${priorityBadge}`}>
-						{task.priority}
-					</span>
-				</div>
+		<Link
+			to="/tasks/$id"
+			params={{ id: task.id.toString() }}
+			className="block"
+		>
+			<article className="flex items-start gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-3 transition-colors hover:border-gray-600 hover:bg-gray-800">
+				<StatusIcon size={20} className={statusColor} />
+				<div className="flex-1">
+					<div className="flex items-center gap-2">
+						<h3 className="font-medium text-white">{task.title}</h3>
+						<span className={`rounded px-1.5 py-0.5 text-xs ${priorityBadge}`}>
+							{task.priority}
+						</span>
+					</div>
 
-				{task.description && (
-					<p className="mt-1 line-clamp-1 text-sm text-gray-400">
-						{task.description}
-					</p>
-				)}
+					{task.description && (
+						<p className="mt-1 line-clamp-1 text-sm text-gray-400">
+							{task.description}
+						</p>
+					)}
 
-				<div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
-					<Clock size={12} />
-					{new Date(task.updatedAt).toLocaleDateString()}
+					<div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
+						<Clock size={12} />
+						{new Date(task.updatedAt).toLocaleDateString()}
+					</div>
 				</div>
-			</div>
-		</article>
+			</article>
+		</Link>
 	);
 }

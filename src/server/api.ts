@@ -37,6 +37,20 @@ export async function handleProjects(db: MinniDB): Promise<Response> {
 	return Response.json(result);
 }
 
+export async function handleProject(db: MinniDB, id: number): Promise<Response> {
+	const result = await db
+		.select()
+		.from(projects)
+		.where(eq(projects.id, id))
+		.limit(1);
+
+	if (!result.length) {
+		return Response.json({ error: "Project not found" }, { status: 404 });
+	}
+
+	return Response.json(result[0]);
+}
+
 export async function handleMemories(db: MinniDB, url: URL): Promise<Response> {
 	const projectIdParam = url.searchParams.get("project");
 	const limitParam = url.searchParams.get("limit");
@@ -65,6 +79,34 @@ export async function handleMemories(db: MinniDB, url: URL): Promise<Response> {
 	}
 
 	return Response.json(await baseQuery);
+}
+
+export async function handleMemory(db: MinniDB, id: number): Promise<Response> {
+	const result = await db
+		.select()
+		.from(memories)
+		.where(eq(memories.id, id))
+		.limit(1);
+
+	if (!result.length) {
+		return Response.json({ error: "Memory not found" }, { status: 404 });
+	}
+
+	return Response.json(result[0]);
+}
+
+export async function handleTask(db: MinniDB, id: number): Promise<Response> {
+	const result = await db
+		.select()
+		.from(tasks)
+		.where(eq(tasks.id, id))
+		.limit(1);
+
+	if (!result.length) {
+		return Response.json({ error: "Task not found" }, { status: 404 });
+	}
+
+	return Response.json(result[0]);
 }
 
 export async function handleTasks(db: MinniDB, url: URL): Promise<Response> {

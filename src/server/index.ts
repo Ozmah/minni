@@ -10,7 +10,7 @@ import { join } from "node:path";
 
 import type { MinniDB } from "../helpers";
 
-import { handleStats, handleProjects, handleMemories, handleTasks } from "./api";
+import { handleStats, handleProjects, handleProject, handleMemories, handleMemory, handleTask, handleTasks } from "./api";
 import {
 	handleStream,
 	handleGetPages,
@@ -87,12 +87,30 @@ function createRouter(db: MinniDB, distPath: string) {
 			return handleStats(db);
 		}
 
+		// Single project by ID
+		const projectMatch = path.match(/^\/api\/projects\/(\d+)$/);
+		if (projectMatch) {
+			return handleProject(db, parseInt(projectMatch[1], 10));
+		}
+
 		if (path === "/api/projects") {
 			return handleProjects(db);
 		}
 
+		// Single memory by ID
+		const memoryMatch = path.match(/^\/api\/memories\/(\d+)$/);
+		if (memoryMatch) {
+			return handleMemory(db, parseInt(memoryMatch[1], 10));
+		}
+
 		if (path === "/api/memories") {
 			return handleMemories(db, url);
+		}
+
+		// Single task by ID
+		const taskMatch = path.match(/^\/api\/tasks\/(\d+)$/);
+		if (taskMatch) {
+			return handleTask(db, parseInt(taskMatch[1], 10));
 		}
 
 		if (path === "/api/tasks") {
