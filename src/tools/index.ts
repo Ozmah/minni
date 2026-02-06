@@ -1,9 +1,10 @@
 import type { MinniDB } from "../helpers";
 
 import { canvasTools } from "./canvas";
+import { equipTools } from "./equip";
+import { hudTools } from "./hud";
 import { memoryTools } from "./memory";
 import { projectTools } from "./project";
-import { systemTools } from "./system";
 import { taskTools } from "./task";
 
 /**
@@ -12,10 +13,11 @@ import { taskTools } from "./task";
  */
 export function createTools(db: MinniDB) {
 	return {
-		...projectTools(db),
+		...hudTools(db),
+		...equipTools(db),
 		...memoryTools(db),
+		...projectTools(db),
 		...taskTools(db),
 		...canvasTools(),
-		...systemTools(db),
 	};
 }

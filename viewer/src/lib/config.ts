@@ -50,6 +50,9 @@ export const MEMORY_TYPE_CONFIG: Record<MemoryType, StatusConfig> = {
 	article: { color: "bg-orange-500/20 text-orange-400", label: "Article" },
 	video: { color: "bg-pink-500/20 text-pink-400", label: "Video" },
 	documentation: { color: "bg-teal-500/20 text-teal-400", label: "Documentation" },
+	identity: { color: "bg-amber-500/20 text-amber-400", label: "Identity" },
+	context: { color: "bg-emerald-500/20 text-emerald-400", label: "Context" },
+	scratchpad: { color: "bg-slate-500/20 text-slate-400", label: "Scratchpad" },
 };
 
 export const MEMORY_STATUS_CONFIG: Record<MemoryStatus, StatusConfig> = {
@@ -67,6 +70,7 @@ export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, StatusConfig> = {
 	paused: { color: "bg-yellow-500/20 text-yellow-400", label: "Paused" },
 	completed: { color: "bg-blue-500/20 text-blue-400", label: "Completed" },
 	archived: { color: "bg-gray-500/20 text-gray-400", label: "Archived" },
+	deleted: { color: "bg-red-500/20 text-red-400", label: "Deleted" },
 };
 
 // === Fallback ===

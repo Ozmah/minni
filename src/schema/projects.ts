@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+// TODO [T70]: drizzle-zod → drizzle-orm/zod when 1.0 stable
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -15,8 +16,6 @@ export const projects = sqliteTable("projects", {
 		.$type<Permission>()
 		.notNull()
 		.default("guarded"),
-	contextSummary: text("context_summary"),
-	contextUpdatedAt: integer("context_updated_at", { mode: "timestamp_ms" }),
 	...timestamp,
 });
 

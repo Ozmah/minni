@@ -11,7 +11,9 @@ export const timestamp = {
 		.notNull(),
 };
 
-export const PROJECT_STATUS = ["active", "paused", "completed", "archived"] as const;
+export const PROJECT_STATUS = ["active", "paused", "completed", "archived", "deleted"] as const;
+/** Subset of PROJECT_STATUS that agents can set via tools. "deleted" is internal (soft-delete only). */
+export const WRITABLE_PROJECT_STATUS = ["active", "paused", "completed", "archived"] as const;
 export const PERMISSION = ["open", "guarded", "read_only", "locked"] as const;
 export const MEMORY_TYPE = [
 	"skill",
@@ -25,6 +27,9 @@ export const MEMORY_TYPE = [
 	"article",
 	"video",
 	"documentation",
+	"identity",
+	"context",
+	"scratchpad",
 ] as const;
 export const MEMORY_STATUS = [
 	"draft",

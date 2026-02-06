@@ -39,11 +39,11 @@ Add to `~/.config/opencode/package.json`:
 
 ```json
 {
-  "dependencies": {
-    "@opencode-ai/plugin": "latest",
-    "@tursodatabase/database": "^0.4.3",
-    "drizzle-orm": "^1.0.0-beta.12-a5629fb"
-  }
+	"dependencies": {
+		"@opencode-ai/plugin": "latest",
+		"@tursodatabase/database": "^0.4.3",
+		"drizzle-orm": "^1.0.0-beta.12-a5629fb"
+	}
 }
 ```
 
@@ -85,6 +85,7 @@ Minni is designed for **human projects** — not just software development. Proj
 - **Non-technical** — Recipes, hobbies, learning, collections (Role: Advisor)
 
 The key difference is the **agent role**:
+
 - **Executor/User/Meta**: Agent does or uses the work directly
 - **Advisor**: Agent guides step-by-step, human executes physically
 
@@ -113,6 +114,7 @@ A single local Turso Database file (`minni.db`) with 7 tables:
 A React web app served by Bun on port 8593. Built with TanStack Router + Query + Store.
 
 Features:
+
 - **Canvas** — Real-time markdown display via SSE with exponential backoff
 - **Project/Memory/Task views** — Browse and inspect all data
 - **Detail drawers** — Click any item to see full details

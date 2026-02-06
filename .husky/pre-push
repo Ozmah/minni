@@ -1,0 +1,4 @@
+bunx tsc --noEmit
+
+# cd viewer && bun run test
+cd viewer && bun run build

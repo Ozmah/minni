@@ -61,6 +61,7 @@ function ProjectCard({ project }: { project: Project }) {
 			paused: "text-yellow-400",
 			completed: "text-blue-400",
 			archived: "text-gray-500",
+			deleted: "text-red-400",
 		}[project.status] || "text-gray-400";
 
 	return (

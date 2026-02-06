@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+// TODO [T70]: drizzle-zod → drizzle-orm/zod when 1.0 stable
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -21,7 +22,6 @@ export const memories = sqliteTable("memories", {
 	type: text("type").$type<MemoryType>().notNull(),
 	title: text("title").notNull(),
 	content: text("content").notNull(),
-	path: text("path"),
 	status: text("status").$type<MemoryStatus>().notNull().default("draft"),
 	permission: text("permission").$type<Permission>().notNull().default("guarded"),
 	...timestamp,

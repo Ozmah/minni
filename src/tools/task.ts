@@ -2,26 +2,19 @@ import { tool } from "@opencode-ai/plugin";
 import { sql, eq, desc } from "drizzle-orm";
 
 import { type MinniDB, getActiveProject, resolveProject, validateEnum } from "../helpers";
-import {
-	projects,
-	tasks,
-	TASK_PRIORITY,
-	TASK_STATUS,
-	type TaskPriority,
-	type TaskStatus,
-} from "../schema";
+import { tasks, TASK_PRIORITY, TASK_STATUS, type TaskPriority, type TaskStatus } from "../schema";
 
 /**
- * Creates task-related tools: minni_task
+ * Creates task tool: minni_task (create, update, delete, list)
  */
 export function taskTools(db: MinniDB) {
 	return {
 		minni_task: tool({
 			description:
-				"CRUD work items. For knowledge → minni_save. Output: `[T{id}] {title} — {status}`",
+				"CRUD work items. For knowledge → minni_memory. Output: `[T{id}] {title} — {status}`",
 			args: {
-				action: tool.schema.enum(["get", "create", "update", "delete", "list"]),
-				id: tool.schema.number().optional().describe("For get/update/delete"),
+				action: tool.schema.enum(["create", "update", "delete", "list"]),
+				id: tool.schema.number().optional().describe("For update/delete"),
 				project: tool.schema.string().optional().describe("Default: active project"),
 				parent_id: tool.schema.number().optional().describe("Creates subtask under parent"),
 				title: tool.schema.string().optional().describe("For create"),
@@ -101,55 +94,6 @@ export function taskTools(db: MinniDB) {
 					if (!task[0]) return `Task ${args.id} not found.`;
 					await db.delete(tasks).where(eq(tasks.id, args.id));
 					return `Deleted: [T${args.id}] ${task[0].title}`;
-				}
-
-				if (args.action === "get") {
-					if (!args.id) return "Task ID is required.";
-					const task = await db.select().from(tasks).where(eq(tasks.id, args.id)).limit(1);
-					if (!task[0]) return `Task ${args.id} not found.`;
-
-					const lines: string[] = [
-						`## [T${task[0].id}] ${task[0].title}`,
-						`Priority: ${task[0].priority}`,
-						`Status: ${task[0].status}`,
-					];
-
-					if (task[0].projectId) {
-						const proj = await db
-							.select()
-							.from(projects)
-							.where(eq(projects.id, task[0].projectId))
-							.limit(1);
-						if (proj[0]) lines.push(`Project: ${proj[0].name}`);
-					}
-
-					if (task[0].parentId) {
-						const parent = await db
-							.select()
-							.from(tasks)
-							.where(eq(tasks.id, task[0].parentId))
-							.limit(1);
-						if (parent[0]) lines.push(`Parent: [T${parent[0].id}] ${parent[0].title}`);
-					}
-
-					// Show subtasks if any
-					const subtasks = await db
-						.select()
-						.from(tasks)
-						.where(eq(tasks.parentId, task[0].id))
-						.orderBy(desc(tasks.createdAt));
-					if (subtasks.length > 0) {
-						lines.push(`\n### Subtasks (${subtasks.length})`);
-						for (const st of subtasks) {
-							lines.push(`- [T${st.id}] ${st.title} — ${st.status}`);
-						}
-					}
-
-					if (task[0].description) {
-						lines.push(`\n---\n\n${task[0].description}`);
-					}
-
-					return lines.join("\n");
 				}
 
 				if (args.action === "list") {

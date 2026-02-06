@@ -13,7 +13,7 @@
  *   rm ~/.config/opencode/minni.db && bun run your-seeder.ts
  *
  * ═══════════════════════════════════════════════════════════════════════════════
- * MINNI MANIFESTO — DESIGN DECISIONS
+ * MINNI v2 MANIFESTO — DESIGN DECISIONS
  * ═══════════════════════════════════════════════════════════════════════════════
  *
  * ╔═══════════════════════════════════════════════════════════════════════════════╗
@@ -36,13 +36,41 @@
  * All timestamps (createdAt, updatedAt) must be passed explicitly in INSERT
  * statements. This is a workaround until the driver reaches stable release.
  *
+ * COMPOSABLE CONTEXT — THE v2 MODEL
+ * ──────────────────────────────────
+ * v2 replaces monolithic context loading with composable, on-demand injection.
+ * 6 tools instead of 12. The agent assembles only what it needs per task.
+ *
+ *   minni_hud     — State snapshot. Cheap, call often. No side effects.
+ *   minni_equip   — Load specific knowledge into working memory.
+ *   minni_memory  — CRUD knowledge. Find to discover, equip to read.
+ *   minni_project — CRUD projects + load (switch project context).
+ *   minni_task    — CRUD work items. Equip to read details.
+ *   minni_canvas  — Markdown viewer for rich output.
+ *
+ * EVERYTHING IS A MEMORY
+ * ──────────────────────
+ * Identity, context summaries, and scratchpads are memory types — not special
+ * columns on global_context. This means they follow the same permission system,
+ * tagging, and search as any other knowledge.
+ *
+ *   type: "identity"   — Who the user/agent/swarm is. Activated via pointer.
+ *   type: "context"    — Session continuity. One per project (upsert).
+ *   type: "scratchpad" — Ephemeral workspace. Forced open permission.
+ *
+ * SETTINGS ARE CODE-ENFORCED
+ * ──────────────────────────
+ * Configuration lives in the settings table as key-value pairs. The LLM has
+ * ZERO access to read or modify settings. They are read at init time and
+ * applied programmatically by the tools. This prevents the LLM from
+ * modifying its own permission system.
+ *
  * THE minni.db FILE IS THE SOURCE OF TRUTH
  * ────────────────────────────────────
- *
  * Any agent, tool, or human can modify the database at any time. Therefore:
- *   - minni_load ALWAYS fetches fresh data from the database
- *   - Context summaries can change between sessions (another agent may have updated them)
- *   - Global state (identity, preferences) is reloaded on every plugin init
+ *   - minni_hud and minni_project(load) ALWAYS fetch fresh data
+ *   - Context memories can change between sessions
+ *   - Identity is resolved fresh on every compaction
  *   - Never cache database state assuming it won't change
  *
  * This design enables the hive mind pattern: multiple agents sharing one brain,
@@ -61,17 +89,18 @@
  *   True swarm intelligence, many drones, one mind.
  *
  * Both styles share the same principle: agents are ephemeral, the brain persists.
- * The identity field sets the tone, whether you want a focused assistant or
+ * The identity memory sets the tone, whether you want a focused assistant or
  * describe a collective purpose for the swarm.
  *
  * PROGRESSIVE DISCLOSURE
  * ──────────────────────
- * minni_load returns a briefing: inventory counts, active focus, last context.
- * It does NOT dump all memories, tasks, or full content.
+ * minni_hud returns a 3-line snapshot: project, identity, counts.
+ * minni_project(load) returns a project brief: description, stack, active task.
+ * Neither dumps full content.
  *
- * The agent knows WHAT exists and HOW MUCH. It requests specific items
- * via minni_get or minni_find when needed. This keeps context windows lean
- * while maintaining full access to the knowledge base.
+ * The agent knows WHAT exists and HOW MUCH. It loads specific content
+ * via minni_equip when needed. This keeps context windows lean while
+ * maintaining full access to the knowledge base.
  *
  * PERMISSION ENFORCEMENT IS PROGRAMMATIC
  * ──────────────────────────────────────
@@ -79,18 +108,23 @@
  * not by asking the LLM nicely. The LLM cannot bypass locked memories
  * because the tools literally exclude them from results.
  *
- * TASK HIERARCHY — DEPTH LEVELS
- * ──────────────────────────────
- * Tasks can exist at any depth in the planning hierarchy:
+ * Permission cascade for new memories:
+ *   1. Explicit permission in args  →  use that
+ *   2. Project's defaultMemoryPermission  →  use that
+ *   3. settings.default_memory_permission  →  use that
+ *   4. Fallback: "guarded"
  *
- *   Level 0: Floating    — No project. Standalone task.
- *   Level 1: Project     — Belongs to a project directly. Specific project work.
+ * TASK HIERARCHY
+ * ──────────────
+ * Tasks support subtasks via parent_id (ON DELETE CASCADE):
  *
- * [ADDING SOON SUBTASKS, WAS PREVIOUSLY USING A GOAL AND MILESTONE SYSTEM THAT SUCKED]
+ *   Level 0: Floating — No project. Standalone task.
+ *   Level 1: Project  — Belongs to a project directly.
+ *   Level 2+: Subtask — Nested under a parent task.
  *
  * THE NETHER
  * ──────────
- * When searching with an active project, minni_find returns two sections:
+ * When searching with an active project, minni_memory(find) returns two sections:
  *
  *   "In Project: X" — Memories belonging to the active project.
  *   "The Nether"    — Everything else: global memories (no project) AND
@@ -107,11 +141,9 @@
  * ───────────────
  * Deletes cascade from parent to children via ON DELETE CASCADE:
  *
- *   Delete project   → memories, goals, milestones, tasks all deleted
- *   Delete goal      → milestones, tasks under that goal deleted
- *   Delete milestone → tasks under that milestone deleted
- *   Delete task      → only that task deleted (no children)
- *   Delete memory    → memory_tags and memory_paths cleaned up
+ *   Delete project → memories, tasks all deleted
+ *   Delete task    → subtasks cascade-deleted
+ *   Delete memory  → memory_tags and memory_relations cleaned up
  *
  * EXCEPTION: Projects use SOFT DELETE. The LLM cannot permanently delete a
  * project — it can only set status to "deleted". This prevents accidental
@@ -120,20 +152,23 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/tursodatabase/database";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 import { initializeDatabase } from "./init";
-import { globalContext, projects } from "./schema";
+import { globalContext, memories, projects, settings } from "./schema";
+
 // ============================================================================
 // IDENTITY
 // ============================================================================
-// The "who" that persists across all sessions. Injected into EVERY context.
+// The "who" that persists across all sessions. Stored as a memory of type
+// "identity" and activated via global_context.active_identity_id.
+// Injected into compacted sessions automatically.
 //
-// Identity can represent different things depending on your
-// use case. Here are three known patterns:
+// Identity can represent different things depending on your use case.
+// Here are three known patterns:
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // PATTERN 1: Human User Identity (Minni's main focus)
@@ -177,7 +212,12 @@ import { globalContext, projects } from "./schema";
 // ─────────────────────────────────────────────────────────────────────────────
 // Choose your pattern and customize below:
 // ============================================================================
-const IDENTITY = `
+
+/** Title for the identity memory. Used as display name in HUD and beacons. */
+const IDENTITY_TITLE = "Default Identity";
+
+/** Free-text content describing the identity. Edit this. */
+const IDENTITY_CONTENT = `
 [EDIT THIS] Choose a pattern above and describe the identity.
 
 For human users, include:
@@ -200,10 +240,11 @@ For swarm agents, include:
 `.trim();
 
 // ============================================================================
-// PREFERENCES
+// SETTINGS OVERRIDES
 // ============================================================================
-// Structured configuration that tools can read programmatically.
-// Unlike identity (free text), preferences are JSON for machines to parse.
+// Settings live in the settings table as key-value pairs.
+// initializeDatabase() seeds defaults for all keys (INSERT OR IGNORE).
+// The seeder can override specific values after initialization.
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // PERMISSION LEVELS (used throughout)
@@ -214,83 +255,36 @@ For swarm agents, include:
 //   "locked"    — Completely invisible to LLM. Only via Minni Studio.
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// PERMISSION CASCADE FOR MEMORIES
-// ─────────────────────────────────────────────────────────────────────────────
-// When creating a memory, permission is resolved in this order:
-//
-//   1. Explicit permission in args  →  use that
-//   2. Project's defaultMemoryPermission  →  use that
-//   3. Global preferences.memory.defaultPermission  →  use that
-//
-// This allows fine-grained control: sensitive projects can be stricter
-// while experimental projects can be more open.
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// PREFERENCE FIELDS
+// AVAILABLE SETTINGS
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// memory.defaultPermission
-//   Global fallback permission for new memories.
-//   Default: "guarded" (safe default — asks before modifying)
+//   default_identity                — Identity memory title to use as default
+//   force_identity_on_hud           — Inject full identity in every HUD call
+//   ask_before_identity_injection   — Use context.ask() before injecting
+//   default_memory_permission       — Fallback permission for new memories
+//   auto_create_tasks               — Allow automatic task creation (placeholder)
+//   search_default_limit            — Default result count for find
+//   activate_identity_on_save       — Auto-activate identity on save (placeholder)
+//   dangerously_skip_memory_permission — Bypass ALL permission checks
 //
-// memory.defaultStatus
-//   Default maturity level for new memories.
-//   Options: "draft" | "experimental" | "proven" | "battle_tested" | "deprecated"
-//
-// project.defaultPermission
-//   Default permission for the PROJECT ITSELF (not its memories).
-//   Controls who can modify project settings, status, contextSummary.
-//
-// project.defaultMemoryPermission
-//   Default permission inherited by memories created under new projects.
-//   Can be overridden per-project.
-//
-// planning.autoCreateTasks
-//   If true, tools can auto-generate tasks from goals/milestones.
-//
-// context.maxSummaryLength
-//   Maximum characters for context summaries (prevents bloat).
-//
-// search.defaultLimit
-//   How many results minni_find returns by default.
+// Only override what you want to change. Defaults are set by init.
 // ============================================================================
-const PREFERENCES = {
-	// Memory defaults
-	memory: {
-		defaultPermission: "guarded" as const, // Safe default: ask before modifying
-		defaultStatus: "draft" as const,
-	},
-
-	// Project defaults
-	project: {
-		defaultPermission: "guarded" as const, // Projects themselves are protected
-		defaultMemoryPermission: "guarded" as const, // Memories in new projects inherit this
-	},
-
-	// Planning behavior
-	planning: {
-		autoCreateTasks: false,
-	},
-
-	// Context management
-	context: {
-		maxSummaryLength: 2000,
-	},
-
-	// Search behavior
-	search: {
-		defaultLimit: 20,
-	},
+const SETTINGS_OVERRIDES: Record<string, string> = {
+	// Uncomment and edit to override defaults:
+	// default_memory_permission: "open",
+	// search_default_limit: "30",
+	// force_identity_on_hud: "true",
 };
 
 // ============================================================================
-// INITIAL CONTEXT SUMMARY (optional)
+// INITIAL CONTEXT (optional)
 // ============================================================================
-// If you're migrating from another system or want to bootstrap with some
-// context, you can set an initial global context summary here.
-// Leave null to start fresh.
+// Bootstrap a global context memory. Useful when migrating from another system
+// or starting with known context. Stored as a memory of type "context" with
+// no project association (global scope).
+// Set to null to start fresh.
 // ============================================================================
-const INITIAL_CONTEXT_SUMMARY: string | null = null;
+const INITIAL_CONTEXT: string | null = null;
 
 // ============================================================================
 // EXAMPLE PROJECT (optional)
@@ -325,39 +319,101 @@ const EXAMPLE_PROJECT: {
 // SEEDER EXECUTION
 // ============================================================================
 async function seed() {
-	console.log("Minni Seeder");
-	console.log("============\n");
+	console.log("Minni v2 Seeder");
+	console.log("===============\n");
 
 	const dbPath = join(homedir(), ".config", "opencode", "minni.db");
 	console.log(`Database: ${dbPath}\n`);
 
 	const db = drizzle(dbPath);
 
-	// Initialize tables if needed
 	console.log("Initializing database schema...");
 	await initializeDatabase(db);
 	console.log("  Done.\n");
 
-	// Seed global context
-	console.log("Seeding global context...");
+	// Create identity memory and activate it
+	console.log("Seeding identity...");
+	const existingIdentity = await db
+		.select()
+		.from(memories)
+		.where(and(eq(memories.type, "identity"), eq(memories.title, IDENTITY_TITLE)))
+		.limit(1);
+
+	let identityId: number;
+	const now = new Date();
+
+	if (existingIdentity[0]) {
+		identityId = existingIdentity[0].id;
+		await db
+			.update(memories)
+			.set({ content: IDENTITY_CONTENT, updatedAt: now })
+			.where(eq(memories.id, identityId));
+		console.log(`  Updated existing identity: [${identityId}] ${IDENTITY_TITLE}`);
+	} else {
+		const result = await db
+			.insert(memories)
+			.values({
+				type: "identity",
+				title: IDENTITY_TITLE,
+				content: IDENTITY_CONTENT,
+				status: "proven",
+				permission: "guarded",
+				createdAt: now,
+				updatedAt: now,
+			})
+			.returning({ id: memories.id });
+		identityId = result[0].id;
+		console.log(`  Created identity: [${identityId}] ${IDENTITY_TITLE}`);
+	}
+
+	// Point global_context to the identity
 	await db
 		.update(globalContext)
-		.set({
-			identity: IDENTITY,
-			preferences: JSON.stringify(PREFERENCES, null, 2),
-			contextSummary: INITIAL_CONTEXT_SUMMARY,
-			contextUpdatedAt: INITIAL_CONTEXT_SUMMARY ? new Date() : null,
-			updatedAt: new Date(),
-		})
+		.set({ activeIdentityId: identityId, updatedAt: now })
 		.where(eq(globalContext.id, 1));
-	console.log("  Identity: configured");
-	console.log("  Preferences: configured");
-	console.log(
-		INITIAL_CONTEXT_SUMMARY ? "  Context summary: set" : "  Context summary: empty (fresh start)",
-	);
-	console.log();
+	console.log("  Activated as default identity.\n");
 
-	// Seed example project if defined
+	// Override settings if any
+	const overrideKeys = Object.keys(SETTINGS_OVERRIDES);
+	if (overrideKeys.length > 0) {
+		console.log("Applying settings overrides...");
+		for (const [key, value] of Object.entries(SETTINGS_OVERRIDES)) {
+			await db.update(settings).set({ value }).where(eq(settings.key, key));
+			console.log(`  ${key}: ${value}`);
+		}
+		console.log();
+	}
+
+	// Create global context memory if provided
+	if (INITIAL_CONTEXT) {
+		console.log("Seeding initial context...");
+		const existingContext = await db
+			.select()
+			.from(memories)
+			.where(and(eq(memories.type, "context"), isNull(memories.projectId)))
+			.limit(1);
+
+		if (existingContext[0]) {
+			await db
+				.update(memories)
+				.set({ content: INITIAL_CONTEXT, updatedAt: now })
+				.where(eq(memories.id, existingContext[0].id));
+			console.log("  Updated existing global context.\n");
+		} else {
+			await db.insert(memories).values({
+				type: "context",
+				title: "Global Context",
+				content: INITIAL_CONTEXT,
+				status: "draft",
+				permission: "open",
+				createdAt: now,
+				updatedAt: now,
+			});
+			console.log("  Created global context memory.\n");
+		}
+	}
+
+	// Create example project if defined
 	if (EXAMPLE_PROJECT) {
 		console.log(`Creating example project: ${EXAMPLE_PROJECT.name}...`);
 		const existing = await db
@@ -376,6 +432,8 @@ async function seed() {
 				status: "active",
 				permission: EXAMPLE_PROJECT.permission,
 				defaultMemoryPermission: EXAMPLE_PROJECT.defaultMemoryPermission,
+				createdAt: now,
+				updatedAt: now,
 			});
 			console.log("  Created.\n");
 		}
@@ -384,9 +442,9 @@ async function seed() {
 	console.log("Seeding complete!");
 	console.log("\nNext steps:");
 	console.log("  1. Restart OpenCode to load the new configuration");
-	console.log("  2. Use minni_ping to verify everything is connected");
-	console.log("  3. Edit your identity with minni_identity (coming soon)");
-	console.log("     or re-run this seeder after editing the IDENTITY constant");
+	console.log("  2. Use minni_hud to verify your state");
+	console.log("  3. Use minni_project(action: 'load', name: 'your-project') to switch context");
+	console.log("  4. Use minni_equip to load specific knowledge into context");
 }
 
 seed().catch((err) => {

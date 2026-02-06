@@ -128,3 +128,43 @@ export async function handleTask(db: MinniDB, id: number): Promise<Response> {
 
 	return Response.json(result[0]);
 }
+
+// === DELETE Handlers ===
+
+export async function handleDeleteProject(db: MinniDB, id: number): Promise<Response> {
+	// Soft delete: set status to 'deleted'
+	const result = await db
+		.update(projects)
+		.set({ status: "deleted" })
+		.where(eq(projects.id, id))
+		.returning({ id: projects.id });
+
+	if (!result.length) {
+		return Response.json({ error: "Project not found" }, { status: 404 });
+	}
+
+	return Response.json({ success: true, id: result[0].id });
+}
+
+export async function handleDeleteMemory(db: MinniDB, id: number): Promise<Response> {
+	const result = await db
+		.delete(memories)
+		.where(eq(memories.id, id))
+		.returning({ id: memories.id });
+
+	if (!result.length) {
+		return Response.json({ error: "Memory not found" }, { status: 404 });
+	}
+
+	return Response.json({ success: true, id: result[0].id });
+}
+
+export async function handleDeleteTask(db: MinniDB, id: number): Promise<Response> {
+	const result = await db.delete(tasks).where(eq(tasks.id, id)).returning({ id: tasks.id });
+
+	if (!result.length) {
+		return Response.json({ error: "Task not found" }, { status: 404 });
+	}
+
+	return Response.json({ success: true, id: result[0].id });
+}

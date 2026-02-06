@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core";
+// TODO [T70]: drizzle-zod → drizzle-orm/zod when 1.0 stable
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
 import { memories } from "./memories";
@@ -21,19 +22,9 @@ export const memoryTags = sqliteTable(
 	(table) => [primaryKey({ columns: [table.memoryId, table.tagId] })],
 );
 
-export const memoryPaths = sqliteTable("memory_paths", {
-	id: integer("id").primaryKey({ autoIncrement: true }),
-	memoryId: integer("memory_id")
-		.notNull()
-		.references(() => memories.id, { onDelete: "cascade" }),
-	position: integer("position").notNull(),
-	segment: text("segment").notNull(),
-});
-
 export type Tag = typeof tags.$inferSelect;
 export type NewTag = typeof tags.$inferInsert;
 export type MemoryTag = typeof memoryTags.$inferSelect;
-export type MemoryPath = typeof memoryPaths.$inferSelect;
 
 export const tagSelectSchema = createSelectSchema(tags);
 export const tagInsertSchema = createInsertSchema(tags, {

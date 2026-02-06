@@ -21,6 +21,19 @@ async function fetchJson<T>(url: string): Promise<T> {
 	return response.json();
 }
 
+interface DeleteResponse {
+	success: boolean;
+	id: number;
+}
+
+async function deleteResource(url: string): Promise<DeleteResponse> {
+	const response = await fetch(url, { method: "DELETE" });
+	if (!response.ok) {
+		throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+	}
+	return response.json();
+}
+
 export const api = {
 	stats: () => fetchJson<Stats>("/api/stats"),
 	projects: () => fetchJson<Project[]>("/api/projects"),
@@ -41,4 +54,9 @@ export const api = {
 		return fetchJson<Task[]>(`/api/tasks${query ? `?${query}` : ""}`);
 	},
 	task: (id: number) => fetchJson<TaskDetail>(`/api/tasks/${id}`),
+
+	// Delete operations
+	deleteProject: (id: number) => deleteResource(`/api/projects/${id}`),
+	deleteMemory: (id: number) => deleteResource(`/api/memories/${id}`),
+	deleteTask: (id: number) => deleteResource(`/api/tasks/${id}`),
 };

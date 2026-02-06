@@ -1,25 +1,15 @@
 /**
  * Canvas state management and API handlers.
- *
- * ╔═══════════════════════════════════════════════════════════════════════════════╗
- * ║  ⚠️  MIGRATION PENDING: result.ts → better-result                             ║
- * ╠═══════════════════════════════════════════════════════════════════════════════╣
- * ║  This file uses the LOCAL result.ts implementation.                           ║
- * ║  The project is migrating to the `better-result` library.                     ║
- * ║                                                                               ║
- * ║  TODO: Replace imports from "../result" with "better-result"                  ║
- * ║        - ok/err → Result.ok / Result.err                                      ║
- * ║        - Result type → Result from better-result                              ║
- * ║                                                                               ║
- * ║  After all files are migrated, src/result.ts will be deleted.                 ║
- * ╚═══════════════════════════════════════════════════════════════════════════════╝
  */
 
-import { type Result, ok, err } from "../result";
+import { Result } from "better-result";
+
 import { broadcast, createSSEStream } from "./sse";
 import { type CanvasPage, DEFAULT_CONFIG, UUID_REGEX } from "./types";
 
-// === Runtime Detection ===
+// ============================================================================
+// RUNTIME DETECTION
+// ============================================================================
 
 const HAS_BUN_MARKDOWN = typeof Bun.markdown?.html === "function";
 
@@ -34,7 +24,9 @@ export function getRuntimeInfo() {
 	};
 }
 
-// === Canvas State ===
+// ============================================================================
+// CANVAS STATE
+// ============================================================================
 
 const pages: CanvasPage[] = [];
 
@@ -86,42 +78,46 @@ export function clearPages(): number {
 	return count;
 }
 
-// === Input Validation ===
+// ============================================================================
+// INPUT VALIDATION
+// ============================================================================
 
 interface PushInput {
 	content: unknown;
 }
 
-function validatePushInput(body: unknown): Result<string> {
+function validatePushInput(body: unknown) {
 	if (!body || typeof body !== "object") {
-		return err("Invalid request body");
+		return Result.err("Invalid request body");
 	}
 
 	const { content } = body as PushInput;
 
 	if (typeof content !== "string") {
-		return err("content must be a string");
+		return Result.err("content must be a string");
 	}
 
 	if (content.length === 0) {
-		return err("content cannot be empty");
+		return Result.err("content cannot be empty");
 	}
 
 	if (content.length > DEFAULT_CONFIG.maxContentLength) {
-		return err("content too large");
+		return Result.err("content too large");
 	}
 
-	return ok(content);
+	return Result.ok(content);
 }
 
-function validateUUID(id: string | undefined): Result<string> {
+function validateUUID(id: string | undefined) {
 	if (!id || !UUID_REGEX.test(id)) {
-		return err("Invalid ID");
+		return Result.err("Invalid ID");
 	}
-	return ok(id);
+	return Result.ok(id);
 }
 
-// === Route Handlers ===
+// ============================================================================
+// ROUTE HANDLERS
+// ============================================================================
 
 export function handleStream(): Response {
 	const result = createSSEStream({
@@ -141,17 +137,17 @@ export function handleGetPages(): Response {
 }
 
 export async function handlePush(req: Request): Promise<Response> {
-	const parseResult = await req
-		.json()
-		.then(ok)
-		.catch((e: Error) => err(e.message));
+	const parseResult = await Result.tryPromise({
+		try: () => req.json(),
+		catch: (e) => (e instanceof Error ? e.message : String(e)),
+	});
 
-	if (!parseResult.ok) {
+	if (parseResult.isErr()) {
 		return Response.json({ error: "Invalid JSON" }, { status: 400 });
 	}
 
 	const validation = validatePushInput(parseResult.value);
-	if (!validation.ok) {
+	if (validation.isErr()) {
 		return Response.json({ error: validation.error }, { status: 400 });
 	}
 
@@ -163,7 +159,7 @@ export function handleDelete(path: string): Response {
 	const id = path.split("/").pop();
 	const validation = validateUUID(id);
 
-	if (!validation.ok) {
+	if (validation.isErr()) {
 		return Response.json({ error: validation.error }, { status: 400 });
 	}
 

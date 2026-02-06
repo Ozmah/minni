@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Brain, CircleDot, Clock, Shield, FolderOpen, Tag } from "lucide-react";
+import { Brain, CircleDot, Clock, Shield, Tag } from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
 import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
@@ -72,16 +72,6 @@ function MemoryContent({ memory }: { memory: Memory }) {
 					<p className="text-sm whitespace-pre-wrap text-gray-300">{memory.content}</p>
 				</div>
 			</Section>
-
-			{/* Path */}
-			{memory.path && (
-				<Section title="Path">
-					<div className="flex items-center gap-2 text-gray-300">
-						<FolderOpen size={14} className="text-gray-500" />
-						<code className="text-sm">{memory.path}</code>
-					</div>
-				</Section>
-			)}
 
 			{/* Permission */}
 			<Section title="Permission">

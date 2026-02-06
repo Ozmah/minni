@@ -1,7 +1,17 @@
-import { sql, eq } from "drizzle-orm";
+import { Result } from "better-result";
+import { sql, eq, ne, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/tursodatabase/database";
 
-import { projects, tags, memoryTags, memoryPaths, globalContext, type Permission } from "./schema";
+import {
+	projects,
+	tags,
+	memoryTags,
+	globalContext,
+	memories,
+	settings,
+	type Permission,
+	type Memory,
+} from "./schema";
 
 export type MinniDB = ReturnType<typeof drizzle>;
 
@@ -22,11 +32,6 @@ export function validateEnum(
  * Lowercases, trims, replaces spaces/underscores with hyphens,
  * strips anything that isn't alphanumeric or hyphen, and collapses
  * consecutive hyphens.
- *
- * @example
- * normalizeProjectName("Death Star Plans")  // "death-star-plans"
- * normalizeProjectName("Hal 9000")          // "hal-9000"
- * normalizeProjectName("  café  tracker ")  // "caf-tracker"
  */
 export function normalizeProjectName(name: string): string {
 	return name
@@ -40,12 +45,6 @@ export function normalizeProjectName(name: string): string {
 
 /**
  * Returns the currently loaded project, or null if none is active (global mode).
- * Reads directly from DB.
- *
- * ============================================================================
- * SQLite is fast enough for this use case. If scaling requires caching,
- * add Redis here.
- * ============================================================================
  */
 export async function getActiveProject(db: MinniDB): Promise<ActiveProject> {
 	const ctx = await db.select().from(globalContext).where(eq(globalContext.id, 1)).limit(1);
@@ -77,16 +76,6 @@ export async function setActiveProject(db: MinniDB, project: ActiveProject): Pro
 		.where(eq(globalContext.id, 1));
 }
 
-/** Splits a display path ("Config -> Better Auth -> React") into trimmed segments. */
-export function parsePath(path: string): string[] {
-	return path.split("->").map((s) => s.trim());
-}
-
-/** Normalizes a path segment for indexed storage (lowercase + trim). */
-export function normalizeSegment(segment: string): string {
-	return segment.toLowerCase().trim();
-}
-
 /**
  * Resolves a project by name, falling back to the active project.
  * Returns null if no project is found and no active project is set.
@@ -108,6 +97,7 @@ export async function resolveProject(db: MinniDB, name?: string): Promise<Active
 export async function saveTags(db: MinniDB, memoryId: number, tagNames: string[]): Promise<void> {
 	for (const name of tagNames) {
 		const normalized = name.toLowerCase().trim();
+		// TODO need to investigate if this is possible using drizzle alone
 		await db.run(sql`INSERT OR IGNORE INTO tags (name) VALUES (${normalized})`);
 		const tag = await db.select().from(tags).where(eq(tags.name, normalized)).limit(1);
 		if (tag[0]) {
@@ -116,20 +106,55 @@ export async function saveTags(db: MinniDB, memoryId: number, tagNames: string[]
 	}
 }
 
+// ============================================================================
+// SETTINGS
+// ============================================================================
+
 /**
- * Indexes path segments for a memory.
- * Each segment is normalized and stored with its positional index
- * for efficient querying via minni_find.
+ * Reads a setting from the settings table.
+ * Returns null if the key doesn't exist.
  */
-export async function savePathSegments(db: MinniDB, memoryId: number, path: string): Promise<void> {
-	const segments = parsePath(path);
-	for (let i = 0; i < segments.length; i++) {
-		await db.insert(memoryPaths).values({
-			memoryId,
-			position: i,
-			segment: normalizeSegment(segments[i]),
-		});
+export async function getSetting(db: MinniDB, key: string): Promise<string | null> {
+	const row = await db.select().from(settings).where(eq(settings.key, key)).limit(1);
+	return row[0]?.value ?? null;
+}
+
+// ============================================================================
+// IDENTITY
+// ============================================================================
+
+/**
+ * Resolves the active identity memory.
+ * Cascade: active_identity_id pointer → default_identity setting → null.
+ */
+export async function getActiveIdentity(db: MinniDB): Promise<Memory | null> {
+	const ctx = await db.select().from(globalContext).where(eq(globalContext.id, 1)).limit(1);
+
+	let identityId = ctx[0]?.activeIdentityId ?? null;
+
+	// Fallback to default_identity setting (stores identity title)
+	if (!identityId) {
+		const defaultName = await getSetting(db, "default_identity");
+		if (defaultName && defaultName !== "null") {
+			const mem = await db
+				.select()
+				.from(memories)
+				.where(
+					and(
+						eq(memories.type, "identity"),
+						eq(memories.title, defaultName),
+						ne(memories.permission, "locked"),
+					),
+				)
+				.limit(1);
+			if (mem[0]) identityId = mem[0].id;
+		}
 	}
+
+	if (!identityId) return null;
+
+	const mem = await db.select().from(memories).where(eq(memories.id, identityId)).limit(1);
+	return mem[0] ?? null;
 }
 
 // ============================================================================
@@ -148,24 +173,6 @@ export type ProtectedEntity = {
 };
 
 export type ActionType = "read" | "update" | "delete";
-
-/**
- * ╔═══════════════════════════════════════════════════════════════════════════════╗
- * ║  ⚠️  MIGRATION PENDING: result.ts → better-result                             ║
- * ╠═══════════════════════════════════════════════════════════════════════════════╣
- * ║  This file re-exports the LOCAL result.ts implementation.                     ║
- * ║  The project is migrating to the `better-result` library.                     ║
- * ║                                                                               ║
- * ║  TODO: Replace imports from "./result" with "better-result"                   ║
- * ║        - ok/err → Result.ok / Result.err                                      ║
- * ║        - tryAsync → Result.try (async version)                                ║
- * ║        - Update all consumers to import from "better-result" directly         ║
- * ║                                                                               ║
- * ║  After all files are migrated, src/result.ts will be deleted.                 ║
- * ╚═══════════════════════════════════════════════════════════════════════════════╝
- */
-import { type Result, ok, err, tryAsync } from "./result";
-export { type Result, ok, err, tryAsync };
 
 /**
  * OpenCode tool context type (subset we need for permission checks).
@@ -192,74 +199,51 @@ export type ToolContext = {
  * │ open        │ ALLOW   │ ALLOW   │ ALLOW   │
  * └─────────────┴─────────┴─────────┴─────────┘
  *
- * @param context - OpenCode tool context (provides context.ask for confirmations)
- * @param entity - The entity being accessed
- * @param action - What we're trying to do
- * @param executor - Function that performs the actual operation
- * @returns Result with either the value or an error message
- *
- * @example
- * const result = await guardedAction(
- *   context,
- *   { id: mem.id, name: mem.title, type: "memory", permission: mem.permission },
- *   "update",
- *   async () => {
- *     await db.update(memories).set({ title: "New" }).where(eq(memories.id, mem.id));
- *     return `Updated: ${mem.title}`;
- *   }
- * );
- * if (!result.ok) return result.error;
- * return result.value;
+ * If dangerously_skip_memory_permission is "true", bypasses ALL checks.
  */
 export async function guardedAction<T>(
+	db: MinniDB,
 	context: ToolContext,
 	entity: ProtectedEntity,
 	action: ActionType,
 	executor: () => Promise<T>,
-): Promise<Result<T>> {
+) {
+	const execWithError = () =>
+		Result.tryPromise({
+			try: () => executor(),
+			catch: (e) =>
+				`ERROR: Failed to ${action} ${entity.type} [${entity.id}]: ${e instanceof Error ? e.message : String(e)}`,
+		});
+
+	// Nuclear bypass: skip ALL permission checks
+	const skipAll = await getSetting(db, "dangerously_skip_memory_permission");
+	if (skipAll === "true") return execWithError();
+
 	const { permission, id, name, type } = entity;
 
-	// Locked: completely invisible, block everything
 	if (permission === "locked") {
-		return {
-			ok: false,
-			error: `BLOCKED: ${type} [${id}] is locked. Use Minni Studio.`,
-		};
+		return Result.err(`BLOCKED: ${type} [${id}] is locked. Use Minni to view its content.`);
 	}
 
-	// Read-only: block writes
 	if (permission === "read_only" && action !== "read") {
-		return {
-			ok: false,
-			error: `BLOCKED: ${type} [${id}] "${name}" is read-only. Use Minni Studio.`,
-		};
+		return Result.err(
+			`BLOCKED: ${type} [${id}] "${name}" is read-only. Use Minni to view its content.`,
+		);
 	}
 
-	// Guarded: ask user for confirmation on writes
 	if (permission === "guarded" && action !== "read") {
-		try {
-			await context.ask({
-				permission: `minni_${action}`,
-				patterns: [`[${id}] ${name}`],
-				always: [],
-				metadata: { entityType: type, entityId: id },
-			});
-		} catch {
-			return {
-				ok: false,
-				error: `CANCELLED: User denied ${action} on ${type} [${id}] "${name}".`,
-			};
-		}
+		const confirmed = await Result.tryPromise({
+			try: () =>
+				context.ask({
+					permission: `minni_${action}`,
+					patterns: [`[${id}] ${name}`],
+					always: [],
+					metadata: { entityType: type, entityId: id },
+				}),
+			catch: () => `CANCELLED: User denied ${action} on ${type} [${id}] "${name}".`,
+		});
+		if (confirmed.isErr()) return Result.err(confirmed.error);
 	}
 
-	// Open or confirmed: execute
-	try {
-		const value = await executor();
-		return { ok: true, value };
-	} catch (err) {
-		return {
-			ok: false,
-			error: `ERROR: Failed to ${action} ${type} [${id}]: ${err instanceof Error ? err.message : String(err)}`,
-		};
-	}
+	return execWithError();
 }

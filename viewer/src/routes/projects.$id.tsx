@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FolderKanban, CircleDot, Clock, Shield, Brain } from "lucide-react";
+import { FolderKanban, CircleDot, Clock, Shield, Brain, Trash2 } from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
 import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
 import { api, type Project } from "@/lib/api";
 import { PROJECT_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
 import { parseJsonArray, formatDate } from "@/lib/utils";
+import { setDeleteTarget } from "@/stores/ui";
 
 export const Route = createFileRoute("/projects/$id")({
 	component: ProjectDetail,
@@ -88,21 +89,29 @@ function ProjectContent({ project }: { project: Project }) {
 				</div>
 			</Section>
 
-			{/* Context Summary */}
-			{project.contextSummary && (
-				<Section title="Context Summary">
-					<div className="rounded-lg bg-gray-800/50 p-4">
-						<p className="text-sm whitespace-pre-wrap text-gray-300">{project.contextSummary}</p>
-					</div>
-				</Section>
-			)}
-
 			{/* Timestamps */}
 			<Section title="Timestamps">
 				<div className="grid grid-cols-2 gap-4 text-sm">
 					<InfoItem icon={Clock} label="Created" value={formatDate(project.createdAt)} />
 					<InfoItem icon={Clock} label="Updated" value={formatDate(project.updatedAt)} />
 				</div>
+			</Section>
+
+			{/* Actions */}
+			<Section title="Actions">
+				<button
+					onClick={() =>
+						setDeleteTarget({
+							type: "project",
+							id: project.id,
+							name: project.name,
+						})
+					}
+					className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20"
+				>
+					<Trash2 size={16} />
+					Delete Project
+				</button>
 			</Section>
 		</div>
 	);

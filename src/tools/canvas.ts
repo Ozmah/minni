@@ -1,24 +1,11 @@
-/**
- * ╔═══════════════════════════════════════════════════════════════════════════════╗
- * ║  ⚠️  MIGRATION PENDING: result.ts → better-result                             ║
- * ╠═══════════════════════════════════════════════════════════════════════════════╣
- * ║  This file uses the LOCAL result.ts implementation.                           ║
- * ║  The project is migrating to the `better-result` library.                     ║
- * ║                                                                               ║
- * ║  TODO: Replace imports from "../result" with "better-result"                  ║
- * ║        - tryAsync → Result.try (async version)                                ║
- * ║        - Result type → Result from better-result                              ║
- * ║                                                                               ║
- * ║  After all files are migrated, src/result.ts will be deleted.                 ║
- * ╚═══════════════════════════════════════════════════════════════════════════════╝
- */
-
 import { tool } from "@opencode-ai/plugin";
+import { Result } from "better-result";
 
-import { tryAsync, type Result } from "../result";
 import { getViewerPort } from "../server";
 
-// === Types ===
+// ============================================================================
+// API HELPERS
+// ============================================================================
 
 interface CanvasPage {
 	id: string;
@@ -34,18 +21,20 @@ interface CanvasClearResponse {
 	deleted: number;
 }
 
-// === API Helpers ===
-
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<Result<T>> {
-	const fetchResult = await tryAsync(() => fetch(url, init));
-	if (!fetchResult.ok) return fetchResult;
+async function fetchJson<T>(url: string, init?: RequestInit) {
+	const fetchResult = await Result.tryPromise({
+		try: () => fetch(url, init),
+		catch: (e) => (e instanceof Error ? e.message : String(e)),
+	});
+	if (fetchResult.isErr()) return fetchResult;
 
 	const response = fetchResult.value;
-	if (!response.ok) {
-		return { ok: false, error: response.statusText };
-	}
+	if (!response.ok) return Result.err(response.statusText);
 
-	return tryAsync(() => response.json() as Promise<T>);
+	return Result.tryPromise({
+		try: () => response.json() as Promise<T>,
+		catch: (e) => (e instanceof Error ? e.message : String(e)),
+	});
 }
 
 function formatPage(page: CanvasPage, index: number, total: number): string {
@@ -60,7 +49,9 @@ function formatAllPages(pages: CanvasPage[]): string {
 	return `${pages.length} pages:\n\n${lines.join("\n\n---\n\n")}`;
 }
 
-// === Actions ===
+// ============================================================================
+// ACTIONS
+// ============================================================================
 
 async function readCanvas(
 	viewerUrl: string,
@@ -68,15 +59,12 @@ async function readCanvas(
 	index?: number,
 ): Promise<string> {
 	const result = await fetchJson<CanvasPagesResponse>(`${viewerUrl}/api/canvas/pages`);
-
-	if (!result.ok) return `Failed to read canvas: ${result.error}`;
+	if (result.isErr()) return `Failed to read canvas: ${result.error}`;
 
 	const { pages } = result.value;
 	if (pages.length === 0) return "Canvas is empty.";
 
-	if (action === "read_all") {
-		return formatAllPages(pages);
-	}
+	if (action === "read_all") return formatAllPages(pages);
 
 	const idx = index ?? pages.length - 1;
 	if (idx < 0 || idx >= pages.length) {
@@ -90,21 +78,18 @@ async function clearCanvas(viewerUrl: string): Promise<string> {
 	const result = await fetchJson<CanvasClearResponse>(`${viewerUrl}/api/canvas/clear`, {
 		method: "POST",
 	});
-
-	if (!result.ok) return `Failed to clear canvas: ${result.error}`;
-
+	if (result.isErr()) return `Failed to clear canvas: ${result.error}`;
 	return `Canvas cleared. ${result.value.deleted} pages deleted.`;
 }
 
-async function pushToCanvas(viewerUrl: string, content: string): Promise<Result<void>> {
+async function pushToCanvas(viewerUrl: string, content: string) {
 	const result = await fetchJson<{ ok: boolean }>(`${viewerUrl}/api/canvas/push`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ content }),
 	});
-
-	if (!result.ok) return result;
-	return { ok: true, value: undefined };
+	if (result.isErr()) return result;
+	return Result.ok(undefined);
 }
 
 function openBrowser(url: string): void {
@@ -113,10 +98,12 @@ function openBrowser(url: string): void {
 	Bun.spawn([cmd, url]);
 }
 
-// === Tool ===
+// ============================================================================
+// TOOL
+// ============================================================================
 
 /**
- * Creates canvas-related tools: minni_canvas
+ * Creates canvas tool: minni_canvas
  */
 export function canvasTools() {
 	return {
@@ -159,7 +146,7 @@ export function canvasTools() {
 				}
 
 				const pushResult = await pushToCanvas(viewerUrl, args.content);
-				if (!pushResult.ok) {
+				if (pushResult.isErr()) {
 					return `Failed to send to canvas: ${pushResult.error}. Is the viewer running?`;
 				}
 

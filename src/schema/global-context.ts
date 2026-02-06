@@ -1,7 +1,9 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, integer } from "drizzle-orm/sqlite-core";
+// TODO [T70]: drizzle-zod → drizzle-orm/zod when 1.0 stable
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
 import { timestamp } from "./base";
+import { memories } from "./memories";
 import { projects } from "./projects";
 
 export const globalContext = sqliteTable("global_context", {
@@ -9,10 +11,9 @@ export const globalContext = sqliteTable("global_context", {
 	activeProjectId: integer("active_project_id").references(() => projects.id, {
 		onDelete: "set null",
 	}),
-	identity: text("identity"),
-	preferences: text("preferences"),
-	contextSummary: text("context_summary"),
-	contextUpdatedAt: integer("context_updated_at", { mode: "timestamp_ms" }),
+	activeIdentityId: integer("active_identity_id").references(() => memories.id, {
+		onDelete: "set null",
+	}),
 	...timestamp,
 });
 

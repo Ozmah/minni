@@ -18,6 +18,9 @@ import {
 	handleMemory,
 	handleTask,
 	handleTasks,
+	handleDeleteProject,
+	handleDeleteMemory,
+	handleDeleteTask,
 } from "./api";
 import {
 	handleStream,
@@ -98,7 +101,11 @@ function createRouter(db: MinniDB, distPath: string) {
 		// Single project by ID
 		const projectMatch = path.match(/^\/api\/projects\/(\d+)$/);
 		if (projectMatch) {
-			return handleProject(db, parseInt(projectMatch[1], 10));
+			const id = parseInt(projectMatch[1], 10);
+			if (req.method === "DELETE") {
+				return handleDeleteProject(db, id);
+			}
+			return handleProject(db, id);
 		}
 
 		if (path === "/api/projects") {
@@ -108,7 +115,11 @@ function createRouter(db: MinniDB, distPath: string) {
 		// Single memory by ID
 		const memoryMatch = path.match(/^\/api\/memories\/(\d+)$/);
 		if (memoryMatch) {
-			return handleMemory(db, parseInt(memoryMatch[1], 10));
+			const id = parseInt(memoryMatch[1], 10);
+			if (req.method === "DELETE") {
+				return handleDeleteMemory(db, id);
+			}
+			return handleMemory(db, id);
 		}
 
 		if (path === "/api/memories") {
@@ -118,7 +129,11 @@ function createRouter(db: MinniDB, distPath: string) {
 		// Single task by ID
 		const taskMatch = path.match(/^\/api\/tasks\/(\d+)$/);
 		if (taskMatch) {
-			return handleTask(db, parseInt(taskMatch[1], 10));
+			const id = parseInt(taskMatch[1], 10);
+			if (req.method === "DELETE") {
+				return handleDeleteTask(db, id);
+			}
+			return handleTask(db, id);
 		}
 
 		if (path === "/api/tasks") {

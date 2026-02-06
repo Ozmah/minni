@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
-import { Brain, Clock, Tag, FolderOpen } from "lucide-react";
+import { Brain, Clock } from "lucide-react";
 
 import { api, type Memory } from "@/lib/api";
 
@@ -65,6 +65,9 @@ function MemoryCard({ memory }: { memory: Memory }) {
 			article: "bg-orange-500/20 text-orange-300",
 			video: "bg-pink-500/20 text-pink-300",
 			documentation: "bg-teal-500/20 text-teal-300",
+			identity: "bg-amber-500/20 text-amber-300",
+			context: "bg-emerald-500/20 text-emerald-300",
+			scratchpad: "bg-slate-500/20 text-slate-300",
 		}[memory.type] || "bg-gray-500/20 text-gray-300";
 
 	const statusBadge =
@@ -87,13 +90,6 @@ function MemoryCard({ memory }: { memory: Memory }) {
 							</span>
 							<h3 className="font-medium text-white">{memory.title}</h3>
 						</div>
-
-						{memory.path && (
-							<div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
-								<FolderOpen size={12} />
-								{memory.path}
-							</div>
-						)}
 
 						<p className="mt-2 line-clamp-2 text-sm text-gray-400">{memory.content}</p>
 					</div>

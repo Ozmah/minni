@@ -1,140 +1,17 @@
+import { Result } from "better-result";
 import { sql } from "drizzle-orm";
 
 import type { MinniDB } from "./helpers";
 
-/**
- * Creates all 7 Minni tables if they don't already exist.
- * Uses raw SQL because Drizzle's schema API does not support
- * CREATE TABLE IF NOT EXISTS declaratively.
- *
- * Also ensures the singleton global_context row exists (id=1).
- * Creates performance indexes for common query patterns.
- *
- * Safe to call on every startup — existing tables and rows are untouched.
- */
-export async function initializeDatabase(db: MinniDB): Promise<void> {
-	// projects first — global_context references it
-	await db.run(sql`
-    CREATE TABLE IF NOT EXISTS projects (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      description TEXT,
-      stack TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
-      permission TEXT NOT NULL DEFAULT 'guarded',
-      default_memory_permission TEXT NOT NULL DEFAULT 'guarded',
-      context_summary TEXT,
-      context_updated_at INTEGER,
-      created_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)),
-      updated_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer))
-    )
-  `);
+// ============================================================================
+// CORE SKILLS: Opinionated defaults for project descriptions
+// Two skills: Technical (software/hardware) and Human (everything else)
+// ============================================================================
 
-	await db.run(sql`
-    CREATE TABLE IF NOT EXISTS global_context (
-      id INTEGER PRIMARY KEY DEFAULT 1,
-      active_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
-      identity TEXT,
-      preferences TEXT,
-      context_summary TEXT,
-      context_updated_at INTEGER,
-      created_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)),
-      updated_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer))
-    )
-  `);
-
-	await db.run(sql`
-    INSERT OR IGNORE INTO global_context (id) VALUES (1)
-  `);
-
-	await db.run(sql`
-    CREATE TABLE IF NOT EXISTS memories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
-      type TEXT NOT NULL,
-      title TEXT NOT NULL,
-      content TEXT NOT NULL,
-      path TEXT,
-      status TEXT NOT NULL DEFAULT 'draft',
-      permission TEXT NOT NULL DEFAULT 'guarded',
-      created_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)),
-      updated_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer))
-    )
-  `);
-
-	await db.run(sql`
-    CREATE TABLE IF NOT EXISTS tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
-      parent_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
-      title TEXT NOT NULL,
-      description TEXT,
-      priority TEXT NOT NULL DEFAULT 'medium',
-      status TEXT NOT NULL DEFAULT 'todo',
-      created_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)),
-      updated_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer))
-    )
-  `);
-
-	// Migration: add parent_id column if missing (existing DBs)
-	await db
-		.run(sql`
-    ALTER TABLE tasks ADD COLUMN parent_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE
-  `)
-		.catch(() => {
-			// Column already exists, ignore
-		});
-
-	// Migration: drop legacy columns if they exist
-	// SQLite doesn't support DROP COLUMN in older versions, so we just ignore them
-	// The Drizzle schema won't use goal_id/milestone_id anymore
-
-	// Migration: drop legacy tables (goals, milestones)
-	await db.run(sql`DROP TABLE IF EXISTS milestones`);
-	await db.run(sql`DROP TABLE IF EXISTS goals`);
-
-	await db.run(sql`
-    CREATE TABLE IF NOT EXISTS tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE
-    )
-  `);
-
-	await db.run(sql`
-    CREATE TABLE IF NOT EXISTS memory_tags (
-      memory_id INTEGER NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
-      tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-      PRIMARY KEY (memory_id, tag_id)
-    )
-  `);
-
-	await db.run(sql`
-    CREATE TABLE IF NOT EXISTS memory_paths (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      memory_id INTEGER NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
-      position INTEGER NOT NULL,
-      segment TEXT NOT NULL
-    )
-  `);
-
-	// Performance indexes
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memories_project ON memories(project_id)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(type)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memories_status ON memories(status)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memory_paths_segment ON memory_paths(segment)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memory_paths_memory ON memory_paths(memory_id)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memory_tags_memory ON memory_tags(memory_id)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memory_tags_tag ON memory_tags(tag_id)`);
-
-	// ============================================================================
-	// CORE SKILLS — Opinionated defaults for project descriptions
-	// Two skills: Technical (software/hardware) and Human (everything else)
-	// ============================================================================
-
-	const SKILL_TECHNICAL = `# Technical Project Descriptions
+// NOTE: these are NOT the correct skills yet, first I want
+// to bake in the new context equip then I'll create the
+// multi-step skills
+const SKILL_TECHNICAL = `# Technical Project Descriptions
 
 For software, hardware, and technology projects.
 
@@ -202,7 +79,7 @@ Followed by numbered sections:
 | Prose paragraphs | Hard to scan | Bullets, tables, code |
 | Missing workflow | Agent can't build/test | Always include commands |`;
 
-	const SKILL_HUMAN = `# Human Project Descriptions
+const SKILL_HUMAN = `# Human Project Descriptions
 
 For everything non-technical: recipes, hobbies, collections, personal organization, learning, creative projects.
 
@@ -266,27 +143,299 @@ Followed by numbered sections:
 | Vague instructions | Can't guide properly | Step-by-step with cues |
 | Tech jargon | Wrong skill | Use Technical skill instead |`;
 
+// ============================================================================
+// DATABASE INITIALIZATION
+//
+// Safe to call on every startup, all operations are idempotent.
+// Handles both fresh databases and legacy databases.
+// ============================================================================
+
+export async function initializeDatabase(db: MinniDB): Promise<void> {
+	// Tables. Order matters: FKs reference previously created tables.
+
+	await db.run(sql`
+		CREATE TABLE IF NOT EXISTS projects (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			description TEXT,
+			stack TEXT,
+			status TEXT NOT NULL DEFAULT 'active',
+			permission TEXT NOT NULL DEFAULT 'guarded',
+			default_memory_permission TEXT NOT NULL DEFAULT 'guarded',
+			created_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)),
+			updated_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer))
+		)
+	`);
+
+	await db.run(sql`
+		CREATE TABLE IF NOT EXISTS memories (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+			type TEXT NOT NULL,
+			title TEXT NOT NULL,
+			content TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'draft',
+			permission TEXT NOT NULL DEFAULT 'guarded',
+			created_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)),
+			updated_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer))
+		)
+	`);
+
+	await db.run(sql`
+		CREATE TABLE IF NOT EXISTS global_context (
+			id INTEGER PRIMARY KEY DEFAULT 1,
+			active_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+			active_identity_id INTEGER REFERENCES memories(id) ON DELETE SET NULL,
+			created_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)),
+			updated_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer))
+		)
+	`);
+
+	await db.run(sql`INSERT OR IGNORE INTO global_context (id) VALUES (1)`);
+
+	await db.run(sql`
+		CREATE TABLE IF NOT EXISTS tasks (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+			parent_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+			title TEXT NOT NULL,
+			description TEXT,
+			priority TEXT NOT NULL DEFAULT 'medium',
+			status TEXT NOT NULL DEFAULT 'todo',
+			created_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)),
+			updated_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer))
+		)
+	`);
+
+	await db.run(sql`
+		CREATE TABLE IF NOT EXISTS tags (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE
+		)
+	`);
+
+	await db.run(sql`
+		CREATE TABLE IF NOT EXISTS memory_tags (
+			memory_id INTEGER NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+			tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+			PRIMARY KEY (memory_id, tag_id)
+		)
+	`);
+
+	await db.run(sql`
+		CREATE TABLE IF NOT EXISTS settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		)
+	`);
+
+	await db.run(sql`
+		CREATE TABLE IF NOT EXISTS memory_relations (
+			memory_id INTEGER NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+			related_id INTEGER NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+			PRIMARY KEY (memory_id, related_id)
+		)
+	`);
+
+	// Legacy migrations: columns that may be missing on deprecated databases
+	await db
+		.run(
+			sql`ALTER TABLE global_context ADD COLUMN active_identity_id INTEGER REFERENCES memories(id) ON DELETE SET NULL`,
+		)
+		.catch(() => {});
+	await db
+		.run(sql`ALTER TABLE tasks ADD COLUMN parent_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE`)
+		.catch(() => {});
+
+	await migrateFromV1(db);
+
+	await db.run(sql`DROP TABLE IF EXISTS memory_paths`);
+	await db.run(sql`DROP TABLE IF EXISTS milestones`);
+	await db.run(sql`DROP TABLE IF EXISTS goals`);
+
+	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memories_project ON memories(project_id)`);
+	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(type)`);
+	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memories_status ON memories(status)`);
+	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id)`);
+	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id)`);
+	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)`);
+	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memory_tags_memory ON memory_tags(memory_id)`);
+	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memory_tags_tag ON memory_tags(tag_id)`);
+
+	await db.run(
+		sql`CREATE INDEX IF NOT EXISTS idx_memory_relations_memory ON memory_relations(memory_id)`,
+	);
+	await db.run(
+		sql`CREATE INDEX IF NOT EXISTS idx_memory_relations_related ON memory_relations(related_id)`,
+	);
+	await db.run(
+		sql`CREATE INDEX IF NOT EXISTS idx_memories_project_type ON memories(project_id, type)`,
+	);
+
+	await db.run(sql`DROP INDEX IF EXISTS idx_memory_paths_segment`);
+	await db.run(sql`DROP INDEX IF EXISTS idx_memory_paths_memory`);
+
+	// Seeds
+	await seedSettings(db);
+	await seedSkills(db);
+}
+
+// ============================================================================
+// LEGACY DATA MIGRATION
+//
+// Reads legacy columns via raw SQL (Drizzle schema no longer knows them).
+// On fresh databases the SELECT fails → caught → skipped.
+// All operations check for existing data before inserting.
+// ============================================================================
+
+async function migrateFromV1(db: MinniDB): Promise<void> {
+	type LegacyGlobal = {
+		identity: string | null;
+		preferences: string | null;
+		context_summary: string | null;
+	};
+
+	const legacyResult = await Result.tryPromise(() =>
+		db.all<LegacyGlobal>(
+			sql`SELECT identity, preferences, context_summary FROM global_context WHERE id = 1`,
+		),
+	);
+
+	// Columns don't exist → fresh DB
+	if (legacyResult.isErr()) return;
+
+	const legacy = legacyResult.value[0] ?? null;
+	if (!legacy) return;
+
 	const now = Date.now();
 
-	// Insert Technical Project Descriptions skill
+	// Identity → memory + pointer
+	if (legacy.identity) {
+		const ctx = await db.all<{ active_identity_id: number | null }>(
+			sql`SELECT active_identity_id FROM global_context WHERE id = 1`,
+		);
+		if (!ctx[0]?.active_identity_id) {
+			const firstLine = legacy.identity.split("\n")[0].trim().substring(0, 100);
+			const title = firstLine || "Default Identity";
+
+			const result = await db.all<{ id: number }>(
+				sql`INSERT INTO memories (type, title, content, status, permission, created_at, updated_at)
+					VALUES ('identity', ${title}, ${legacy.identity}, 'proven', 'guarded', ${now}, ${now})
+					RETURNING id`,
+			);
+			if (result[0]) {
+				await db.run(
+					sql`UPDATE global_context SET active_identity_id = ${result[0].id}, updated_at = ${now} WHERE id = 1`,
+				);
+			}
+		}
+	}
+
+	// Preferences → settings
+	if (legacy.preferences) {
+		const parsed = Result.try(() => JSON.parse(legacy.preferences!) as Record<string, unknown>);
+		if (parsed.isOk()) {
+			const prefs = parsed.value;
+			const mappings: [string, unknown][] = [
+				[
+					"default_memory_permission",
+					(prefs?.memory as Record<string, unknown>)?.defaultPermission,
+				],
+				["auto_create_tasks", (prefs?.planning as Record<string, unknown>)?.autoCreateTasks],
+				["search_default_limit", (prefs?.search as Record<string, unknown>)?.defaultLimit],
+			];
+			for (const [key, value] of mappings) {
+				if (value != null) {
+					await db.run(
+						sql`INSERT OR REPLACE INTO settings (key, value) VALUES (${key}, ${String(value)})`,
+					);
+				}
+			}
+		}
+	}
+
+	// Global context_summary → context memory
+	if (legacy.context_summary) {
+		const existing = await db.all<{ id: number }>(
+			sql`SELECT id FROM memories WHERE type = 'context' AND project_id IS NULL LIMIT 1`,
+		);
+		if (existing.length === 0) {
+			await db.run(
+				sql`INSERT INTO memories (type, title, content, status, permission, created_at, updated_at)
+					VALUES ('context', 'Global Context', ${legacy.context_summary}, 'draft', 'open', ${now}, ${now})`,
+			);
+		}
+	}
+
+	// Project context_summaries → context memories
+
+	type ProjectSummary = { id: number; name: string; context_summary: string };
+	const projResult = await Result.tryPromise(() =>
+		db.all<ProjectSummary>(
+			sql`SELECT id, name, context_summary FROM projects WHERE context_summary IS NOT NULL`,
+		),
+	);
+	if (projResult.isOk()) {
+		for (const proj of projResult.value) {
+			const existing = await db.all<{ id: number }>(
+				sql`SELECT id FROM memories WHERE type = 'context' AND project_id = ${proj.id} LIMIT 1`,
+			);
+			if (existing.length === 0) {
+				await db.run(
+					sql`INSERT INTO memories (project_id, type, title, content, status, permission, created_at, updated_at)
+						VALUES (${proj.id}, 'context', ${`${proj.name} Context`}, ${proj.context_summary}, 'draft', 'open', ${now}, ${now})`,
+				);
+			}
+		}
+	}
+}
+
+// ============================================================================
+// SEED: SETTINGS
+// INSERT OR IGNORE ensures migrated values from v1 preferences are preserved.
+// ============================================================================
+
+async function seedSettings(db: MinniDB): Promise<void> {
+	const defaults: [string, string][] = [
+		["default_identity", "null"],
+		["force_identity_on_hud", "false"],
+		["ask_before_identity_injection", "true"],
+		["default_memory_permission", "guarded"],
+		["auto_create_tasks", "false"],
+		["search_default_limit", "20"],
+		["activate_identity_on_save", "false"],
+		["dangerously_skip_memory_permission", "false"],
+	];
+
+	for (const [key, value] of defaults) {
+		await db.run(sql`INSERT OR IGNORE INTO settings (key, value) VALUES (${key}, ${value})`);
+	}
+}
+
+// ============================================================================
+// SEED: SKILLS + TAGS
+// ============================================================================
+
+async function seedSkills(db: MinniDB): Promise<void> {
+	const now = Date.now();
+
 	await db.run(sql`
-		INSERT INTO memories (type, title, content, path, status, permission, created_at, updated_at)
-		SELECT 'skill', 'Technical Project Descriptions', ${SKILL_TECHNICAL}, 'Minni -> Projects -> Description', 'proven', 'read_only', ${now}, ${now}
+		INSERT INTO memories (type, title, content, status, permission, created_at, updated_at)
+		SELECT 'skill', 'Technical Project Descriptions', ${SKILL_TECHNICAL}, 'proven', 'read_only', ${now}, ${now}
 		WHERE NOT EXISTS (
 			SELECT 1 FROM memories WHERE title = 'Technical Project Descriptions' AND type = 'skill'
 		)
 	`);
 
-	// Insert Human Project Descriptions skill
 	await db.run(sql`
-		INSERT INTO memories (type, title, content, path, status, permission, created_at, updated_at)
-		SELECT 'skill', 'Human Project Descriptions', ${SKILL_HUMAN}, 'Minni -> Projects -> Description', 'proven', 'read_only', ${now}, ${now}
+		INSERT INTO memories (type, title, content, status, permission, created_at, updated_at)
+		SELECT 'skill', 'Human Project Descriptions', ${SKILL_HUMAN}, 'proven', 'read_only', ${now}, ${now}
 		WHERE NOT EXISTS (
 			SELECT 1 FROM memories WHERE title = 'Human Project Descriptions' AND type = 'skill'
 		)
 	`);
 
-	// Insert core tags if they don't exist
+	// Core tags
 	await db.run(sql`INSERT OR IGNORE INTO tags (name) VALUES ('system')`);
 	await db.run(sql`INSERT OR IGNORE INTO tags (name) VALUES ('core')`);
 	await db.run(sql`INSERT OR IGNORE INTO tags (name) VALUES ('minni')`);
@@ -295,7 +444,7 @@ Followed by numbered sections:
 	await db.run(sql`INSERT OR IGNORE INTO tags (name) VALUES ('technical')`);
 	await db.run(sql`INSERT OR IGNORE INTO tags (name) VALUES ('human')`);
 
-	// Link tags to Technical skill
+	// Link tags to skills
 	await db.run(sql`
 		INSERT OR IGNORE INTO memory_tags (memory_id, tag_id)
 		SELECT m.id, t.id FROM memories m, tags t
@@ -303,55 +452,10 @@ Followed by numbered sections:
 		AND t.name IN ('system', 'core', 'minni', 'projects', 'description', 'technical')
 	`);
 
-	// Link tags to Human skill
 	await db.run(sql`
 		INSERT OR IGNORE INTO memory_tags (memory_id, tag_id)
 		SELECT m.id, t.id FROM memories m, tags t
 		WHERE m.title = 'Human Project Descriptions' AND m.type = 'skill'
 		AND t.name IN ('system', 'core', 'minni', 'projects', 'description', 'human')
-	`);
-
-	// Insert path segments for Technical skill
-	await db.run(sql`
-		INSERT INTO memory_paths (memory_id, position, segment)
-		SELECT m.id, 0, 'minni' FROM memories m
-		WHERE m.title = 'Technical Project Descriptions' AND m.type = 'skill'
-		AND NOT EXISTS (SELECT 1 FROM memory_paths mp WHERE mp.memory_id = m.id)
-	`);
-	await db.run(sql`
-		INSERT INTO memory_paths (memory_id, position, segment)
-		SELECT m.id, 1, 'projects' FROM memories m
-		WHERE m.title = 'Technical Project Descriptions' AND m.type = 'skill'
-		AND EXISTS (SELECT 1 FROM memory_paths mp WHERE mp.memory_id = m.id AND mp.position = 0)
-		AND NOT EXISTS (SELECT 1 FROM memory_paths mp WHERE mp.memory_id = m.id AND mp.position = 1)
-	`);
-	await db.run(sql`
-		INSERT INTO memory_paths (memory_id, position, segment)
-		SELECT m.id, 2, 'description' FROM memories m
-		WHERE m.title = 'Technical Project Descriptions' AND m.type = 'skill'
-		AND EXISTS (SELECT 1 FROM memory_paths mp WHERE mp.memory_id = m.id AND mp.position = 1)
-		AND NOT EXISTS (SELECT 1 FROM memory_paths mp WHERE mp.memory_id = m.id AND mp.position = 2)
-	`);
-
-	// Insert path segments for Human skill
-	await db.run(sql`
-		INSERT INTO memory_paths (memory_id, position, segment)
-		SELECT m.id, 0, 'minni' FROM memories m
-		WHERE m.title = 'Human Project Descriptions' AND m.type = 'skill'
-		AND NOT EXISTS (SELECT 1 FROM memory_paths mp WHERE mp.memory_id = m.id)
-	`);
-	await db.run(sql`
-		INSERT INTO memory_paths (memory_id, position, segment)
-		SELECT m.id, 1, 'projects' FROM memories m
-		WHERE m.title = 'Human Project Descriptions' AND m.type = 'skill'
-		AND EXISTS (SELECT 1 FROM memory_paths mp WHERE mp.memory_id = m.id AND mp.position = 0)
-		AND NOT EXISTS (SELECT 1 FROM memory_paths mp WHERE mp.memory_id = m.id AND mp.position = 1)
-	`);
-	await db.run(sql`
-		INSERT INTO memory_paths (memory_id, position, segment)
-		SELECT m.id, 2, 'description' FROM memories m
-		WHERE m.title = 'Human Project Descriptions' AND m.type = 'skill'
-		AND EXISTS (SELECT 1 FROM memory_paths mp WHERE mp.memory_id = m.id AND mp.position = 1)
-		AND NOT EXISTS (SELECT 1 FROM memory_paths mp WHERE mp.memory_id = m.id AND mp.position = 2)
 	`);
 }

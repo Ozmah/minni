@@ -3,6 +3,7 @@ import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { FolderKanban, Brain, ListTodo, PanelLeft } from "lucide-react";
 
+import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { queryClient } from "@/lib/query-client";
 
 const navItems = [
@@ -25,6 +26,7 @@ function RootLayout() {
 					<Outlet />
 				</main>
 			</div>
+			<DeleteConfirmModal />
 			<TanStackRouterDevtools position="bottom-right" />
 		</QueryClientProvider>
 	);
