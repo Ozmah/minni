@@ -126,7 +126,44 @@ export async function handleTask(db: MinniDB, id: number): Promise<Response> {
 		return Response.json({ error: "Task not found" }, { status: 404 });
 	}
 
-	return Response.json(result[0]);
+	const subtasks = await db
+		.select()
+		.from(tasks)
+		.where(eq(tasks.parentId, id))
+		.orderBy(desc(tasks.updatedAt));
+
+	return Response.json({ ...result[0], subtasks });
+}
+
+// === PATCH Handlers ===
+
+export async function handlePatchTask(db: MinniDB, id: number, req: Request): Promise<Response> {
+	const body = await req.json().catch(() => null);
+	if (!body || typeof body !== "object") {
+		return Response.json({ error: "Invalid request body" }, { status: 400 });
+	}
+
+	const { status } = body as { status?: string };
+	const allowed = ["todo", "in_progress", "done", "cancelled"];
+
+	if (!status || !allowed.includes(status)) {
+		return Response.json(
+			{ error: `Invalid status. Allowed: ${allowed.join(", ")}` },
+			{ status: 400 },
+		);
+	}
+
+	const result = await db
+		.update(tasks)
+		.set({ status: status as "todo" | "in_progress" | "done" | "cancelled", updatedAt: new Date() })
+		.where(eq(tasks.id, id))
+		.returning({ id: tasks.id, status: tasks.status });
+
+	if (!result.length) {
+		return Response.json({ error: "Task not found" }, { status: 404 });
+	}
+
+	return Response.json({ success: true, ...result[0] });
 }
 
 // === DELETE Handlers ===

@@ -21,6 +21,7 @@ import {
 	handleDeleteProject,
 	handleDeleteMemory,
 	handleDeleteTask,
+	handlePatchTask,
 } from "./api";
 import {
 	handleStream,
@@ -130,9 +131,8 @@ function createRouter(db: MinniDB, distPath: string) {
 		const taskMatch = path.match(/^\/api\/tasks\/(\d+)$/);
 		if (taskMatch) {
 			const id = parseInt(taskMatch[1], 10);
-			if (req.method === "DELETE") {
-				return handleDeleteTask(db, id);
-			}
+			if (req.method === "DELETE") return handleDeleteTask(db, id);
+			if (req.method === "PATCH") return handlePatchTask(db, id, req);
 			return handleTask(db, id);
 		}
 

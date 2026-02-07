@@ -2,9 +2,10 @@ import type { Project, Memory, Task } from "../../../src/schema";
 
 export type { Project, Memory, Task };
 
-/** Task with joined project data (returned by /api/tasks/:id) */
+/** Task with joined project data and subtasks (returned by /api/tasks/:id) */
 export interface TaskDetail extends Task {
 	projectName: string | null;
+	subtasks: Task[];
 }
 
 export interface Stats {
@@ -15,6 +16,18 @@ export interface Stats {
 
 async function fetchJson<T>(url: string): Promise<T> {
 	const response = await fetch(url);
+	if (!response.ok) {
+		throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+	}
+	return response.json();
+}
+
+async function patchResource<T>(url: string, body: Record<string, unknown>): Promise<T> {
+	const response = await fetch(url, {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
 	if (!response.ok) {
 		throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 	}
@@ -54,6 +67,10 @@ export const api = {
 		return fetchJson<Task[]>(`/api/tasks${query ? `?${query}` : ""}`);
 	},
 	task: (id: number) => fetchJson<TaskDetail>(`/api/tasks/${id}`),
+
+	// Update operations
+	updateTaskStatus: (id: number, status: string) =>
+		patchResource<{ success: boolean; id: number; status: string }>(`/api/tasks/${id}`, { status }),
 
 	// Delete operations
 	deleteProject: (id: number) => deleteResource(`/api/projects/${id}`),

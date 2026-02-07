@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
 	ListTodo,
 	Circle,
@@ -8,11 +8,14 @@ import {
 	FolderKanban,
 	GitBranch,
 	Workflow,
+	Trash2,
 } from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
+import { TaskStatusMenu } from "@/components/TaskStatusMenu";
 import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
-import { api, type TaskDetail } from "@/lib/api";
+import { Muted } from "@/components/ui/Typography";
+import { api, type Task, type TaskDetail } from "@/lib/api";
 import {
 	TASK_STATUS_CONFIG,
 	TASK_PRIORITY_CONFIG,
@@ -20,6 +23,7 @@ import {
 	type StatusConfigWithIcon,
 } from "@/lib/config";
 import { formatDate } from "@/lib/utils";
+import { setDeleteTarget } from "@/stores/ui";
 
 export const Route = createFileRoute("/tasks/$id")({
 	component: TaskDetail,
@@ -83,6 +87,11 @@ function TaskContent({ task }: { task: TaskDetail }) {
 						</span>
 					</div>
 				</div>
+				<TaskStatusMenu
+					taskId={task.id}
+					currentStatus={task.status}
+					invalidateKeys={[["task", String(task.id)]]}
+				/>
 			</div>
 
 			{/* Relations */}
@@ -111,6 +120,17 @@ function TaskContent({ task }: { task: TaskDetail }) {
 				</div>
 			</Section>
 
+			{/* Subtasks */}
+			{task.subtasks.length > 0 && (
+				<Section title={`Subtasks (${task.subtasks.length})`}>
+					<div className="space-y-1.5">
+						{task.subtasks.map((sub) => (
+							<SubtaskRow key={sub.id} task={sub} />
+						))}
+					</div>
+				</Section>
+			)}
+
 			{/* Description */}
 			{task.description && (
 				<Section title="Description">
@@ -119,6 +139,40 @@ function TaskContent({ task }: { task: TaskDetail }) {
 					</div>
 				</Section>
 			)}
+
+			{/* Actions */}
+			<Section title="Actions">
+				<button
+					onClick={() =>
+						setDeleteTarget({
+							type: "task",
+							id: task.id,
+							name: task.title,
+						})
+					}
+					className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20"
+				>
+					<Trash2 size={16} />
+					Delete Task
+				</button>
+			</Section>
 		</div>
+	);
+}
+
+function SubtaskRow({ task }: { task: Task }) {
+	const statusConfig = TASK_STATUS_CONFIG[task.status] ?? TASK_STATUS_CONFIG.todo;
+	const StatusIcon = statusConfig.icon ?? Circle;
+
+	return (
+		<Link
+			to="/tasks/$id"
+			params={{ id: task.id.toString() }}
+			className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-gray-800"
+		>
+			<StatusIcon size={14} className={statusConfig.color} />
+			<span className="flex-1 truncate text-sm text-gray-300">{task.title}</span>
+			<Muted>{task.priority}</Muted>
+		</Link>
 	);
 }
