@@ -15,7 +15,7 @@ import { Drawer } from "@/components/Drawer";
 import { TaskStatusMenu } from "@/components/TaskStatusMenu";
 import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
 import { Muted } from "@/components/ui/Typography";
-import { api, type Task, type TaskDetail } from "@/lib/api";
+import { api, unwrap } from "@/lib/api";
 import {
 	TASK_STATUS_CONFIG,
 	TASK_PRIORITY_CONFIG,
@@ -24,6 +24,8 @@ import {
 } from "@/lib/config";
 import { formatDate } from "@/lib/utils";
 import { setDeleteTarget } from "@/stores/ui";
+
+import type { Task } from "../../../src/schema";
 
 export const Route = createFileRoute("/tasks/$id")({
 	component: TaskDetail,
@@ -39,7 +41,11 @@ function TaskDetail() {
 		error,
 	} = useQuery({
 		queryKey: ["task", id],
-		queryFn: () => api.task(Number(id)),
+		queryFn: () =>
+			api.api
+				.tasks({ id: Number(id) })
+				.get()
+				.then(unwrap),
 	});
 
 	const handleClose = () => navigate({ to: "/tasks" });
@@ -53,7 +59,7 @@ function TaskDetail() {
 	);
 }
 
-function TaskContent({ task }: { task: TaskDetail }) {
+function TaskContent({ task }: { task: Task & { projectName: string | null; subtasks: Task[] } }) {
 	const statusDefault: StatusConfigWithIcon = {
 		color: "bg-gray-500/20 text-gray-400",
 		label: task.status,

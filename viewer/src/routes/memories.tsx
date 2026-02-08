@@ -2,7 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { Brain, Clock } from "lucide-react";
 
-import { api, type Memory } from "@/lib/api";
+import { api, unwrap } from "@/lib/api";
+
+import type { Memory } from "../../../src/schema";
 
 export const Route = createFileRoute("/memories")({
 	component: MemoriesPage,
@@ -15,7 +17,7 @@ function MemoriesPage() {
 		error,
 	} = useQuery({
 		queryKey: ["memories"],
-		queryFn: () => api.memories({ limit: 100 }),
+		queryFn: () => api.api.memories.get({ query: { limit: 100 } }).then(unwrap),
 	});
 
 	if (isLoading) {

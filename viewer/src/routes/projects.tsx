@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { FolderKanban, Clock, CircleDot } from "lucide-react";
 
-import { api, type Project } from "@/lib/api";
+import { api, unwrap } from "@/lib/api";
 import { parseJsonArray, extractDescription } from "@/lib/utils";
+
+import type { Project } from "../../../src/schema";
 
 export const Route = createFileRoute("/projects")({
 	component: ProjectsPage,
@@ -16,7 +18,7 @@ function ProjectsPage() {
 		error,
 	} = useQuery({
 		queryKey: ["projects"],
-		queryFn: api.projects,
+		queryFn: () => api.api.projects.get().then(unwrap),
 	});
 
 	if (isLoading) {

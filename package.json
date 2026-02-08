@@ -19,6 +19,7 @@
 	},
 	"dependencies": {
 		"@elysiajs/cors": "^1.4.1",
+		"@elysiajs/eden": "^1.4.6",
 		"@elysiajs/static": "^1.4.7",
 		"@opencode-ai/plugin": "1.1.42",
 		"@tursodatabase/database": "^0.4.4",

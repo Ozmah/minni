@@ -4,9 +4,11 @@ import { Brain, CircleDot, Clock, Shield, Tag } from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
 import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
-import { api, type Memory } from "@/lib/api";
+import { api, unwrap } from "@/lib/api";
 import { MEMORY_TYPE_CONFIG, MEMORY_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
 import { formatDate } from "@/lib/utils";
+
+import type { Memory } from "../../../src/schema";
 
 export const Route = createFileRoute("/memories/$id")({
 	component: MemoryDetail,
@@ -22,7 +24,11 @@ function MemoryDetail() {
 		error,
 	} = useQuery({
 		queryKey: ["memory", id],
-		queryFn: () => api.memory(Number(id)),
+		queryFn: () =>
+			api.api
+				.memories({ id: Number(id) })
+				.get()
+				.then(unwrap),
 	});
 
 	const handleClose = () => navigate({ to: "/memories" });

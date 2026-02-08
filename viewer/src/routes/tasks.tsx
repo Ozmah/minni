@@ -5,14 +5,11 @@ import { useMemo, useState } from "react";
 
 import { TaskStatusMenu } from "@/components/TaskStatusMenu";
 import { Muted } from "@/components/ui/Typography";
-import { api, type Task } from "@/lib/api";
+import { api, unwrap } from "@/lib/api";
 import { TASK_STATUS_CONFIG, TASK_PRIORITY_CONFIG } from "@/lib/config";
 
+import type { Task } from "../../../src/schema";
 import type { TaskStatus } from "../../../src/schema";
-
-// ============================================================================
-// ROUTE
-// ============================================================================
 
 export const Route = createFileRoute("/tasks")({
 	component: TasksPage,
@@ -59,10 +56,6 @@ function filterTree(nodes: TaskNode[], status: TaskStatus | "all"): TaskNode[] {
 	}, []);
 }
 
-// ============================================================================
-// PAGE
-// ============================================================================
-
 const TABS: Array<{ key: TaskStatus | "all"; label: string }> = [
 	{ key: "all", label: "All" },
 	{ key: "todo", label: "To Do" },
@@ -81,12 +74,12 @@ function TasksPage() {
 		error,
 	} = useQuery({
 		queryKey: ["tasks"],
-		queryFn: () => api.tasks({ limit: 200 }),
+		queryFn: () => api.api.tasks.get({ query: { limit: 200 } }).then(unwrap),
 	});
 
 	const { data: projects } = useQuery({
 		queryKey: ["projects"],
-		queryFn: () => api.projects(),
+		queryFn: () => api.api.projects.get().then(unwrap),
 	});
 
 	const counts = useMemo(() => {
@@ -203,10 +196,6 @@ function TasksPage() {
 	);
 }
 
-// ============================================================================
-// TREE NODE
-// ============================================================================
-
 function TaskTreeNode({ node, depth }: { node: TaskNode; depth: number }) {
 	const [expanded, setExpanded] = useState(true);
 	const hasChildren = node.children.length > 0;
@@ -230,10 +219,6 @@ function TaskTreeNode({ node, depth }: { node: TaskNode; depth: number }) {
 		</div>
 	);
 }
-
-// ============================================================================
-// CARD
-// ============================================================================
 
 function TaskCard({
 	task,

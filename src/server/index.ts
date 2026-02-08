@@ -100,3 +100,6 @@ export async function startViewerServer(db: MinniDB) {
 
 // Re-export for tools
 export { getPages, getPageCount, addPage } from "./lib/canvas";
+
+// Eden Treaty type — used by the viewer for end-to-end type safety
+export type App = Awaited<ReturnType<typeof createApp>>;

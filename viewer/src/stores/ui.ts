@@ -76,11 +76,11 @@ export const confirmDelete = async (): Promise<{
 	const deleteOp = async () => {
 		switch (target.type) {
 			case "project":
-				return api.deleteProject(target.id);
+				return api.api.projects({ id: target.id }).delete();
 			case "memory":
-				return api.deleteMemory(target.id);
+				return api.api.memories({ id: target.id }).delete();
 			case "task":
-				return api.deleteTask(target.id);
+				return api.api.tasks({ id: target.id }).delete();
 		}
 	};
 

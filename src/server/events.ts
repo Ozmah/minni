@@ -8,10 +8,6 @@
  * No data in the stream — just type + action signals.
  */
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 export interface ServerEvent {
 	type: "canvas" | "memory" | "task" | "project";
 	action?: "created" | "updated" | "deleted" | "cleared";
@@ -42,10 +38,6 @@ function safeEnqueue(controller: ReadableStreamDefaultController, data: Uint8Arr
 	}
 }
 
-// ============================================================================
-// BROADCASTING
-// ============================================================================
-
 /** Emit a typed event to all connected viewers. */
 export function emit(event: ServerEvent): void {
 	const msg = new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`);
@@ -56,10 +48,6 @@ export function emit(event: ServerEvent): void {
 		}
 	}
 }
-
-// ============================================================================
-// SSE STREAM
-// ============================================================================
 
 /** Creates an SSE stream Response for a new subscriber. */
 export function createEventStream(): Response {

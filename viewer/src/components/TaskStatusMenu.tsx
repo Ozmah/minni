@@ -32,7 +32,7 @@ export function TaskStatusMenu({ taskId, currentStatus, invalidateKeys }: TaskSt
 	const ref = useRef<HTMLDivElement>(null);
 
 	const mutation = useMutation({
-		mutationFn: (status: string) => api.updateTaskStatus(taskId, status),
+		mutationFn: (status: TaskStatus) => api.api.tasks({ id: taskId }).patch({ status }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["tasks"] });
 			for (const key of invalidateKeys ?? []) {
