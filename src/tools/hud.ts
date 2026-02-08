@@ -4,7 +4,7 @@ import { sql, eq, count } from "drizzle-orm";
 
 import { type MinniDB, getActiveProject, getActiveIdentity, getSetting } from "../helpers";
 import { projects, memories, tasks } from "../schema";
-import { getPages } from "../server";
+import { getPageCount } from "../server";
 
 /**
  * Creates HUD tool: minni_hud
@@ -36,8 +36,7 @@ export function hudTools(db: MinniDB) {
 					db.select({ total: count() }).from(memories).where(memoryFilter),
 				]);
 
-				// TODO this will be changed in the canvas refactor
-				const canvasPages = getPages().length;
+				const canvasPages = await getPageCount(db);
 
 				const todo = taskCounts.find((t) => t.status === "todo")?.total ?? 0;
 				const wip = taskCounts.find((t) => t.status === "in_progress")?.total ?? 0;

@@ -24,6 +24,7 @@ export { tasks } from "./tasks";
 export { tags, memoryTags } from "./tags";
 export { settings } from "./settings";
 export { memoryRelations } from "./memory-relations";
+export { canvas } from "./canvas";
 
 // Types
 export type { Project, NewProject } from "./projects";
@@ -33,6 +34,7 @@ export type { Task, NewTask } from "./tasks";
 export type { Tag, NewTag, MemoryTag } from "./tags";
 export type { Settings } from "./settings";
 export type { MemoryRelation } from "./memory-relations";
+export type { CanvasPage, NewCanvasPage } from "./canvas";
 
 // Zod Schemas
 export { projectSelectSchema, projectInsertSchema } from "./projects";
@@ -42,3 +44,4 @@ export { taskSelectSchema, taskInsertSchema } from "./tasks";
 export { tagSelectSchema, tagInsertSchema } from "./tags";
 export { settingsSelectSchema } from "./settings";
 export { memoryRelationSelectSchema } from "./memory-relations";
+export { canvasPageSelectSchema } from "./canvas";

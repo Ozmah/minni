@@ -29,7 +29,6 @@ export const MEMORY_TYPE = [
 	"documentation",
 	"identity",
 	"context",
-	"scratchpad",
 ] as const;
 export const MEMORY_STATUS = [
 	"draft",

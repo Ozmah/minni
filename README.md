@@ -17,7 +17,7 @@ The name comes from Old Norse _minni_ which means memory.
 ## Features
 
 - **Composable Context** — Agents discover what exists, then load only what they need
-- **Everything is a Memory** — Identity, context, scratchpads, skills, decisions — all follow the same system
+- **Everything is a Memory** — Identity, context, skills, decisions — all follow the same system
 - **Projects** — Organize work with descriptions, stack info, and scoped tasks
 - **Tasks** — Track work items with unlimited subtask hierarchy
 - **Viewer** — Real-time web UI with canvas for LLM-to-human communication
@@ -120,13 +120,13 @@ This keeps context windows lean while maintaining full access to the knowledge b
 
 ### Everything is a Memory
 
-Identity, context summaries, and scratchpads are memory types — not special system fields. They follow the same permission system, tagging, and search as any other knowledge.
+Identity, projects and context summaries are memory types — not special system fields. They follow the same permission system, tagging, and search as any other knowledge.
 
 | Special Type | Purpose                                                    |
 | ------------ | ---------------------------------------------------------- |
 | `identity`   | Who the user/agent/swarm is. Activated via global pointer. |
 | `context`    | Session continuity. One per project scope.                 |
-| `scratchpad` | Ephemeral workspace. Forced open permission.               |
+| `pattern`    | Reusable pattern with trade-offs.                          |
 
 ### Database
 
@@ -160,7 +160,7 @@ A React web app served by Bun on port 8593. Built with TanStack Router + Query +
 
 Features:
 
-- **Canvas** — Real-time markdown display via SSE with exponential backoff
+- **Canvas** — Markdown display for the LLM
 - **Project/Memory/Task views** — Browse and inspect all data
 - **Detail drawers** — Click any item to see full details
 - **Delete operations** — Remove projects, memories, and tasks with confirmation
@@ -201,7 +201,6 @@ Minni registers **6 tools**:
 | `documentation` | Official docs, guides, references.                 |
 | `identity`      | Who the user/agent/swarm is.                       |
 | `context`       | Session continuity summary.                        |
-| `scratchpad`    | Ephemeral workspace.                               |
 
 ---
 

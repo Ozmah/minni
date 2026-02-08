@@ -67,7 +67,6 @@ function MemoryCard({ memory }: { memory: Memory }) {
 			documentation: "bg-teal-500/20 text-teal-300",
 			identity: "bg-amber-500/20 text-amber-300",
 			context: "bg-emerald-500/20 text-emerald-300",
-			scratchpad: "bg-slate-500/20 text-slate-300",
 		}[memory.type] || "bg-gray-500/20 text-gray-300";
 
 	const statusBadge =

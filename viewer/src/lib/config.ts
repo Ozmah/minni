@@ -52,7 +52,6 @@ export const MEMORY_TYPE_CONFIG: Record<MemoryType, StatusConfig> = {
 	documentation: { color: "bg-teal-500/20 text-teal-400", label: "Documentation" },
 	identity: { color: "bg-amber-500/20 text-amber-400", label: "Identity" },
 	context: { color: "bg-emerald-500/20 text-emerald-400", label: "Context" },
-	scratchpad: { color: "bg-slate-500/20 text-slate-400", label: "Scratchpad" },
 };
 
 export const MEMORY_STATUS_CONFIG: Record<MemoryStatus, StatusConfig> = {

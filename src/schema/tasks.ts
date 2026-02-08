@@ -1,27 +1,34 @@
 import type { AnyColumn } from "drizzle-orm";
 
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-// TODO [T70]: drizzle-zod → drizzle-orm/zod when 1.0 stable
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import { z } from "zod";
 
 import { timestamp, TASK_PRIORITY, TASK_STATUS, type TaskPriority, type TaskStatus } from "./base";
 import { projects } from "./projects";
 
-export const tasks = sqliteTable("tasks", {
-	id: integer("id").primaryKey({ autoIncrement: true }),
-	projectId: integer("project_id").references(() => projects.id, {
-		onDelete: "cascade",
-	}),
-	parentId: integer("parent_id").references((): AnyColumn => tasks.id, {
-		onDelete: "cascade",
-	}),
-	title: text("title").notNull(),
-	description: text("description"),
-	priority: text("priority").$type<TaskPriority>().notNull().default("medium"),
-	status: text("status").$type<TaskStatus>().notNull().default("todo"),
-	...timestamp,
-});
+export const tasks = sqliteTable(
+	"tasks",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		projectId: integer("project_id").references(() => projects.id, {
+			onDelete: "cascade",
+		}),
+		parentId: integer("parent_id").references((): AnyColumn => tasks.id, {
+			onDelete: "cascade",
+		}),
+		title: text("title").notNull(),
+		description: text("description"),
+		priority: text("priority").$type<TaskPriority>().notNull().default("medium"),
+		status: text("status").$type<TaskStatus>().notNull().default("todo"),
+		...timestamp,
+	},
+	(table) => [
+		index("idx_tasks_project").on(table.projectId),
+		index("idx_tasks_parent").on(table.parentId),
+		index("idx_tasks_status").on(table.status),
+	],
+);
 
 export type Task = typeof tasks.$inferSelect;
 export type NewTask = typeof tasks.$inferInsert;

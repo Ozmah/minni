@@ -1,5 +1,8 @@
 import { Result } from "better-result";
 import { sql } from "drizzle-orm";
+import { readMigrationFiles } from "drizzle-orm/migrator";
+import { migrate } from "drizzle-orm/tursodatabase/migrator";
+import { join } from "node:path";
 
 import type { MinniDB } from "./helpers";
 
@@ -146,134 +149,62 @@ Followed by numbered sections:
 // ============================================================================
 // DATABASE INITIALIZATION
 //
-// Safe to call on every startup, all operations are idempotent.
-// Handles both fresh databases and legacy databases.
+// Uses drizzle-kit migrations for DDL (tables, indexes).
+// Seeds and legacy migration run after as idempotent runtime logic.
 // ============================================================================
 
 export async function initializeDatabase(db: MinniDB): Promise<void> {
-	// Tables. Order matters: FKs reference previously created tables.
+	const migrationsPath = join(import.meta.dir, "..", "migrations");
 
-	await db.run(sql`
-		CREATE TABLE IF NOT EXISTS projects (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL UNIQUE,
-			description TEXT,
-			stack TEXT,
-			status TEXT NOT NULL DEFAULT 'active',
-			permission TEXT NOT NULL DEFAULT 'guarded',
-			default_memory_permission TEXT NOT NULL DEFAULT 'guarded',
-			created_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)),
-			updated_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer))
-		)
-	`);
+	// Handle existing databases that predate drizzle migrations.
+	// Check if __drizzle_migrations tracking table exists.
+	const hasTracking = await Result.tryPromise(() =>
+		db.all(sql`SELECT 1 FROM __drizzle_migrations LIMIT 1`),
+	);
 
-	await db.run(sql`
-		CREATE TABLE IF NOT EXISTS memories (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
-			type TEXT NOT NULL,
-			title TEXT NOT NULL,
-			content TEXT NOT NULL,
-			status TEXT NOT NULL DEFAULT 'draft',
-			permission TEXT NOT NULL DEFAULT 'guarded',
-			created_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)),
-			updated_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer))
-		)
-	`);
+	if (hasTracking.isErr()) {
+		// No tracking table — could be fresh DB or pre-drizzle DB.
+		const hasExistingTables = await Result.tryPromise(() =>
+			db.all(sql`SELECT 1 FROM projects LIMIT 1`),
+		);
 
-	await db.run(sql`
-		CREATE TABLE IF NOT EXISTS global_context (
-			id INTEGER PRIMARY KEY DEFAULT 1,
-			active_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
-			active_identity_id INTEGER REFERENCES memories(id) ON DELETE SET NULL,
-			created_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)),
-			updated_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer))
-		)
-	`);
+		if (hasExistingTables.isOk()) {
+			// Pre-drizzle DB: tables exist but no migration tracking.
+			// Drop old canvas (schema changed from single-row to multi-row).
+			await db.run(sql`DROP TABLE IF EXISTS canvas`);
 
+			// Create tracking table and mark baseline as applied (skip execution).
+			const migrations = readMigrationFiles({ migrationsFolder: migrationsPath });
+			const baseline = migrations[0];
+			if (baseline) {
+				await db.run(sql`
+					CREATE TABLE IF NOT EXISTS __drizzle_migrations (
+						id INTEGER PRIMARY KEY,
+						hash TEXT NOT NULL,
+						created_at NUMERIC
+					)
+				`);
+				await db.run(
+					sql`INSERT INTO __drizzle_migrations (hash, created_at) VALUES (${baseline.hash}, ${baseline.folderMillis})`,
+				);
+			}
+		}
+	}
+
+	// Apply pending migrations (skips already-tracked ones).
+	await migrate(db, { migrationsFolder: migrationsPath });
+
+	// Ensure global_context singleton row exists
 	await db.run(sql`INSERT OR IGNORE INTO global_context (id) VALUES (1)`);
 
-	await db.run(sql`
-		CREATE TABLE IF NOT EXISTS tasks (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
-			parent_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
-			title TEXT NOT NULL,
-			description TEXT,
-			priority TEXT NOT NULL DEFAULT 'medium',
-			status TEXT NOT NULL DEFAULT 'todo',
-			created_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)),
-			updated_at INTEGER NOT NULL DEFAULT (cast(unixepoch('subsecond') * 1000 as integer))
-		)
-	`);
-
-	await db.run(sql`
-		CREATE TABLE IF NOT EXISTS tags (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL UNIQUE
-		)
-	`);
-
-	await db.run(sql`
-		CREATE TABLE IF NOT EXISTS memory_tags (
-			memory_id INTEGER NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
-			tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-			PRIMARY KEY (memory_id, tag_id)
-		)
-	`);
-
-	await db.run(sql`
-		CREATE TABLE IF NOT EXISTS settings (
-			key TEXT PRIMARY KEY,
-			value TEXT NOT NULL
-		)
-	`);
-
-	await db.run(sql`
-		CREATE TABLE IF NOT EXISTS memory_relations (
-			memory_id INTEGER NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
-			related_id INTEGER NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
-			PRIMARY KEY (memory_id, related_id)
-		)
-	`);
-
-	// Legacy migrations: columns that may be missing on deprecated databases
-	await db
-		.run(
-			sql`ALTER TABLE global_context ADD COLUMN active_identity_id INTEGER REFERENCES memories(id) ON DELETE SET NULL`,
-		)
-		.catch(() => {});
-	await db
-		.run(sql`ALTER TABLE tasks ADD COLUMN parent_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE`)
-		.catch(() => {});
-
-	await migrateFromV1(db);
-
+	// Legacy cleanup: drop deprecated tables
 	await db.run(sql`DROP TABLE IF EXISTS memory_paths`);
 	await db.run(sql`DROP TABLE IF EXISTS milestones`);
 	await db.run(sql`DROP TABLE IF EXISTS goals`);
 
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memories_project ON memories(project_id)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(type)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memories_status ON memories(status)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memory_tags_memory ON memory_tags(memory_id)`);
-	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_memory_tags_tag ON memory_tags(tag_id)`);
-
-	await db.run(
-		sql`CREATE INDEX IF NOT EXISTS idx_memory_relations_memory ON memory_relations(memory_id)`,
-	);
-	await db.run(
-		sql`CREATE INDEX IF NOT EXISTS idx_memory_relations_related ON memory_relations(related_id)`,
-	);
-	await db.run(
-		sql`CREATE INDEX IF NOT EXISTS idx_memories_project_type ON memories(project_id, type)`,
-	);
-
-	await db.run(sql`DROP INDEX IF EXISTS idx_memory_paths_segment`);
-	await db.run(sql`DROP INDEX IF EXISTS idx_memory_paths_memory`);
+	// Legacy v1 data migration (idempotent, skips on fresh DBs)
+	// This is just temporary will be removed and assumed a freshdatabase or simply populated
+	await migrateFromV1(db);
 
 	// Seeds
 	await seedSettings(db);
