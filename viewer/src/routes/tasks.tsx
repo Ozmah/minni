@@ -74,7 +74,7 @@ function TasksPage() {
 		error,
 	} = useQuery({
 		queryKey: ["tasks"],
-		queryFn: () => api.api.tasks.get({ query: { limit: 200 } }).then(unwrap),
+		queryFn: () => api.api.tasks.get({ query: { limit: 100 } }).then(unwrap),
 	});
 
 	const { data: projects } = useQuery({

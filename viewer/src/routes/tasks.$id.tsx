@@ -59,6 +59,7 @@ function TaskDetail() {
 	);
 }
 
+// Gonna fix this type crap
 function TaskContent({ task }: { task: Task & { projectName: string | null; subtasks: Task[] } }) {
 	const statusDefault: StatusConfigWithIcon = {
 		color: "bg-gray-500/20 text-gray-400",

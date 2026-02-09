@@ -3,6 +3,7 @@ import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { FolderKanban, Clock, CircleDot } from "lucide-react";
 
 import { api, unwrap } from "@/lib/api";
+import { PROJECT_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
 import { parseJsonArray, extractDescription } from "@/lib/utils";
 
 import type { Project } from "../../../src/schema";
@@ -57,14 +58,7 @@ function ProjectsPage() {
 function ProjectCard({ project }: { project: Project }) {
 	const stack = parseJsonArray(project.stack);
 	const description = extractDescription(project.description);
-	const statusColor =
-		{
-			active: "text-green-400",
-			paused: "text-yellow-400",
-			completed: "text-blue-400",
-			archived: "text-gray-500",
-			deleted: "text-red-400",
-		}[project.status] || "text-gray-400";
+	const statusConfig = getStatusConfig(PROJECT_STATUS_CONFIG, project.status);
 
 	return (
 		<Link
@@ -77,9 +71,9 @@ function ProjectCard({ project }: { project: Project }) {
 					<FolderKanban size={18} className="text-gray-400" />
 					<h3 className="font-medium text-white">{project.name}</h3>
 				</div>
-				<span className={`flex items-center gap-1 text-xs ${statusColor}`}>
+				<span className={`flex items-center gap-1 text-xs ${statusConfig.color}`}>
 					<CircleDot size={12} />
-					{project.status}
+					{statusConfig.label}
 				</span>
 			</div>
 

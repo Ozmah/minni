@@ -14,7 +14,7 @@
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check",
 		"glados": "bun run lint && bun run fmt:check && bunx tsc --noEmit && cd viewer && bunx tsc --noEmit && bun run build",
-		"sync": "rsync -av --delete --exclude='viewer/node_modules' --exclude='viewer/.git' --include='minni.ts' --include='src/***' --include='viewer/***' --include='package.json' --include='tsconfig.json' --exclude='*' ./ ~/.config/opencode/plugins/minni/",
+		"sync": "rsync -av --delete --exclude='viewer/node_modules' --exclude='viewer/.git' --include='minni.ts' --include='src/***' --include='migrations/***' --include='viewer/***' --include='drizzle.config.ts' --include='package.json' --include='tsconfig.json' --exclude='*' ./ ~/.config/opencode/plugins/minni/",
 		"prepare": "husky"
 	},
 	"dependencies": {

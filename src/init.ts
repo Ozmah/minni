@@ -194,6 +194,15 @@ export async function initializeDatabase(db: MinniDB): Promise<void> {
 	// Apply pending migrations (skips already-tracked ones).
 	await migrate(db, { migrationsFolder: migrationsPath });
 
+	// Safety net: canvas was dropped during pre-drizzle baseline but the migration
+	// that recreates it was marked as already applied. Idempotent — no-ops on fresh DBs.
+	await db.run(sql`CREATE TABLE IF NOT EXISTS canvas (
+		id TEXT PRIMARY KEY,
+		content TEXT NOT NULL,
+		created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+	)`);
+	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_canvas_created_at ON canvas (created_at)`);
+
 	// Ensure global_context singleton row exists
 	await db.run(sql`INSERT OR IGNORE INTO global_context (id) VALUES (1)`);
 

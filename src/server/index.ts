@@ -4,21 +4,21 @@
  * Elysia-powered API serving:
  * - Canvas (persistent markdown pages)
  * - Database queries (projects, memories, tasks)
- * - SSE event stream (invalidation signals)
+ * - Polling-based change detection (invalidation signals)
  * - Static frontend (React SPA)
  */
 
 import { cors } from "@elysiajs/cors";
 import { staticPlugin } from "@elysiajs/static";
-import { Elysia } from "elysia";
-import { readFile } from "node:fs/promises";
+import { Result } from "better-result";
+import { Elysia, file } from "elysia";
 import { join } from "node:path";
 
 import type { MinniDB } from "../helpers";
 
 import { getRuntimeInfo } from "./lib/canvas";
 import { canvasRoutes } from "./routes/canvas";
-import { eventsRoutes } from "./routes/events";
+import { changesRoutes } from "./routes/changes";
 import { memoryRoutes } from "./routes/memories";
 import { projectRoutes } from "./routes/projects";
 import { statsRoutes } from "./routes/stats";
@@ -51,6 +51,9 @@ async function createApp(db: MinniDB, distPath: string) {
 				await staticPlugin({
 					assets: distPath,
 					prefix: "/",
+					// Bun 1.2+ intercepts HTML files via its built-in bundler, serving empty bodies.
+					// Exclude index.html and serve it manually below.
+					ignorePatterns: ["index.html"],
 				}),
 			)
 			.use(statsRoutes(db))
@@ -58,17 +61,15 @@ async function createApp(db: MinniDB, distPath: string) {
 			.use(memoryRoutes(db))
 			.use(taskRoutes(db))
 			.use(canvasRoutes(db))
-			.use(eventsRoutes())
+			.use(changesRoutes())
 			.get("/api/runtime", () => getRuntimeInfo())
-			// SPA fallback: any unmatched route returns index.html for client-side routing
-			.get(
-				"*",
-				async () =>
-					new Response(await readFile(join(distPath, "index.html"), "utf8"), {
-						headers: { "Content-Type": "text/html" },
-					}),
-				{ detail: { hide: true } },
-			)
+			.get("/", () => file(join(distPath, "index.html")), { detail: { hide: true } })
+			// SPA fallback: non-API 404s serve index.html for client-side routing
+			.onError(({ code, path }) => {
+				if (code === "NOT_FOUND" && !path.startsWith("/api")) {
+					return file(join(distPath, "index.html"));
+				}
+			})
 	);
 }
 
@@ -84,11 +85,13 @@ export async function startViewerServer(db: MinniDB) {
 
 	const preferredPort = DEFAULT_CONFIG.preferredPort;
 
-	try {
+	const listenResult = Result.try(() => {
 		viewerServer = app.listen(preferredPort);
 		activePort = preferredPort;
-	} catch {
-		// Fallback: let OS assign a port
+	});
+
+	// Fallback: let OS assign a port
+	if (listenResult.isErr()) {
 		viewerServer = app.listen(0);
 		activePort = viewerServer.server?.port ?? null;
 	}

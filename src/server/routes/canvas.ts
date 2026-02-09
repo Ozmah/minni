@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { MinniDB } from "../../helpers";
 
 import { canvasPageSelectSchema } from "../../schema";
-import { emit } from "../events";
+import { markChanged } from "../changes";
 import {
 	getPages,
 	getPagesTruncated,
@@ -43,7 +43,7 @@ export const canvasRoutes = (db: MinniDB) =>
 				if (err) return status(400, { error: err });
 
 				const page = await addPage(db, body.content);
-				emit({ type: "canvas", action: "created" });
+				markChanged("canvas");
 				return { ok: true, id: page.id };
 			},
 			{
@@ -60,7 +60,7 @@ export const canvasRoutes = (db: MinniDB) =>
 				if (err) return status(400, { error: err });
 
 				const deleted = await deletePage(db, params.id);
-				if (deleted) emit({ type: "canvas", action: "deleted" });
+				if (deleted) markChanged("canvas");
 				return { ok: deleted };
 			},
 			{
@@ -72,6 +72,6 @@ export const canvasRoutes = (db: MinniDB) =>
 		)
 		.post("/clear", async () => {
 			const deleted = await clearPages(db);
-			emit({ type: "canvas", action: "cleared" });
+			markChanged("canvas");
 			return { ok: true, deleted };
 		});

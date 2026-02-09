@@ -1,4 +1,5 @@
 import { tool } from "@opencode-ai/plugin";
+import { Result } from "better-result";
 import { eq, ne, and, sql, desc } from "drizzle-orm";
 
 import { type MinniDB, resolveProject } from "../helpers";
@@ -24,7 +25,6 @@ async function resolveRelations(db: MinniDB, memoryId: number): Promise<string |
 
 	if (relations.length === 0) return null;
 
-	// TODO do we need a type for this?
 	const related: { id: number; title: string }[] = [];
 	for (const r of relations) {
 		const m = await db
@@ -81,9 +81,6 @@ export function equipTools(db: MinniDB) {
 				}
 
 				const sections: string[] = [];
-
-				// TODO normalizar comentarios, si me gustan éste tipo de comentarios
-				// PERO necesitamos apegarnos a la convención de la skill
 
 				// === Memories by ID ===
 
@@ -162,11 +159,10 @@ export function equipTools(db: MinniDB) {
 							const lines: string[] = [`[PROJECT:${p.name}]`];
 							if (p.description) lines.push(p.description);
 							if (p.stack) {
-								try {
-									lines.push(`Stack: ${JSON.parse(p.stack).join(", ")}`);
-								} catch {
-									lines.push(`Stack: ${p.stack}`);
-								}
+								const parsed = Result.try(() => JSON.parse(p.stack as string))
+									.map((v: string[]) => v.join(", "))
+									.unwrapOr(p.stack);
+								lines.push(`Stack: ${parsed}`);
 							}
 							lines.push(`Status: ${p.status} | Permission: ${p.permission}`);
 							lines.push(`[/PROJECT:${p.name}]`);

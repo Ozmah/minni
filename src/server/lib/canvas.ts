@@ -62,17 +62,16 @@ export async function getPageCount(db: MinniDB): Promise<number> {
 /** Inserts a canvas page and returns it. */
 export async function addPage(db: MinniDB, content: string): Promise<CanvasPage> {
 	const id = crypto.randomUUID();
+	const createdAt = new Date();
+	await db.insert(canvas).values({ id, content, createdAt });
 
-	const result = await db.insert(canvas).values({ id, content }).returning();
-
-	return result[0];
+	return { id, content, createdAt };
 }
 
 /** Deletes a canvas page by UUID. Returns true if deleted. */
 export async function deletePage(db: MinniDB, id: string): Promise<boolean> {
-	const result = await db.delete(canvas).where(eq(canvas.id, id)).returning({ id: canvas.id });
-
-	return result.length > 0;
+	const result = await db.delete(canvas).where(eq(canvas.id, id));
+	return result.changes > 0;
 }
 
 /** Deletes all canvas pages. Returns count deleted. */

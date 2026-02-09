@@ -1,4 +1,5 @@
 import { tool } from "@opencode-ai/plugin";
+import { Result } from "better-result";
 import { sql, eq, desc, count } from "drizzle-orm";
 
 import {
@@ -133,11 +134,10 @@ async function handleLoad(db: MinniDB, args: LoadArgs): Promise<string> {
 	sections.push(`## ${proj[0].name} — ${proj[0].status}`);
 	if (proj[0].description) sections.push(proj[0].description);
 	if (proj[0].stack) {
-		try {
-			sections.push(`Stack: ${JSON.parse(proj[0].stack).join(", ")}`);
-		} catch {
-			sections.push(`Stack: ${proj[0].stack}`);
-		}
+		const parsed = Result.try(() => JSON.parse(proj[0].stack as string))
+			.map((v: string[]) => v.join(", "))
+			.unwrapOr(proj[0].stack);
+		sections.push(`Stack: ${parsed}`);
 	}
 	sections.push(`Permission: ${proj[0].permission}`);
 
