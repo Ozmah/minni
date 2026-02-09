@@ -11,7 +11,7 @@
 import { cors } from "@elysiajs/cors";
 import { staticPlugin } from "@elysiajs/static";
 import { Result } from "better-result";
-import { Elysia, file } from "elysia";
+import { Elysia } from "elysia";
 import { join } from "node:path";
 
 import type { MinniDB } from "../helpers";
@@ -37,6 +37,8 @@ export function getViewerPort(): number | null {
 // === App Factory ===
 
 async function createApp(db: MinniDB, distPath: string) {
+	const indexHTML = join(distPath, "index.html");
+
 	return (
 		new Elysia()
 			.use(
@@ -51,11 +53,21 @@ async function createApp(db: MinniDB, distPath: string) {
 				await staticPlugin({
 					assets: distPath,
 					prefix: "/",
-					// Bun 1.2+ intercepts HTML files via its built-in bundler, serving empty bodies.
-					// Exclude index.html and serve it manually below.
 					ignorePatterns: ["index.html"],
 				}),
 			)
+			// SPA fallback: workaround for elysiajs/elysia#1515.
+			// As of feb 9th 2026 there's an issue with the SPA fallback pattern in Elysia
+			// Currently Elysia is not handling the routes that are not specific
+			// which causes that going to specific routes (like /projects) to break
+			// waiting on the fix from this pull request in the elysia repository
+			// https://github.com/elysiajs/elysia/pull/1685
+
+			.onError(({ code, path }) => {
+				if (code === "NOT_FOUND" && !path.startsWith("/api")) {
+					return new Response(Bun.file(indexHTML));
+				}
+			})
 			.use(statsRoutes(db))
 			.use(projectRoutes(db))
 			.use(memoryRoutes(db))
@@ -63,13 +75,7 @@ async function createApp(db: MinniDB, distPath: string) {
 			.use(canvasRoutes(db))
 			.use(changesRoutes())
 			.get("/api/runtime", () => getRuntimeInfo())
-			.get("/", () => file(join(distPath, "index.html")), { detail: { hide: true } })
-			// SPA fallback: non-API 404s serve index.html for client-side routing
-			.onError(({ code, path }) => {
-				if (code === "NOT_FOUND" && !path.startsWith("/api")) {
-					return file(join(distPath, "index.html"));
-				}
-			})
+			.get("/", () => Bun.file(indexHTML))
 	);
 }
 
