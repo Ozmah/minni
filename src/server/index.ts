@@ -55,14 +55,16 @@ async function createApp(db: MinniDB, distPath: string) {
 					prefix: "/",
 					ignorePatterns: ["index.html"],
 				}),
-			)
+        )
+
 			// SPA fallback: workaround for elysiajs/elysia#1515.
 			// As of feb 9th 2026 there's an issue with the SPA fallback pattern in Elysia
 			// Currently Elysia is not handling the routes that are not specific
 			// which causes that going to specific routes (like /projects) to break
+			// right now this works by goint directly to http://localhost:8593
+			// this is the reason this is not being merged into main, staying in develop
 			// waiting on the fix from this pull request in the elysia repository
 			// https://github.com/elysiajs/elysia/pull/1685
-
 			.onError(({ code, path }) => {
 				if (code === "NOT_FOUND" && !path.startsWith("/api")) {
 					return new Response(Bun.file(indexHTML));
