@@ -7,14 +7,12 @@ import {
 	Clock,
 	FolderKanban,
 	GitBranch,
-	Workflow,
 	Trash2,
 } from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
 import { TaskStatusMenu } from "@/components/TaskStatusMenu";
 import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
-import { Muted } from "@/components/ui/Typography";
 import { api, unwrap } from "@/lib/api";
 import {
 	TASK_STATUS_CONFIG,
@@ -26,6 +24,11 @@ import { formatDate } from "@/lib/utils";
 import { setDeleteTarget } from "@/stores/ui";
 
 import type { Task } from "../../../src/schema";
+
+interface TaskDetail extends Task {
+	projectName: string | null;
+	subtasks: Task[];
+}
 
 export const Route = createFileRoute("/tasks/$id")({
 	component: TaskDetail,
@@ -66,8 +69,7 @@ function TaskDetail() {
 	);
 }
 
-// Gonna fix this type crap
-function TaskContent({ task }: { task: Task & { projectName: string | null; subtasks: Task[] } }) {
+function TaskContent({ task }: { task: TaskDetail }) {
 	const statusDefault: StatusConfigWithIcon = {
 		color: "bg-gray-500/20 text-gray-400",
 		label: task.status,
@@ -112,13 +114,24 @@ function TaskContent({ task }: { task: Task & { projectName: string | null; subt
 			<Section title="Relations">
 				<div className="space-y-2">
 					{task.projectId != null ? (
-						<>
-							<InfoItem icon={FolderKanban} label="Project ID" value={String(task.projectId)} />
-							<InfoItem icon={Workflow} label="Project Name" value={String(task.projectName)} />
-						</>
+						<Link
+							to="/projects/$id"
+							params={{ id: String(task.projectId) }}
+							className="flex items-center gap-2 text-sm text-gray-300 hover:text-white"
+						>
+							<FolderKanban size={14} className="text-gray-500" />
+							<span>Project: {task.projectName ?? `#${task.projectId}`}</span>
+						</Link>
 					) : null}
 					{task.parentId != null ? (
-						<InfoItem icon={GitBranch} label="Parent Task ID" value={String(task.parentId)} />
+						<Link
+							to="/tasks/$id"
+							params={{ id: String(task.parentId) }}
+							className="flex items-center gap-2 text-sm text-gray-300 hover:text-white"
+						>
+							<GitBranch size={14} className="text-gray-500" />
+							<span>Parent Task #{task.parentId}</span>
+						</Link>
 					) : null}
 					{task.projectId == null && task.parentId == null ? (
 						<p className="text-sm text-gray-500">No relations</p>
@@ -176,6 +189,7 @@ function TaskContent({ task }: { task: Task & { projectName: string | null; subt
 
 function SubtaskRow({ task }: { task: Task }) {
 	const statusConfig = TASK_STATUS_CONFIG[task.status] ?? TASK_STATUS_CONFIG.todo;
+	const priorityConfig = TASK_PRIORITY_CONFIG[task.priority] ?? TASK_PRIORITY_CONFIG.medium;
 	const StatusIcon = statusConfig.icon ?? Circle;
 
 	return (
@@ -186,7 +200,9 @@ function SubtaskRow({ task }: { task: Task }) {
 		>
 			<StatusIcon size={14} className={statusConfig.color} />
 			<span className="flex-1 truncate text-sm text-gray-300">{task.title}</span>
-			<Muted>{task.priority}</Muted>
+			<span className={`rounded px-1.5 py-0.5 text-xs ${priorityConfig.color}`}>
+				{priorityConfig.label}
+			</span>
 		</Link>
 	);
 }

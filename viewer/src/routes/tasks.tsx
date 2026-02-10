@@ -4,12 +4,12 @@ import { ListTodo, Clock, Circle, FolderKanban, ChevronRight } from "lucide-reac
 import { memo, useMemo, useState } from "react";
 
 import { TaskStatusMenu } from "@/components/TaskStatusMenu";
+import { LoadingState, ErrorState } from "@/components/ui";
 import { Muted } from "@/components/ui/Typography";
 import { api, unwrap } from "@/lib/api";
 import { TASK_STATUS_CONFIG, TASK_PRIORITY_CONFIG } from "@/lib/config";
 
-import type { Task } from "../../../src/schema";
-import type { TaskStatus } from "../../../src/schema";
+import type { Task, TaskStatus } from "../../../src/schema";
 
 export const Route = createFileRoute("/tasks")({
 	component: TasksPage,
@@ -110,13 +110,8 @@ function TasksPage() {
 		return filterTree(built, activeTab);
 	}, [projectFiltered, activeTab]);
 
-	if (isLoading) {
-		return <div className="p-6 text-gray-400">Loading tasks...</div>;
-	}
-
-	if (error) {
-		return <div className="p-6 text-red-400">Error: {error.message}</div>;
-	}
+	if (isLoading) return <LoadingState message="Loading tasks..." />;
+	if (error) return <ErrorState error={error} />;
 
 	if (!tasks?.length) return EMPTY_STATE;
 
@@ -127,8 +122,8 @@ function TasksPage() {
 				<div className="mb-4">
 					<h2 className="text-2xl font-semibold tracking-tight">Tasks</h2>
 					<Muted>
-						{counts.all} total &middot; {counts.todo} todo &middot; {counts.in_progress} wip
-						&middot; {counts.done} done
+						{counts.all} total &middot; {counts.todo} todo &middot; {counts.in_progress} in progress
+						&middot; {counts.done} done &middot; {counts.cancelled} cancelled
 					</Muted>
 				</div>
 

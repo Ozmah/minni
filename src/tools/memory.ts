@@ -37,6 +37,9 @@ export function memoryTools(db: MinniDB) {
 				action: tool.schema.enum(["find", "save", "update", "delete"]),
 
 				// find
+				// TODO memory search is crap right now, need to make changes to the explanation since
+				// asking something like "look for a memory about 'code commenting'" the LLM
+				// will go a look literally for that string instead of looking for tags or keywords"
 				query: tool.schema.string().optional().describe("Search query. Omit to list all."),
 				type: tool.schema
 					.enum([
