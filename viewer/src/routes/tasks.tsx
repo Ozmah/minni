@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { ListTodo, Clock, Circle, FolderKanban, ChevronRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 
 import { TaskStatusMenu } from "@/components/TaskStatusMenu";
 import { Muted } from "@/components/ui/Typography";
@@ -64,6 +64,16 @@ const TABS: Array<{ key: TaskStatus | "all"; label: string }> = [
 	{ key: "cancelled", label: "Cancelled" },
 ];
 
+const EXPAND_SPACER = <span className="w-5 shrink-0" />;
+
+const EMPTY_STATE = (
+	<div className="flex flex-col items-center justify-center p-12 text-gray-400">
+		<ListTodo size={48} className="mb-4 opacity-50" />
+		<p className="text-lg">No tasks yet</p>
+		<p className="mt-2 text-sm">Create one using minni_task</p>
+	</div>
+);
+
 function TasksPage() {
 	const [activeTab, setActiveTab] = useState<TaskStatus | "all">("all");
 	const [projectFilter, setProjectFilter] = useState<number | "all">("all");
@@ -82,24 +92,23 @@ function TasksPage() {
 		queryFn: () => api.api.projects.get().then(unwrap),
 	});
 
+	const projectFiltered = useMemo(() => {
+		if (!tasks) return [];
+		return projectFilter === "all" ? tasks : tasks.filter((t) => t.projectId === projectFilter);
+	}, [tasks, projectFilter]);
+
 	const counts = useMemo(() => {
-		if (!tasks) return { all: 0, todo: 0, in_progress: 0, done: 0, cancelled: 0 };
-		return {
-			all: tasks.length,
-			todo: tasks.filter((t) => t.status === "todo").length,
-			in_progress: tasks.filter((t) => t.status === "in_progress").length,
-			done: tasks.filter((t) => t.status === "done").length,
-			cancelled: tasks.filter((t) => t.status === "cancelled").length,
-		};
-	}, [tasks]);
+		const c = { all: projectFiltered.length, todo: 0, in_progress: 0, done: 0, cancelled: 0 };
+		for (const t of projectFiltered) {
+			c[t.status]++;
+		}
+		return c;
+	}, [projectFiltered]);
 
 	const tree = useMemo(() => {
-		if (!tasks) return [];
-		const projectFiltered =
-			projectFilter === "all" ? tasks : tasks.filter((t) => t.projectId === projectFilter);
 		const built = buildTree(projectFiltered);
 		return filterTree(built, activeTab);
-	}, [tasks, activeTab, projectFilter]);
+	}, [projectFiltered, activeTab]);
 
 	if (isLoading) {
 		return <div className="p-6 text-gray-400">Loading tasks...</div>;
@@ -109,15 +118,7 @@ function TasksPage() {
 		return <div className="p-6 text-red-400">Error: {error.message}</div>;
 	}
 
-	if (!tasks?.length) {
-		return (
-			<div className="flex flex-col items-center justify-center p-12 text-gray-400">
-				<ListTodo size={48} className="mb-4 opacity-50" />
-				<p className="text-lg">No tasks yet</p>
-				<p className="mt-2 text-sm">Create one using minni_task</p>
-			</div>
-		);
-	}
+	if (!tasks?.length) return EMPTY_STATE;
 
 	return (
 		<>
@@ -220,67 +221,74 @@ function TaskTreeNode({ node, depth }: { node: TaskNode; depth: number }) {
 	);
 }
 
-function TaskCard({
-	task,
-	depth,
-	hasChildren,
-	expanded,
-	onToggle,
-}: {
+interface TaskCardProps {
 	task: Task;
 	depth: number;
 	hasChildren: boolean;
 	expanded: boolean;
 	onToggle: () => void;
-}) {
-	const statusConfig = TASK_STATUS_CONFIG[task.status] ?? TASK_STATUS_CONFIG.todo;
-	const priorityConfig = TASK_PRIORITY_CONFIG[task.priority] ?? TASK_PRIORITY_CONFIG.medium;
-	const StatusIcon = statusConfig.icon ?? Circle;
-
-	return (
-		<article
-			className={`flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800/50 p-2.5 transition-colors hover:border-gray-600 hover:bg-gray-800 ${depth > 0 ? "ml-3" : ""}`}
-		>
-			{/* Expand/collapse toggle */}
-			{hasChildren ? (
-				<button
-					onClick={onToggle}
-					className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-gray-500 hover:text-gray-300"
-				>
-					<ChevronRight
-						size={14}
-						className={`transition-transform ${expanded ? "rotate-90" : ""}`}
-					/>
-				</button>
-			) : (
-				<span className="w-5 shrink-0" />
-			)}
-
-			{/* Status icon */}
-			<StatusIcon size={16} className={`shrink-0 ${statusConfig.color}`} />
-
-			{/* Title + link */}
-			<Link
-				to="/tasks/$id"
-				params={{ id: task.id.toString() }}
-				className="flex-1 truncate text-sm font-medium text-white hover:underline"
-			>
-				{task.title}
-			</Link>
-
-			{/* Priority badge */}
-			<span className={`shrink-0 rounded px-1.5 py-0.5 text-xs ${priorityConfig.color}`}>
-				{task.priority}
-			</span>
-
-			{/* Date */}
-			<span className="flex shrink-0 items-center gap-1 text-xs text-gray-500">
-				<Clock size={10} />
-				{new Date(task.updatedAt).toLocaleDateString()}
-			</span>
-
-			{/* Status menu */}
-			<TaskStatusMenu taskId={task.id} currentStatus={task.status} />
-		</article>
-	);
 }
+
+const TaskCard = memo(
+	function TaskCard({ task, depth, hasChildren, expanded, onToggle }: TaskCardProps) {
+		const statusConfig = TASK_STATUS_CONFIG[task.status] ?? TASK_STATUS_CONFIG.todo;
+		const priorityConfig = TASK_PRIORITY_CONFIG[task.priority] ?? TASK_PRIORITY_CONFIG.medium;
+		const StatusIcon = statusConfig.icon ?? Circle;
+
+		return (
+			<article
+				className={`flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800/50 p-2.5 transition-colors hover:border-gray-600 hover:bg-gray-800 ${depth > 0 ? "ml-3" : ""}`}
+			>
+				{/* Expand/collapse toggle */}
+				{hasChildren ? (
+					<button
+						onClick={onToggle}
+						className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-gray-500 hover:text-gray-300"
+					>
+						<ChevronRight
+							size={14}
+							className={`transition-transform ${expanded ? "rotate-90" : ""}`}
+						/>
+					</button>
+				) : (
+					EXPAND_SPACER
+				)}
+
+				{/* Status icon */}
+				<StatusIcon size={16} className={`shrink-0 ${statusConfig.color}`} />
+
+				{/* Title + link */}
+				<Link
+					to="/tasks/$id"
+					params={{ id: task.id.toString() }}
+					className="flex-1 truncate text-sm font-medium text-white hover:underline"
+				>
+					{task.title}
+				</Link>
+
+				{/* Priority badge */}
+				<span className={`shrink-0 rounded px-1.5 py-0.5 text-xs ${priorityConfig.color}`}>
+					{priorityConfig.label}
+				</span>
+
+				{/* Date */}
+				<span className="flex shrink-0 items-center gap-1 text-xs text-gray-500">
+					<Clock size={10} />
+					{new Date(task.updatedAt).toLocaleDateString()}
+				</span>
+
+				{/* Status menu */}
+				<TaskStatusMenu taskId={task.id} currentStatus={task.status} />
+			</article>
+		);
+	},
+	(prev, next) =>
+		prev.task.id === next.task.id &&
+		prev.task.status === next.task.status &&
+		prev.task.priority === next.task.priority &&
+		prev.task.title === next.task.title &&
+		prev.task.updatedAt === next.task.updatedAt &&
+		prev.depth === next.depth &&
+		prev.hasChildren === next.hasChildren &&
+		prev.expanded === next.expanded,
+);

@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface DrawerProps {
 	open: boolean;
@@ -9,11 +9,14 @@ interface DrawerProps {
 }
 
 export function Drawer({ open, onClose, title, children }: DrawerProps) {
+	const onCloseRef = useRef(onClose);
+	onCloseRef.current = onClose;
+
 	useEffect(() => {
 		if (!open) return;
 
 		const handleEsc = (e: KeyboardEvent) => {
-			if (e.key === "Escape") onClose();
+			if (e.key === "Escape") onCloseRef.current();
 		};
 
 		document.body.style.overflow = "hidden";
@@ -23,7 +26,7 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
 			document.body.style.overflow = "";
 			document.removeEventListener("keydown", handleEsc);
 		};
-	}, [open, onClose]);
+	}, [open]);
 
 	return (
 		<>

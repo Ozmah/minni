@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
 	ListTodo,
@@ -34,6 +34,7 @@ export const Route = createFileRoute("/tasks/$id")({
 function TaskDetail() {
 	const { id } = Route.useParams();
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 
 	const {
 		data: task,
@@ -46,6 +47,12 @@ function TaskDetail() {
 				.tasks({ id: Number(id) })
 				.get()
 				.then(unwrap),
+		initialData: () => {
+			const tasks = queryClient.getQueryData<Task[]>(["tasks"]);
+			const cached = tasks?.find((t) => t.id === Number(id));
+			if (!cached) return undefined;
+			return { ...cached, projectName: null, subtasks: [] };
+		},
 	});
 
 	const handleClose = () => navigate({ to: "/tasks" });
@@ -104,18 +111,18 @@ function TaskContent({ task }: { task: Task & { projectName: string | null; subt
 			{/* Relations */}
 			<Section title="Relations">
 				<div className="space-y-2">
-					{task.projectId && (
+					{task.projectId != null ? (
 						<>
 							<InfoItem icon={FolderKanban} label="Project ID" value={String(task.projectId)} />
 							<InfoItem icon={Workflow} label="Project Name" value={String(task.projectName)} />
 						</>
-					)}
-					{task.parentId && (
+					) : null}
+					{task.parentId != null ? (
 						<InfoItem icon={GitBranch} label="Parent Task ID" value={String(task.parentId)} />
-					)}
-					{!task.projectId && !task.parentId && (
+					) : null}
+					{task.projectId == null && task.parentId == null ? (
 						<p className="text-sm text-gray-500">No relations</p>
-					)}
+					) : null}
 				</div>
 			</Section>
 
