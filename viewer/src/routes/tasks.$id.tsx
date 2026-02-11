@@ -12,7 +12,7 @@ import {
 
 import { Drawer } from "@/components/Drawer";
 import { TaskStatusMenu } from "@/components/TaskStatusMenu";
-import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
+import { Section, InfoItem, LoadingState, ErrorState, MarkdownContent } from "@/components/ui";
 import { api, unwrap } from "@/lib/api";
 import {
 	TASK_STATUS_CONFIG,
@@ -162,7 +162,7 @@ function TaskContent({ task }: { task: TaskDetail }) {
 			{task.description && (
 				<Section title="Description">
 					<div className="rounded-lg bg-gray-800/50 p-4">
-						<p className="text-sm whitespace-pre-wrap text-gray-300">{task.description}</p>
+						<MarkdownContent content={task.description} className="prose-sm" />
 					</div>
 				</Section>
 			)}

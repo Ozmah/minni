@@ -1,10 +1,14 @@
 # Minni
 
-**Persistent structured memory for AI agents.** One database file. Multiple agents. Shared brain.
+**Persistent structured memory for AI agents with a real-time interactive viewer.** One database file. Multiple agents. Shared brain.
 
 The philosophy behind Minni is simple: **reduce the distance between the LLM and the context it needs.** Agents shouldn't dump everything into context hoping something is relevant. They should know what exists, ask for what they need, and load only that. Six tools. Zero bloat.
 
 Currently available as an [OpenCode](https://opencode.ai) plugin. Everything your agents learn persists across sessions and projects, backed by a local [Turso Database](https://docs.turso.tech/introduction) file. Copy the file, move it to another machine, and your agents remember everything.
+
+Beyond memory management, Minni includes a **web-based viewer** where users can browse, inspect, and (soon) edit all stored knowledge. The **Canvas** serves as a communication channel — each page is a space where LLMs can present information to the user, and even to other LLMs. The vision is to evolve Canvas into a dynamic rendering surface with interactive UI components, inspired by Anthropic's artifacts: tables, charts, diagrams, and more — all composed by the LLM on demand.
+
+Right now `develop` branch will start with the experiments of the dynamic ui
 
 The name comes from Old Norse _minni_ which means memory.
 
@@ -84,7 +88,18 @@ counts: 0P 0T(0/0/0) 2M 0C
 The 2 memories are the default description skills seeded on first run.
 
 Database file: `~/.config/opencode/minni.db`
-Viewer: `http://localhost:8593`
+Viewer: `http://localhost:8593` (see [Known Issues](#elysia-spa-routing) for navigation limitations)
+
+### What happens on first run
+
+No manual database setup is needed. When OpenCode loads the plugin, Minni automatically:
+
+1. Creates `~/.config/opencode/minni.db` if it doesn't exist
+2. Runs Drizzle migrations (9 tables, 12 indexes)
+3. Seeds default settings and 2 built-in description skills
+4. Starts the Elysia server on port 8593
+
+> **Note:** The Turso database driver is single-access only. Close OpenCode before running external scripts against the database (seeders, Drizzle Studio, etc.).
 
 ---
 
@@ -160,12 +175,12 @@ A React web app served by Bun on port 8593. Built with TanStack Router + Query +
 
 Features:
 
-- **Canvas** — Markdown display for the LLM
-- **Project/Memory/Task views** — Browse and inspect all data
+- **Canvas** — Communication channel between LLMs and users, with rendered markdown pages
+- **Project/Memory/Task views** — Browse and inspect all data with full markdown rendering
 - **Detail drawers** — Click any item to see full details
 - **Delete operations** — Remove projects, memories, and tasks with confirmation
 
-The viewer runs in the same process as the plugin, sharing the database instance.
+The viewer runs in the same process as the plugin, sharing the database instance. User-facing editing capabilities are planned.
 
 ---
 
@@ -332,6 +347,18 @@ bun run sync
 The `sync` script rsyncs source files to `~/.config/opencode/plugins/minni/`.
 
 Pre-commit hooks run lint and format checks. Pre-push hooks run typecheck and viewer build.
+
+---
+
+## Known Issues
+
+### Elysia SPA Routing
+
+Direct URL navigation to sub-routes (e.g. `http://localhost:8593/projects`) does not work due to an [upstream Elysia issue](https://github.com/elysiajs/elysia/issues/1515).
+
+**Workaround:** Always enter the viewer at `http://localhost:8593/` first. Once loaded, client-side navigation works normally — clicking through projects, memories, tasks, and canvas all work as expected. Only the initial page load from a direct sub-route URL fails.
+
+I'll continue to look for quick solutions in the meantime. If I have enough time I'll take a look inside Elysia to see if I can find a solution an propose a PR.
 
 ---
 

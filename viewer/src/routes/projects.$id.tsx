@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { FolderKanban, CircleDot, Clock, Shield, Brain, Trash2 } from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
-import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
+import { Section, InfoItem, LoadingState, ErrorState, MarkdownContent } from "@/components/ui";
 import { api, unwrap } from "@/lib/api";
 import { PROJECT_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
 import { parseJsonArray, formatDate } from "@/lib/utils";
@@ -70,7 +70,7 @@ function ProjectContent({ project }: { project: Project }) {
 			{/* Description */}
 			{project.description && (
 				<Section title="Description">
-					<p className="text-gray-300">{project.description}</p>
+					<MarkdownContent content={project.description} className="prose-sm" />
 				</Section>
 			)}
 

@@ -55,7 +55,7 @@ async function createApp(db: MinniDB, distPath: string) {
 					prefix: "/",
 					ignorePatterns: ["index.html"],
 				}),
-        )
+			)
 
 			// SPA fallback: workaround for elysiajs/elysia#1515.
 			// As of feb 9th 2026 there's an issue with the SPA fallback pattern in Elysia

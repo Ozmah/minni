@@ -57,11 +57,11 @@ function filterTree(nodes: TaskNode[], status: TaskStatus | "all"): TaskNode[] {
 }
 
 const TABS: Array<{ key: TaskStatus | "all"; label: string }> = [
-	{ key: "all", label: "All" },
 	{ key: "todo", label: "To Do" },
 	{ key: "in_progress", label: "In Progress" },
 	{ key: "done", label: "Done" },
 	{ key: "cancelled", label: "Cancelled" },
+	{ key: "all", label: "All" },
 ];
 
 const EXPAND_SPACER = <span className="w-5 shrink-0" />;
@@ -75,7 +75,7 @@ const EMPTY_STATE = (
 );
 
 function TasksPage() {
-	const [activeTab, setActiveTab] = useState<TaskStatus | "all">("all");
+	const [activeTab, setActiveTab] = useState<TaskStatus | "all">("todo");
 	const [projectFilter, setProjectFilter] = useState<number | "all">("all");
 
 	const {

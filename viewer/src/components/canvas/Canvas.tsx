@@ -1,10 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
-import DOMPurify from "dompurify";
 import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
-import { marked } from "marked";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 
+import { MarkdownContent } from "@/components/ui";
 import { api, unwrap } from "@/lib/api";
 import { canvasStore, navigateNext, navigatePrev, navigateTo } from "@/stores/canvas";
 
@@ -102,7 +101,7 @@ export function Canvas() {
 
 			{/* Content */}
 			<div className="flex-1 overflow-auto p-6">
-				{currentPage && <RenderedContent content={currentPage.content} />}
+				{currentPage && <MarkdownContent content={currentPage.content} />}
 			</div>
 
 			{/* Footer */}
@@ -112,17 +111,5 @@ export function Canvas() {
 				</div>
 			)}
 		</div>
-	);
-}
-
-/** Renders markdown content as sanitized HTML. */
-function RenderedContent({ content }: { content: string }) {
-	const html = useMemo(() => {
-		const raw = marked.parse(content);
-		return DOMPurify.sanitize(raw as string);
-	}, [content]);
-
-	return (
-		<article className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: html }} />
 	);
 }

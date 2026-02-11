@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Brain, CircleDot, Clock, Shield, Tag, Trash2 } from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
-import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
+import { Section, InfoItem, LoadingState, ErrorState, MarkdownContent } from "@/components/ui";
 import { api, unwrap } from "@/lib/api";
 import { MEMORY_TYPE_CONFIG, MEMORY_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
 import { formatDate } from "@/lib/utils";
@@ -76,7 +76,7 @@ function MemoryContent({ memory }: { memory: Memory }) {
 			{/* Content */}
 			<Section title="Content">
 				<div className="rounded-lg bg-gray-800/50 p-4">
-					<p className="text-sm whitespace-pre-wrap text-gray-300">{memory.content}</p>
+					<MarkdownContent content={memory.content} className="prose-sm" />
 				</div>
 			</Section>
 
