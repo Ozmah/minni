@@ -50,13 +50,13 @@
  *
  * EVERYTHING IS A MEMORY
  * ──────────────────────
- * Identity, context summaries, and scratchpads are memory types — not special
+ * Identity, projects and context summaries are memory types — not special
  * columns on global_context. This means they follow the same permission system,
  * tagging, and search as any other knowledge.
  *
  *   type: "identity"   — Who the user/agent/swarm is. Activated via pointer.
  *   type: "context"    — Session continuity. One per project (upsert).
- *   type: "scratchpad" — Ephemeral workspace. Forced open permission.
+ *   type: "pattern"    — Reusable pattern with trade-offs.
  *
  * SETTINGS ARE CODE-ENFORCED
  * ──────────────────────────

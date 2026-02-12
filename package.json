@@ -14,19 +14,23 @@
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check",
 		"glados": "bun run lint && bun run fmt:check && bunx tsc --noEmit && cd viewer && bunx tsc --noEmit && bun run build",
-		"sync": "rsync -av --delete --exclude='viewer/node_modules' --exclude='viewer/.git' --include='minni.ts' --include='src/***' --include='viewer/***' --include='package.json' --include='tsconfig.json' --exclude='*' ./ ~/.config/opencode/plugins/minni/",
+		"sync": "rsync -av --delete --exclude='viewer/node_modules' --exclude='viewer/.git' --include='minni.ts' --include='src/***' --include='migrations/***' --include='viewer/***' --include='drizzle.config.ts' --include='package.json' --include='tsconfig.json' --exclude='*' ./ ~/.config/opencode/plugins/minni/",
 		"prepare": "husky"
 	},
 	"dependencies": {
+		"@elysiajs/cors": "^1.4.1",
+		"@elysiajs/eden": "^1.4.6",
+		"@elysiajs/static": "^1.4.7",
 		"@opencode-ai/plugin": "1.1.42",
 		"@tursodatabase/database": "^0.4.4",
 		"better-result": "^2.7.0",
-		"drizzle-orm": "^1.0.0-beta.9-e89174b",
-		"drizzle-zod": "^0.8.3",
+		"drizzle-orm": "^1.0.0-beta.15-859cf75",
+		"elysia": "^1.4.22",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
 		"bun-types": "^1.3.8",
+		"drizzle-kit": "^1.0.0-beta.15-859cf75",
 		"husky": "^9.1.7",
 		"oxfmt": "^0.27.0",
 		"oxlint": "^1.43.0"

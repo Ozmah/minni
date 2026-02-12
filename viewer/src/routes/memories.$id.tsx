@@ -1,12 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Brain, CircleDot, Clock, Shield, Tag } from "lucide-react";
+import { Brain, CircleDot, Clock, Shield, Tag, Trash2 } from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
-import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
-import { api, type Memory } from "@/lib/api";
+import { Section, InfoItem, LoadingState, ErrorState, MarkdownContent } from "@/components/ui";
+import { api, unwrap } from "@/lib/api";
 import { MEMORY_TYPE_CONFIG, MEMORY_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
 import { formatDate } from "@/lib/utils";
+import { setDeleteTarget } from "@/stores/ui";
+
+import type { Memory } from "../../../src/schema";
 
 export const Route = createFileRoute("/memories/$id")({
 	component: MemoryDetail,
@@ -22,7 +25,11 @@ function MemoryDetail() {
 		error,
 	} = useQuery({
 		queryKey: ["memory", id],
-		queryFn: () => api.memory(Number(id)),
+		queryFn: () =>
+			api.api
+				.memories({ id: Number(id) })
+				.get()
+				.then(unwrap),
 	});
 
 	const handleClose = () => navigate({ to: "/memories" });
@@ -69,7 +76,7 @@ function MemoryContent({ memory }: { memory: Memory }) {
 			{/* Content */}
 			<Section title="Content">
 				<div className="rounded-lg bg-gray-800/50 p-4">
-					<p className="text-sm whitespace-pre-wrap text-gray-300">{memory.content}</p>
+					<MarkdownContent content={memory.content} className="prose-sm" />
 				</div>
 			</Section>
 
@@ -84,6 +91,23 @@ function MemoryContent({ memory }: { memory: Memory }) {
 					<InfoItem icon={Clock} label="Created" value={formatDate(memory.createdAt)} />
 					<InfoItem icon={Clock} label="Updated" value={formatDate(memory.updatedAt)} />
 				</div>
+			</Section>
+
+			{/* Actions */}
+			<Section title="Actions">
+				<button
+					onClick={() =>
+						setDeleteTarget({
+							type: "memory",
+							id: memory.id,
+							name: memory.title,
+						})
+					}
+					className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20"
+				>
+					<Trash2 size={16} />
+					Delete Memory
+				</button>
 			</Section>
 		</div>
 	);

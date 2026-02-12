@@ -22,7 +22,11 @@
 		"noUncheckedSideEffectImports": true,
 		"baseUrl": ".",
 		"paths": {
-			"@/*": ["./src/*"]
+			"@/*": ["./src/*"],
+			"elysia": ["../node_modules/elysia"],
+			"elysia/*": ["../node_modules/elysia/*"],
+			"@elysiajs/eden": ["../node_modules/@elysiajs/eden"],
+			"@elysiajs/eden/*": ["../node_modules/@elysiajs/eden/*"]
 		}
 	}
 }

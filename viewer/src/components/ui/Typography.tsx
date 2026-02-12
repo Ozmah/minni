@@ -1,3 +1,6 @@
+// Typography components from Shadcn for convnient text components
+// Will start using these around the app to make it consistent
+
 import type { HTMLAttributes } from "react";
 
 type TypographyProps = HTMLAttributes<HTMLElement>;

@@ -32,12 +32,14 @@ type WritablePermission = Exclude<Permission, "locked">;
 export function memoryTools(db: MinniDB) {
 	return {
 		minni_memory: tool({
-			description:
-				"CRUD knowledge. Find to discover, then equip to read. Types: skill, pattern, decision, identity, context, scratchpad, ...",
+			description: "CRUD knowledge. Find to discover, then equip to read",
 			args: {
 				action: tool.schema.enum(["find", "save", "update", "delete"]),
 
 				// find
+				// TODO memory search is crap right now, need to make changes to the explanation since
+				// asking something like "look for a memory about 'code commenting'" the LLM
+				// will go a look literally for that string instead of looking for tags or keywords"
 				query: tool.schema.string().optional().describe("Search query. Omit to list all."),
 				type: tool.schema
 					.enum([
@@ -54,7 +56,6 @@ export function memoryTools(db: MinniDB) {
 						"documentation",
 						"identity",
 						"context",
-						"scratchpad",
 					])
 					.optional()
 					.describe("Filter by type (find) or set type (save)"),
@@ -266,13 +267,10 @@ async function handleSave(db: MinniDB, args: SaveArgs): Promise<string> {
 		}
 	}
 
-	// Scratchpad: force open permission
-	const isScratchpad = args.type === "scratchpad";
-
 	// Permission cascade: explicit → project.defaultMemoryPermission → setting → "guarded"
-	let resolvedPermission: WritablePermission | undefined = isScratchpad
-		? "open"
-		: (args.permission as WritablePermission | undefined);
+	let resolvedPermission: WritablePermission | undefined = args.permission as
+		| WritablePermission
+		| undefined;
 
 	if (!resolvedPermission && proj) {
 		const fullProj = await db.select().from(projects).where(eq(projects.id, proj.id)).limit(1);

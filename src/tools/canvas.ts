@@ -9,8 +9,8 @@ import { getViewerPort } from "../server";
 
 interface CanvasPage {
 	id: string;
-	markdown: string;
-	timestamp: number;
+	content: string;
+	createdAt: string;
 }
 
 interface CanvasPagesResponse {
@@ -37,14 +37,15 @@ async function fetchJson<T>(url: string, init?: RequestInit) {
 	});
 }
 
+/** Formats a single canvas page for LLM consumption: `Page 2/5 (10:30:00 AM):\n\n<content>` */
 function formatPage(page: CanvasPage, index: number, total: number): string {
-	const time = new Date(page.timestamp).toLocaleTimeString();
-	return `Page ${index + 1}/${total} (${time}):\n\n${page.markdown}`;
+	const time = new Date(page.createdAt).toLocaleTimeString();
+	return `Page ${index + 1}/${total} (${time}):\n\n${page.content}`;
 }
 
 function formatAllPages(pages: CanvasPage[]): string {
 	const lines = pages.map(
-		(p, i) => `## Page ${i + 1} (${new Date(p.timestamp).toLocaleTimeString()})\n\n${p.markdown}`,
+		(p, i) => `## Page ${i + 1} (${new Date(p.createdAt).toLocaleTimeString()})\n\n${p.content}`,
 	);
 	return `${pages.length} pages:\n\n${lines.join("\n\n---\n\n")}`;
 }
@@ -55,16 +56,19 @@ function formatAllPages(pages: CanvasPage[]): string {
 
 async function readCanvas(
 	viewerUrl: string,
-	action: "read" | "read_all",
+	action: "index" | "read" | "read_all",
 	index?: number,
 ): Promise<string> {
-	const result = await fetchJson<CanvasPagesResponse>(`${viewerUrl}/api/canvas/pages`);
+	const isTruncated = action == "index" ? "?truncated=true" : "";
+	const result = await fetchJson<CanvasPagesResponse>(
+		`${viewerUrl}/api/canvas/pages${isTruncated}`,
+	);
 	if (result.isErr()) return `Failed to read canvas: ${result.error}`;
 
 	const { pages } = result.value;
 	if (pages.length === 0) return "Canvas is empty.";
 
-	if (action === "read_all") return formatAllPages(pages);
+	if (action === "index" || action === "read_all") return formatAllPages(pages);
 
 	const idx = index ?? pages.length - 1;
 	if (idx < 0 || idx >= pages.length) {
@@ -113,10 +117,10 @@ export function canvasTools() {
 			args: {
 				content: tool.schema.string().optional().describe("Required for show/open/save actions"),
 				action: tool.schema
-					.enum(["show", "open", "save", "read", "read_all", "clear"])
+					.enum(["show", "open", "save", "index", "read", "read_all", "clear"])
 					.optional()
 					.describe(
-						"show=default, open=launch browser, read=get page, read_all=get all, clear=delete all",
+						"show=default, open=launch browser, index=list brief, read=get page, read_all=get all, clear=delete all",
 					),
 				index: tool.schema
 					.number()
@@ -133,7 +137,7 @@ export function canvasTools() {
 
 				const viewerUrl = `http://localhost:${viewerPort}`;
 
-				if (action === "read" || action === "read_all") {
+				if (action === "index" || action === "read" || action === "read_all") {
 					return readCanvas(viewerUrl, action, args.index);
 				}
 

@@ -1,6 +1,5 @@
-import { sqliteTable, integer, primaryKey } from "drizzle-orm/sqlite-core";
-// TODO [T70]: drizzle-zod → drizzle-orm/zod when 1.0 stable
-import { createSelectSchema } from "drizzle-zod";
+import { sqliteTable, integer, primaryKey, index } from "drizzle-orm/sqlite-core";
+import { createSelectSchema } from "drizzle-orm/zod";
 
 import { memories } from "./memories";
 
@@ -14,7 +13,11 @@ export const memoryRelations = sqliteTable(
 			.notNull()
 			.references(() => memories.id, { onDelete: "cascade" }),
 	},
-	(table) => [primaryKey({ columns: [table.memoryId, table.relatedId] })],
+	(table) => [
+		primaryKey({ columns: [table.memoryId, table.relatedId] }),
+		index("idx_memory_relations_memory").on(table.memoryId),
+		index("idx_memory_relations_related").on(table.relatedId),
+	],
 );
 
 export type MemoryRelation = typeof memoryRelations.$inferSelect;

@@ -1,24 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-	MoreVertical,
-	Circle,
-	CircleDot,
-	CircleCheck,
-	CircleX,
-	type LucideIcon,
-} from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
+import { TASK_STATUS_CONFIG } from "@/lib/config";
 
 import type { TaskStatus } from "../../../src/schema";
-
-const OPTIONS: Array<{ value: TaskStatus; label: string; icon: LucideIcon; color: string }> = [
-	{ value: "todo", label: "To Do", icon: Circle, color: "text-gray-400" },
-	{ value: "in_progress", label: "In Progress", icon: CircleDot, color: "text-yellow-400" },
-	{ value: "done", label: "Done", icon: CircleCheck, color: "text-green-400" },
-	{ value: "cancelled", label: "Cancelled", icon: CircleX, color: "text-red-400" },
-];
 
 interface TaskStatusMenuProps {
 	taskId: number;
@@ -32,12 +19,16 @@ export function TaskStatusMenu({ taskId, currentStatus, invalidateKeys }: TaskSt
 	const ref = useRef<HTMLDivElement>(null);
 
 	const mutation = useMutation({
-		mutationFn: (status: string) => api.updateTaskStatus(taskId, status),
+		mutationFn: (status: TaskStatus) => api.api.tasks({ id: taskId }).patch({ status }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["tasks"] });
 			for (const key of invalidateKeys ?? []) {
 				queryClient.invalidateQueries({ queryKey: key });
 			}
+		},
+		onError: (error) => {
+			// TODO we might need some sort of notifications, console log in the meantime
+			console.error("[TaskStatusMenu] Update failed:", error);
 		},
 	});
 
@@ -80,24 +71,29 @@ export function TaskStatusMenu({ taskId, currentStatus, invalidateKeys }: TaskSt
 			{open && (
 				<div className="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-xl">
 					<div className="px-3 py-1.5 text-xs font-medium text-gray-500">Status</div>
-					{OPTIONS.map((opt) => {
-						const Icon = opt.icon;
-						const isActive = opt.value === currentStatus;
-						return !isActive ? (
+					{(
+						Object.entries(TASK_STATUS_CONFIG) as [
+							TaskStatus,
+							(typeof TASK_STATUS_CONFIG)[TaskStatus],
+						][]
+					).map(([value, config]) => {
+						if (value === currentStatus) return null;
+						const Icon = config.icon;
+						return (
 							<button
-								key={opt.value}
+								key={value}
 								onClick={(e) => {
 									e.preventDefault();
 									e.stopPropagation();
-									if (opt.value !== currentStatus) mutation.mutate(opt.value);
+									mutation.mutate(value);
 									setOpen(false);
 								}}
-								className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-sm transition-colors ${"text-gray-300 hover:bg-gray-800 hover:text-white"}`}
+								className="flex w-full items-center gap-2.5 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
 							>
-								<Icon size={14} className={opt.color} />
-								<span className="flex-1 pl-2 text-left">{opt.label}</span>
+								<Icon size={14} className={config.color} />
+								<span className="flex-1 pl-2 text-left">{config.label}</span>
 							</button>
-						) : null;
+						);
 					})}
 				</div>
 			)}

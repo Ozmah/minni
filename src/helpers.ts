@@ -17,6 +17,31 @@ export type MinniDB = ReturnType<typeof drizzle>;
 
 export type ActiveProject = { id: number; name: string } | null;
 
+/**
+ * Truncates a string at the last word boundary.
+ * @param str - Input string to truncate.
+ * @param maxLength - Maximum length of the truncated string (including ellipsis).
+ * @param ellipsis - Ellipsis to append (default: '...').
+ * @returns Truncated string with ellipsis.
+ *
+ * 🏴‍☠️ Plundered from https://www.w3tutorials.net/blog/smart-way-to-truncate-long-strings/
+ */
+export function truncateWithWordBoundary(str: string, maxLength: number, ellipsis = "...") {
+	if (str.length <= maxLength) return str;
+
+	const ellipsisLength = ellipsis.length;
+	const availableLength = maxLength - ellipsisLength;
+
+	// Slice to available length and find the last space
+	const truncated = str.slice(0, availableLength);
+	const lastSpaceIndex = truncated.lastIndexOf(" ");
+
+	// If no space found, truncate at availableLength (mid-word)
+	const cutoffIndex = lastSpaceIndex > 0 ? lastSpaceIndex : availableLength;
+
+	return `${truncated.slice(0, cutoffIndex)}${ellipsis}`;
+}
+
 /** Validates a value against an allowed set. Returns the value if valid, or an error string. */
 export function validateEnum(
 	value: string,

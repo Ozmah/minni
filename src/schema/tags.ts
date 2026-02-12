@@ -1,6 +1,5 @@
-import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core";
-// TODO [T70]: drizzle-zod → drizzle-orm/zod when 1.0 stable
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { sqliteTable, text, integer, primaryKey, index } from "drizzle-orm/sqlite-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 
 import { memories } from "./memories";
 
@@ -19,7 +18,11 @@ export const memoryTags = sqliteTable(
 			.notNull()
 			.references(() => tags.id, { onDelete: "cascade" }),
 	},
-	(table) => [primaryKey({ columns: [table.memoryId, table.tagId] })],
+	(table) => [
+		primaryKey({ columns: [table.memoryId, table.tagId] }),
+		index("idx_memory_tags_memory").on(table.memoryId),
+		index("idx_memory_tags_tag").on(table.tagId),
+	],
 );
 
 export type Tag = typeof tags.$inferSelect;

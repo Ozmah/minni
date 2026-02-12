@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
 	ListTodo,
@@ -7,15 +7,13 @@ import {
 	Clock,
 	FolderKanban,
 	GitBranch,
-	Workflow,
 	Trash2,
 } from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
 import { TaskStatusMenu } from "@/components/TaskStatusMenu";
-import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
-import { Muted } from "@/components/ui/Typography";
-import { api, type Task, type TaskDetail } from "@/lib/api";
+import { Section, InfoItem, LoadingState, ErrorState, MarkdownContent } from "@/components/ui";
+import { api, unwrap } from "@/lib/api";
 import {
 	TASK_STATUS_CONFIG,
 	TASK_PRIORITY_CONFIG,
@@ -25,6 +23,13 @@ import {
 import { formatDate } from "@/lib/utils";
 import { setDeleteTarget } from "@/stores/ui";
 
+import type { Task } from "../../../src/schema";
+
+interface TaskDetail extends Task {
+	projectName: string | null;
+	subtasks: Task[];
+}
+
 export const Route = createFileRoute("/tasks/$id")({
 	component: TaskDetail,
 });
@@ -32,6 +37,7 @@ export const Route = createFileRoute("/tasks/$id")({
 function TaskDetail() {
 	const { id } = Route.useParams();
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 
 	const {
 		data: task,
@@ -39,7 +45,17 @@ function TaskDetail() {
 		error,
 	} = useQuery({
 		queryKey: ["task", id],
-		queryFn: () => api.task(Number(id)),
+		queryFn: () =>
+			api.api
+				.tasks({ id: Number(id) })
+				.get()
+				.then(unwrap),
+		initialData: () => {
+			const tasks = queryClient.getQueryData<Task[]>(["tasks"]);
+			const cached = tasks?.find((t) => t.id === Number(id));
+			if (!cached) return undefined;
+			return { ...cached, projectName: null, subtasks: [] };
+		},
 	});
 
 	const handleClose = () => navigate({ to: "/tasks" });
@@ -97,18 +113,29 @@ function TaskContent({ task }: { task: TaskDetail }) {
 			{/* Relations */}
 			<Section title="Relations">
 				<div className="space-y-2">
-					{task.projectId && (
-						<>
-							<InfoItem icon={FolderKanban} label="Project ID" value={String(task.projectId)} />
-							<InfoItem icon={Workflow} label="Project Name" value={String(task.projectName)} />
-						</>
-					)}
-					{task.parentId && (
-						<InfoItem icon={GitBranch} label="Parent Task ID" value={String(task.parentId)} />
-					)}
-					{!task.projectId && !task.parentId && (
+					{task.projectId != null ? (
+						<Link
+							to="/projects/$id"
+							params={{ id: String(task.projectId) }}
+							className="flex items-center gap-2 text-sm text-gray-300 hover:text-white"
+						>
+							<FolderKanban size={14} className="text-gray-500" />
+							<span>Project: {task.projectName ?? `#${task.projectId}`}</span>
+						</Link>
+					) : null}
+					{task.parentId != null ? (
+						<Link
+							to="/tasks/$id"
+							params={{ id: String(task.parentId) }}
+							className="flex items-center gap-2 text-sm text-gray-300 hover:text-white"
+						>
+							<GitBranch size={14} className="text-gray-500" />
+							<span>Parent Task #{task.parentId}</span>
+						</Link>
+					) : null}
+					{task.projectId == null && task.parentId == null ? (
 						<p className="text-sm text-gray-500">No relations</p>
-					)}
+					) : null}
 				</div>
 			</Section>
 
@@ -135,7 +162,7 @@ function TaskContent({ task }: { task: TaskDetail }) {
 			{task.description && (
 				<Section title="Description">
 					<div className="rounded-lg bg-gray-800/50 p-4">
-						<p className="text-sm whitespace-pre-wrap text-gray-300">{task.description}</p>
+						<MarkdownContent content={task.description} className="prose-sm" />
 					</div>
 				</Section>
 			)}
@@ -162,6 +189,7 @@ function TaskContent({ task }: { task: TaskDetail }) {
 
 function SubtaskRow({ task }: { task: Task }) {
 	const statusConfig = TASK_STATUS_CONFIG[task.status] ?? TASK_STATUS_CONFIG.todo;
+	const priorityConfig = TASK_PRIORITY_CONFIG[task.priority] ?? TASK_PRIORITY_CONFIG.medium;
 	const StatusIcon = statusConfig.icon ?? Circle;
 
 	return (
@@ -172,7 +200,9 @@ function SubtaskRow({ task }: { task: Task }) {
 		>
 			<StatusIcon size={14} className={statusConfig.color} />
 			<span className="flex-1 truncate text-sm text-gray-300">{task.title}</span>
-			<Muted>{task.priority}</Muted>
+			<span className={`rounded px-1.5 py-0.5 text-xs ${priorityConfig.color}`}>
+				{priorityConfig.label}
+			</span>
 		</Link>
 	);
 }

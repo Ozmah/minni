@@ -1,14 +1,12 @@
-import { useStore } from "@tanstack/react-store";
 import { ClipboardCopy, FileText, Code } from "lucide-react";
 import { marked } from "marked";
 import { useState } from "react";
 
-import { currentPage } from "@/stores/canvas";
+import type { CanvasPage } from "../../../../src/schema";
 
 type CopyType = "markdown" | "text" | "html";
 
-export function CopyButtons() {
-	const page = useStore(currentPage);
+export function CopyButtons({ page }: { page: CanvasPage | null }) {
 	const [copied, setCopied] = useState<CopyType | null>(null);
 
 	const copy = async (type: CopyType) => {
@@ -17,13 +15,13 @@ export function CopyButtons() {
 		let content: string;
 		switch (type) {
 			case "markdown":
-				content = page.markdown;
+				content = page.content;
 				break;
 			case "html":
-				content = page.html || (marked.parse(page.markdown) as string);
+				content = marked.parse(page.content) as string;
 				break;
 			case "text":
-				content = stripMarkdown(page.markdown);
+				content = stripMarkdown(page.content);
 				break;
 		}
 

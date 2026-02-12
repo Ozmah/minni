@@ -3,11 +3,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { FolderKanban, CircleDot, Clock, Shield, Brain, Trash2 } from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
-import { Section, InfoItem, LoadingState, ErrorState } from "@/components/ui";
-import { api, type Project } from "@/lib/api";
+import { Section, InfoItem, LoadingState, ErrorState, MarkdownContent } from "@/components/ui";
+import { api, unwrap } from "@/lib/api";
 import { PROJECT_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
 import { parseJsonArray, formatDate } from "@/lib/utils";
 import { setDeleteTarget } from "@/stores/ui";
+
+import type { Project } from "../../../src/schema";
 
 export const Route = createFileRoute("/projects/$id")({
 	component: ProjectDetail,
@@ -23,7 +25,11 @@ function ProjectDetail() {
 		error,
 	} = useQuery({
 		queryKey: ["project", id],
-		queryFn: () => api.project(Number(id)),
+		queryFn: () =>
+			api.api
+				.projects({ id: Number(id) })
+				.get()
+				.then(unwrap),
 	});
 
 	const handleClose = () => navigate({ to: "/projects" });
@@ -64,7 +70,7 @@ function ProjectContent({ project }: { project: Project }) {
 			{/* Description */}
 			{project.description && (
 				<Section title="Description">
-					<p className="text-gray-300">{project.description}</p>
+					<MarkdownContent content={project.description} className="prose-sm" />
 				</Section>
 			)}
 

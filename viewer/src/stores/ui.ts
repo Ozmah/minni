@@ -14,12 +14,10 @@ export interface DeleteTarget {
 }
 
 export interface UIState {
-	unreadCanvasCount: number;
 	deleteTarget: DeleteTarget | null;
 }
 
 const initialState: UIState = {
-	unreadCanvasCount: 0,
 	deleteTarget: null,
 };
 
@@ -27,31 +25,10 @@ export const uiStore = new Store<UIState>(initialState);
 
 // === Derived State ===
 
-export const canvasHasNewContent = new Derived({
-	fn: () => uiStore.state.unreadCanvasCount > 0,
-	deps: [uiStore],
-});
-
 export const showDeleteModal = new Derived({
 	fn: () => uiStore.state.deleteTarget !== null,
 	deps: [uiStore],
 });
-
-// === Actions ===
-
-export const notifyCanvasContent = () => {
-	uiStore.setState((state) => ({
-		...state,
-		unreadCanvasCount: state.unreadCanvasCount + 1,
-	}));
-};
-
-export const clearCanvasNotification = () => {
-	uiStore.setState((state) => ({
-		...state,
-		unreadCanvasCount: 0,
-	}));
-};
 
 // === Delete Modal Actions ===
 
@@ -76,11 +53,11 @@ export const confirmDelete = async (): Promise<{
 	const deleteOp = async () => {
 		switch (target.type) {
 			case "project":
-				return api.deleteProject(target.id);
+				return api.api.projects({ id: target.id }).delete();
 			case "memory":
-				return api.deleteMemory(target.id);
+				return api.api.memories({ id: target.id }).delete();
 			case "task":
-				return api.deleteTask(target.id);
+				return api.api.tasks({ id: target.id }).delete();
 		}
 	};
 

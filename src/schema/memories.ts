@@ -1,6 +1,5 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-// TODO [T70]: drizzle-zod → drizzle-orm/zod when 1.0 stable
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import { z } from "zod";
 
 import {
@@ -14,18 +13,27 @@ import {
 } from "./base";
 import { projects } from "./projects";
 
-export const memories = sqliteTable("memories", {
-	id: integer("id").primaryKey({ autoIncrement: true }),
-	projectId: integer("project_id").references(() => projects.id, {
-		onDelete: "cascade",
-	}),
-	type: text("type").$type<MemoryType>().notNull(),
-	title: text("title").notNull(),
-	content: text("content").notNull(),
-	status: text("status").$type<MemoryStatus>().notNull().default("draft"),
-	permission: text("permission").$type<Permission>().notNull().default("guarded"),
-	...timestamp,
-});
+export const memories = sqliteTable(
+	"memories",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		projectId: integer("project_id").references(() => projects.id, {
+			onDelete: "cascade",
+		}),
+		type: text("type").$type<MemoryType>().notNull(),
+		title: text("title").notNull(),
+		content: text("content").notNull(),
+		status: text("status").$type<MemoryStatus>().notNull().default("draft"),
+		permission: text("permission").$type<Permission>().notNull().default("guarded"),
+		...timestamp,
+	},
+	(table) => [
+		index("idx_memories_project").on(table.projectId),
+		index("idx_memories_type").on(table.type),
+		index("idx_memories_status").on(table.status),
+		index("idx_memories_project_type").on(table.projectId, table.type),
+	],
+);
 
 export type Memory = typeof memories.$inferSelect;
 export type NewMemory = typeof memories.$inferInsert;

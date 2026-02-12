@@ -1,6 +1,5 @@
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
-// TODO [T70]: drizzle-zod → drizzle-orm/zod when 1.0 stable
-import { createSelectSchema } from "drizzle-zod";
+import { createSelectSchema } from "drizzle-orm/zod";
 
 export const settings = sqliteTable("settings", {
 	key: text("key").primaryKey(),

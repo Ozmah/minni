@@ -1,0 +1,823 @@
+{
+	"version": "7",
+	"dialect": "sqlite",
+	"id": "bc8a11ce-5f16-415e-b030-00903b58db87",
+	"prevIds": ["00000000-0000-0000-0000-000000000000"],
+	"ddl": [
+		{
+			"name": "canvas",
+			"entityType": "tables"
+		},
+		{
+			"name": "global_context",
+			"entityType": "tables"
+		},
+		{
+			"name": "memories",
+			"entityType": "tables"
+		},
+		{
+			"name": "memory_relations",
+			"entityType": "tables"
+		},
+		{
+			"name": "memory_tags",
+			"entityType": "tables"
+		},
+		{
+			"name": "projects",
+			"entityType": "tables"
+		},
+		{
+			"name": "settings",
+			"entityType": "tables"
+		},
+		{
+			"name": "tags",
+			"entityType": "tables"
+		},
+		{
+			"name": "tasks",
+			"entityType": "tables"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "canvas"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "content",
+			"entityType": "columns",
+			"table": "canvas"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "canvas"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": "1",
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "global_context"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "active_project_id",
+			"entityType": "columns",
+			"table": "global_context"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "active_identity_id",
+			"entityType": "columns",
+			"table": "global_context"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "global_context"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "updated_at",
+			"entityType": "columns",
+			"table": "global_context"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": true,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "project_id",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "type",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "title",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "content",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'draft'",
+			"generated": null,
+			"name": "status",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'guarded'",
+			"generated": null,
+			"name": "permission",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "updated_at",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "memory_id",
+			"entityType": "columns",
+			"table": "memory_relations"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "related_id",
+			"entityType": "columns",
+			"table": "memory_relations"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "memory_id",
+			"entityType": "columns",
+			"table": "memory_tags"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "tag_id",
+			"entityType": "columns",
+			"table": "memory_tags"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": true,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "name",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "description",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "stack",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'active'",
+			"generated": null,
+			"name": "status",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'guarded'",
+			"generated": null,
+			"name": "permission",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'guarded'",
+			"generated": null,
+			"name": "default_memory_permission",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "updated_at",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "key",
+			"entityType": "columns",
+			"table": "settings"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "value",
+			"entityType": "columns",
+			"table": "settings"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": true,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "tags"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "name",
+			"entityType": "columns",
+			"table": "tags"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": true,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "tasks"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "project_id",
+			"entityType": "columns",
+			"table": "tasks"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "parent_id",
+			"entityType": "columns",
+			"table": "tasks"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "title",
+			"entityType": "columns",
+			"table": "tasks"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "description",
+			"entityType": "columns",
+			"table": "tasks"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'medium'",
+			"generated": null,
+			"name": "priority",
+			"entityType": "columns",
+			"table": "tasks"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'todo'",
+			"generated": null,
+			"name": "status",
+			"entityType": "columns",
+			"table": "tasks"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "tasks"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "updated_at",
+			"entityType": "columns",
+			"table": "tasks"
+		},
+		{
+			"columns": ["active_project_id"],
+			"tableTo": "projects",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "SET NULL",
+			"nameExplicit": false,
+			"name": "fk_global_context_active_project_id_projects_id_fk",
+			"entityType": "fks",
+			"table": "global_context"
+		},
+		{
+			"columns": ["active_identity_id"],
+			"tableTo": "memories",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "SET NULL",
+			"nameExplicit": false,
+			"name": "fk_global_context_active_identity_id_memories_id_fk",
+			"entityType": "fks",
+			"table": "global_context"
+		},
+		{
+			"columns": ["project_id"],
+			"tableTo": "projects",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_memories_project_id_projects_id_fk",
+			"entityType": "fks",
+			"table": "memories"
+		},
+		{
+			"columns": ["memory_id"],
+			"tableTo": "memories",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_memory_relations_memory_id_memories_id_fk",
+			"entityType": "fks",
+			"table": "memory_relations"
+		},
+		{
+			"columns": ["related_id"],
+			"tableTo": "memories",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_memory_relations_related_id_memories_id_fk",
+			"entityType": "fks",
+			"table": "memory_relations"
+		},
+		{
+			"columns": ["memory_id"],
+			"tableTo": "memories",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_memory_tags_memory_id_memories_id_fk",
+			"entityType": "fks",
+			"table": "memory_tags"
+		},
+		{
+			"columns": ["tag_id"],
+			"tableTo": "tags",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_memory_tags_tag_id_tags_id_fk",
+			"entityType": "fks",
+			"table": "memory_tags"
+		},
+		{
+			"columns": ["project_id"],
+			"tableTo": "projects",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_tasks_project_id_projects_id_fk",
+			"entityType": "fks",
+			"table": "tasks"
+		},
+		{
+			"columns": ["parent_id"],
+			"tableTo": "tasks",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_tasks_parent_id_tasks_id_fk",
+			"entityType": "fks",
+			"table": "tasks"
+		},
+		{
+			"columns": ["memory_id", "related_id"],
+			"nameExplicit": false,
+			"name": "memory_relations_pk",
+			"entityType": "pks",
+			"table": "memory_relations"
+		},
+		{
+			"columns": ["memory_id", "tag_id"],
+			"nameExplicit": false,
+			"name": "memory_tags_pk",
+			"entityType": "pks",
+			"table": "memory_tags"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "canvas_pk",
+			"table": "canvas",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "global_context_pk",
+			"table": "global_context",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "memories_pk",
+			"table": "memories",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "projects_pk",
+			"table": "projects",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["key"],
+			"nameExplicit": false,
+			"name": "settings_pk",
+			"table": "settings",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "tags_pk",
+			"table": "tags",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "tasks_pk",
+			"table": "tasks",
+			"entityType": "pks"
+		},
+		{
+			"columns": [
+				{
+					"value": "created_at",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_canvas_created_at",
+			"entityType": "indexes",
+			"table": "canvas"
+		},
+		{
+			"columns": [
+				{
+					"value": "project_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memories_project",
+			"entityType": "indexes",
+			"table": "memories"
+		},
+		{
+			"columns": [
+				{
+					"value": "type",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memories_type",
+			"entityType": "indexes",
+			"table": "memories"
+		},
+		{
+			"columns": [
+				{
+					"value": "status",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memories_status",
+			"entityType": "indexes",
+			"table": "memories"
+		},
+		{
+			"columns": [
+				{
+					"value": "project_id",
+					"isExpression": false
+				},
+				{
+					"value": "type",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memories_project_type",
+			"entityType": "indexes",
+			"table": "memories"
+		},
+		{
+			"columns": [
+				{
+					"value": "memory_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memory_relations_memory",
+			"entityType": "indexes",
+			"table": "memory_relations"
+		},
+		{
+			"columns": [
+				{
+					"value": "related_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memory_relations_related",
+			"entityType": "indexes",
+			"table": "memory_relations"
+		},
+		{
+			"columns": [
+				{
+					"value": "memory_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memory_tags_memory",
+			"entityType": "indexes",
+			"table": "memory_tags"
+		},
+		{
+			"columns": [
+				{
+					"value": "tag_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memory_tags_tag",
+			"entityType": "indexes",
+			"table": "memory_tags"
+		},
+		{
+			"columns": [
+				{
+					"value": "project_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_tasks_project",
+			"entityType": "indexes",
+			"table": "tasks"
+		},
+		{
+			"columns": [
+				{
+					"value": "parent_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_tasks_parent",
+			"entityType": "indexes",
+			"table": "tasks"
+		},
+		{
+			"columns": [
+				{
+					"value": "status",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_tasks_status",
+			"entityType": "indexes",
+			"table": "tasks"
+		},
+		{
+			"columns": ["name"],
+			"nameExplicit": false,
+			"name": "projects_name_unique",
+			"entityType": "uniques",
+			"table": "projects"
+		},
+		{
+			"columns": ["name"],
+			"nameExplicit": false,
+			"name": "tags_name_unique",
+			"entityType": "uniques",
+			"table": "tags"
+		}
+	],
+	"renames": []
+}

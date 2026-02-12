@@ -1,6 +1,5 @@
 import { sqliteTable, integer } from "drizzle-orm/sqlite-core";
-// TODO [T70]: drizzle-zod → drizzle-orm/zod when 1.0 stable
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 
 import { timestamp } from "./base";
 import { memories } from "./memories";
