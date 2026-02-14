@@ -4,8 +4,16 @@ import { z } from "zod";
 
 import type { MinniDB } from "../../helpers";
 
-import { memories, memorySelectSchema } from "../../schema";
+import { memories, memorySelectSchema, MEMORY_TYPE, MEMORY_STATUS, PERMISSION } from "../../schema";
 import { ErrorResponse, SuccessResponse } from "../types";
+
+const MemoryPatchBody = z.object({
+	title: z.string().min(1).max(200).optional(),
+	content: z.string().min(1).optional(),
+	type: z.enum(MEMORY_TYPE).optional(),
+	status: z.enum(MEMORY_STATUS).optional(),
+	permission: z.enum(PERMISSION).optional(),
+});
 
 export const memoryRoutes = (db: MinniDB) =>
 	new Elysia({ prefix: "/api/memories" })
@@ -50,6 +58,27 @@ export const memoryRoutes = (db: MinniDB) =>
 			},
 			{
 				params: z.object({ id: z.coerce.number().int() }),
+				response: {
+					200: memorySelectSchema,
+					404: ErrorResponse,
+				},
+			},
+		)
+		.patch(
+			"/:id",
+			async ({ params, body, status }) => {
+				const result = await db
+					.update(memories)
+					.set({ ...body, updatedAt: new Date() })
+					.where(eq(memories.id, params.id))
+					.returning();
+
+				if (!result.length) return status(404, { error: "Memory not found" });
+				return result[0];
+			},
+			{
+				params: z.object({ id: z.coerce.number().int() }),
+				body: MemoryPatchBody,
 				response: {
 					200: memorySelectSchema,
 					404: ErrorResponse,

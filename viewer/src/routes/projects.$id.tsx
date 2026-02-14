@@ -35,15 +35,21 @@ function ProjectDetail() {
 	const handleClose = () => navigate({ to: "/projects" });
 
 	return (
-		<Drawer open={true} onClose={handleClose} title={project?.name ?? "Project"}>
+		<Drawer
+			open={true}
+			onClose={handleClose}
+			title={project?.name ?? "Project"}
+			content={project && <ProjectDescription project={project} />}
+			footer={project && <ProjectActions project={project} />}
+		>
 			{isLoading && <LoadingState message="Loading project..." />}
 			{error && <ErrorState error={error} />}
-			{project && <ProjectContent project={project} />}
+			{project && <ProjectMetadata project={project} />}
 		</Drawer>
 	);
 }
 
-function ProjectContent({ project }: { project: Project }) {
+function ProjectMetadata({ project }: { project: Project }) {
 	const stack = parseJsonArray(project.stack);
 	const status = getStatusConfig(PROJECT_STATUS_CONFIG, project.status, project.status);
 
@@ -66,13 +72,6 @@ function ProjectContent({ project }: { project: Project }) {
 					</div>
 				</div>
 			</div>
-
-			{/* Description */}
-			{project.description && (
-				<Section title="Description">
-					<MarkdownContent content={project.description} className="prose-sm" />
-				</Section>
-			)}
 
 			{/* Stack */}
 			{stack.length > 0 && (
@@ -102,23 +101,34 @@ function ProjectContent({ project }: { project: Project }) {
 					<InfoItem icon={Clock} label="Updated" value={formatDate(project.updatedAt)} />
 				</div>
 			</Section>
-
-			{/* Actions */}
-			<Section title="Actions">
-				<button
-					onClick={() =>
-						setDeleteTarget({
-							type: "project",
-							id: project.id,
-							name: project.name,
-						})
-					}
-					className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20"
-				>
-					<Trash2 size={16} />
-					Delete Project
-				</button>
-			</Section>
 		</div>
+	);
+}
+
+function ProjectDescription({ project }: { project: Project }) {
+	if (!project.description) return null;
+
+	return (
+		<Section title="Description">
+			<MarkdownContent content={project.description} className="prose-sm" />
+		</Section>
+	);
+}
+
+function ProjectActions({ project }: { project: Project }) {
+	return (
+		<button
+			onClick={() =>
+				setDeleteTarget({
+					type: "project",
+					id: project.id,
+					name: project.name,
+				})
+			}
+			className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20"
+		>
+			<Trash2 size={16} />
+			Delete Project
+		</button>
 	);
 }

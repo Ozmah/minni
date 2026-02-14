@@ -1,5 +1,5 @@
 import { Result } from "better-result";
-import { sql, eq, ne, and } from "drizzle-orm";
+import { count, sql, eq, ne, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/tursodatabase/database";
 
 import {
@@ -9,9 +9,11 @@ import {
 	globalContext,
 	memories,
 	settings,
+	tasks,
 	type Permission,
 	type Memory,
 } from "./schema";
+import { getPageCount } from "./server/lib/canvas";
 
 export type MinniDB = ReturnType<typeof drizzle>;
 
@@ -180,6 +182,73 @@ export async function getActiveIdentity(db: MinniDB): Promise<Memory | null> {
 
 	const mem = await db.select().from(memories).where(eq(memories.id, identityId)).limit(1);
 	return mem[0] ?? null;
+}
+
+// ============================================================================
+// HUD DATA
+// ============================================================================
+
+/** Structured HUD state consumed by both the MCP tool and the viewer API. */
+export interface HudData {
+	project: { id: number; name: string; status: string | null } | null;
+	identity: { id: number; title: string } | null;
+	counts: {
+		projects: number;
+		memories: number;
+		tasks: { total: number; todo: number; inProgress: number; done: number };
+		canvas: number;
+	};
+}
+
+/**
+ * Single source of truth for HUD state.
+ * Returns structured data, each consumer formats as needed.
+ */
+export async function getHudData(db: MinniDB): Promise<HudData> {
+	const active = await getActiveProject(db);
+	const identity = await getActiveIdentity(db);
+
+	const taskFilter = active ? eq(tasks.projectId, active.id) : sql`1=1`;
+	const memoryFilter = active ? eq(memories.projectId, active.id) : sql`1=1`;
+
+	const [projectCount, taskCounts, memoryCount, canvasPages] = await Promise.all([
+		db
+			.select({ total: count() })
+			.from(projects)
+			.where(sql`status != 'deleted'`),
+		db
+			.select({ status: tasks.status, total: count() })
+			.from(tasks)
+			.where(taskFilter)
+			.groupBy(tasks.status),
+		db.select({ total: count() }).from(memories).where(memoryFilter),
+		getPageCount(db),
+	]);
+
+	const todo = taskCounts.find((t) => t.status === "todo")?.total ?? 0;
+	const inProgress = taskCounts.find((t) => t.status === "in_progress")?.total ?? 0;
+	const done = taskCounts.find((t) => t.status === "done")?.total ?? 0;
+
+	let projectStatus: string | null = null;
+	if (active) {
+		const proj = await db
+			.select({ status: projects.status })
+			.from(projects)
+			.where(eq(projects.id, active.id))
+			.limit(1);
+		projectStatus = proj[0]?.status ?? null;
+	}
+
+	return {
+		project: active ? { id: active.id, name: active.name, status: projectStatus } : null,
+		identity: identity ? { id: identity.id, title: identity.title } : null,
+		counts: {
+			projects: projectCount[0].total,
+			memories: memoryCount[0].total,
+			tasks: { total: todo + inProgress + done, todo, inProgress, done },
+			canvas: canvasPages,
+		},
+	};
 }
 
 // ============================================================================

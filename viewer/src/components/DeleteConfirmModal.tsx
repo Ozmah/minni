@@ -5,7 +5,7 @@ import { AlertTriangle } from "lucide-react";
 import { useEffect } from "react";
 
 import { uiStore, showDeleteModal, cancelDelete, confirmDelete } from "../stores/ui";
-import { Modal } from "./ui/Modal";
+import { Modal } from "./ui";
 
 const TYPE_LABELS: Record<string, string> = {
 	project: "proyecto",

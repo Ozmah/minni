@@ -5,7 +5,7 @@ import { memo, useMemo, useState } from "react";
 
 import { TaskStatusMenu } from "@/components/TaskStatusMenu";
 import { LoadingState, ErrorState } from "@/components/ui";
-import { Muted } from "@/components/ui/Typography";
+import { Muted } from "@/components/ui/data-display/Typography";
 import { api, unwrap } from "@/lib/api";
 import { TASK_STATUS_CONFIG, TASK_PRIORITY_CONFIG } from "@/lib/config";
 

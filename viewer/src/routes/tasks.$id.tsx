@@ -61,15 +61,21 @@ function TaskDetail() {
 	const handleClose = () => navigate({ to: "/tasks" });
 
 	return (
-		<Drawer open={true} onClose={handleClose} title={task?.title ?? "Task"}>
+		<Drawer
+			open={true}
+			onClose={handleClose}
+			title={task?.title ?? "Task"}
+			content={task && <TaskDescription task={task} />}
+			footer={task && <TaskActions task={task} />}
+		>
 			{isLoading && <LoadingState message="Loading task..." />}
 			{error && <ErrorState error={error} />}
-			{task && <TaskContent task={task} />}
+			{task && <TaskMetadata task={task} />}
 		</Drawer>
 	);
 }
 
-function TaskContent({ task }: { task: TaskDetail }) {
+function TaskMetadata({ task }: { task: TaskDetail }) {
 	const statusDefault: StatusConfigWithIcon = {
 		color: "bg-gray-500/20 text-gray-400",
 		label: task.status,
@@ -157,33 +163,37 @@ function TaskContent({ task }: { task: TaskDetail }) {
 					</div>
 				</Section>
 			)}
-
-			{/* Description */}
-			{task.description && (
-				<Section title="Description">
-					<div className="rounded-lg bg-gray-800/50 p-4">
-						<MarkdownContent content={task.description} className="prose-sm" />
-					</div>
-				</Section>
-			)}
-
-			{/* Actions */}
-			<Section title="Actions">
-				<button
-					onClick={() =>
-						setDeleteTarget({
-							type: "task",
-							id: task.id,
-							name: task.title,
-						})
-					}
-					className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20"
-				>
-					<Trash2 size={16} />
-					Delete Task
-				</button>
-			</Section>
 		</div>
+	);
+}
+
+function TaskDescription({ task }: { task: TaskDetail }) {
+	if (!task.description) return null;
+
+	return (
+		<Section title="Description">
+			<div className="rounded-lg bg-gray-800/50 p-4">
+				<MarkdownContent content={task.description} className="prose-sm" />
+			</div>
+		</Section>
+	);
+}
+
+function TaskActions({ task }: { task: TaskDetail }) {
+	return (
+		<button
+			onClick={() =>
+				setDeleteTarget({
+					type: "task",
+					id: task.id,
+					name: task.title,
+				})
+			}
+			className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20"
+		>
+			<Trash2 size={16} />
+			Delete Task
+		</button>
 	);
 }
 

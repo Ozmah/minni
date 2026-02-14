@@ -29,7 +29,7 @@ export function Canvas() {
 	const prevLength = useRef(0);
 	useEffect(() => {
 		if (pages.length > prevLength.current && pages.length > 0) {
-			navigateTo(pages.length - 1);
+			navigateTo(0);
 		}
 		prevLength.current = pages.length;
 	}, [pages.length]);
@@ -72,7 +72,7 @@ export function Canvas() {
 					>
 						<ChevronLeft size={20} />
 					</button>
-					<span className="min-w-[60px] text-center text-sm text-gray-400">
+					<span className="min-w-15 text-center text-sm text-gray-400">
 						{safeIndex + 1} / {pages.length}
 					</span>
 					<button

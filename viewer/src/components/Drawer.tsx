@@ -6,9 +6,11 @@ interface DrawerProps {
 	onClose: () => void;
 	title?: string;
 	children: React.ReactNode;
+	content?: React.ReactNode;
+	footer?: React.ReactNode;
 }
 
-export function Drawer({ open, onClose, title, children }: DrawerProps) {
+export function Drawer({ open, onClose, title, children, content, footer }: DrawerProps) {
 	const onCloseRef = useRef(onClose);
 	onCloseRef.current = onClose;
 
@@ -55,8 +57,20 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
 					</button>
 				</header>
 
-				{/* Content */}
-				<div className="flex-1 overflow-y-auto p-6">{children}</div>
+				{/* Metadata / No-content fallback */}
+				{content !== undefined ? (
+					<>
+						<div className="shrink-0 px-6 pt-6">{children}</div>
+						<div className="min-h-0 flex-1 overflow-y-auto p-6">{content}</div>
+					</>
+				) : (
+					<div className="flex-1 overflow-y-auto p-6">{children}</div>
+				)}
+
+				{/* Actions */}
+				{footer !== undefined && (
+					<footer className="shrink-0 border-t border-gray-700 px-6 py-4">{footer}</footer>
+				)}
 			</aside>
 		</>
 	);

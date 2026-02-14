@@ -1,6 +1,6 @@
 import { tool } from "@opencode-ai/plugin";
 import { Result } from "better-result";
-import { sql, eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, ne, isNull, and } from "drizzle-orm";
 
 import {
 	type MinniDB,
@@ -76,14 +76,14 @@ async function handleLoad(db: MinniDB, args: LoadArgs): Promise<string> {
 		const projectList = await db
 			.select()
 			.from(projects)
-			.where(sql`${projects.status} != 'deleted'`)
+			.where(ne(projects.status, "deleted"))
 			.orderBy(desc(projects.updatedAt))
 			.limit(10);
 
 		const globalMemoryCount = await db
 			.select({ total: count() })
 			.from(memories)
-			.where(sql`${memories.projectId} IS NULL`);
+			.where(isNull(memories.projectId));
 
 		const sections: string[] = ["## Global Mode\n"];
 		sections.push(`Global memories: ${globalMemoryCount[0].total}`);
@@ -124,7 +124,7 @@ async function handleLoad(db: MinniDB, args: LoadArgs): Promise<string> {
 		db
 			.select()
 			.from(tasks)
-			.where(sql`${tasks.projectId} = ${proj[0].id} AND ${tasks.status} = 'in_progress'`)
+			.where(and(eq(tasks.projectId, proj[0].id), eq(tasks.status, "in_progress")))
 			.limit(1),
 	]);
 
@@ -321,7 +321,7 @@ async function handleList(db: MinniDB): Promise<string> {
 	const all = await db
 		.select()
 		.from(projects)
-		.where(sql`${projects.status} != 'deleted'`)
+		.where(ne(projects.status, "deleted"))
 		.orderBy(desc(projects.updatedAt));
 
 	if (all.length === 0) return "No projects.";

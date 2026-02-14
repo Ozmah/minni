@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Brain, CircleDot, Clock, Shield, Tag, Trash2 } from "lucide-react";
+import { Brain, CircleDot, Clock, Pencil, Shield, Tag, Trash2 } from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
 import { Section, InfoItem, LoadingState, ErrorState, MarkdownContent } from "@/components/ui";
 import { api, unwrap } from "@/lib/api";
 import { MEMORY_TYPE_CONFIG, MEMORY_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
 import { formatDate } from "@/lib/utils";
-import { setDeleteTarget } from "@/stores/ui";
+import { setDeleteTarget, setEditTarget } from "@/stores/ui";
 
 import type { Memory } from "../../../src/schema";
 
@@ -35,15 +35,21 @@ function MemoryDetail() {
 	const handleClose = () => navigate({ to: "/memories" });
 
 	return (
-		<Drawer open={true} onClose={handleClose} title={memory?.title ?? "Memory"}>
+		<Drawer
+			open={true}
+			onClose={handleClose}
+			title={memory?.title ?? "Memory"}
+			content={memory && <MemoryBody memory={memory} />}
+			footer={memory && <MemoryActions memory={memory} />}
+		>
 			{isLoading && <LoadingState message="Loading memory..." />}
 			{error && <ErrorState error={error} />}
-			{memory && <MemoryContent memory={memory} />}
+			{memory && <MemoryMetadata memory={memory} />}
 		</Drawer>
 	);
 }
 
-function MemoryContent({ memory }: { memory: Memory }) {
+function MemoryMetadata({ memory }: { memory: Memory }) {
 	const type = getStatusConfig(MEMORY_TYPE_CONFIG, memory.type, memory.type);
 	const status = getStatusConfig(MEMORY_STATUS_CONFIG, memory.status, memory.status);
 
@@ -73,13 +79,6 @@ function MemoryContent({ memory }: { memory: Memory }) {
 				</div>
 			</div>
 
-			{/* Content */}
-			<Section title="Content">
-				<div className="rounded-lg bg-gray-800/50 p-4">
-					<MarkdownContent content={memory.content} className="prose-sm" />
-				</div>
-			</Section>
-
 			{/* Permission */}
 			<Section title="Permission">
 				<InfoItem icon={Shield} label="Access" value={memory.permission} />
@@ -92,23 +91,55 @@ function MemoryContent({ memory }: { memory: Memory }) {
 					<InfoItem icon={Clock} label="Updated" value={formatDate(memory.updatedAt)} />
 				</div>
 			</Section>
+		</div>
+	);
+}
 
-			{/* Actions */}
-			<Section title="Actions">
-				<button
-					onClick={() =>
-						setDeleteTarget({
-							type: "memory",
-							id: memory.id,
-							name: memory.title,
-						})
-					}
-					className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20"
-				>
-					<Trash2 size={16} />
-					Delete Memory
-				</button>
-			</Section>
+function MemoryBody({ memory }: { memory: Memory }) {
+	return (
+		<Section title="Content">
+			<div className="rounded-lg bg-gray-800/50 p-4">
+				<MarkdownContent content={memory.content} className="prose-sm" />
+			</div>
+		</Section>
+	);
+}
+
+function MemoryActions({ memory }: { memory: Memory }) {
+	return (
+		<div className="flex gap-2">
+			<button
+				onClick={() =>
+					setEditTarget({
+						type: "memory",
+						id: memory.id,
+						data: {
+							title: memory.title,
+							content: memory.content,
+							type: memory.type,
+							status: memory.status,
+							permission: memory.permission,
+						},
+					})
+				}
+				className="flex items-center gap-2 rounded-md border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-sm text-blue-400 hover:bg-blue-500/20"
+			>
+				<Pencil size={16} />
+				Edit
+			</button>
+			<button
+				onClick={() =>
+					setDeleteTarget({
+						type: "memory",
+						id: memory.id,
+						name: memory.title,
+					})
+				}
+				className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20"
+			>
+				<Trash2 size={16} />
+				Delete
+			</button>
 		</div>
 	);
 }

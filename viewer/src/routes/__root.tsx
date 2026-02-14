@@ -5,6 +5,9 @@ import { FolderKanban, Brain, ListTodo, PanelLeft } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
+import { EditModal } from "@/components/EditModal";
+import { HudWidget } from "@/components/HudWidget";
+import { Spacer } from "@/components/ui";
 import { api } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 
@@ -23,10 +26,10 @@ const POLL_INTERVAL = 3000;
 
 /** Maps entity types from /api/changes to their TanStack Query keys. */
 const ENTITY_QUERY_MAP: Record<string, string[]> = {
-	canvas: ["canvas"],
-	memory: ["memories", "memory"],
-	task: ["tasks", "task"],
-	project: ["projects", "project"],
+	canvas: ["canvas", "hud"],
+	memory: ["memories", "memory", "hud"],
+	task: ["tasks", "task", "hud"],
+	project: ["projects", "project", "hud"],
 };
 
 function RootLayout() {
@@ -49,6 +52,7 @@ function AppShell() {
 				</main>
 			</div>
 			<DeleteConfirmModal />
+			<EditModal />
 			<TanStackRouterDevtools position="bottom-right" />
 		</>
 	);
@@ -90,7 +94,7 @@ function Sidebar() {
 			<div className="border-b border-gray-700 px-4 py-3">
 				<h1 className="text-lg font-semibold text-white">Minni</h1>
 			</div>
-			<nav className="flex-1 p-2">
+			<nav className="p-2">
 				<ul className="space-y-1">
 					{navItems.map(({ to, label, icon: Icon }) => (
 						<li key={to}>
@@ -105,6 +109,8 @@ function Sidebar() {
 					))}
 				</ul>
 			</nav>
+			<Spacer />
+			<HudWidget />
 		</aside>
 	);
 }

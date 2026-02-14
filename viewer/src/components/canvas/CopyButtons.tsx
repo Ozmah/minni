@@ -1,6 +1,7 @@
 import { ClipboardCopy, FileText, Code } from "lucide-react";
-import { marked } from "marked";
 import { useState } from "react";
+
+import { parseMarkdown } from "@/lib/marked-config";
 
 import type { CanvasPage } from "../../../../src/schema";
 
@@ -18,7 +19,7 @@ export function CopyButtons({ page }: { page: CanvasPage | null }) {
 				content = page.content;
 				break;
 			case "html":
-				content = marked.parse(page.content) as string;
+				content = await parseMarkdown(page.content);
 				break;
 			case "text":
 				content = stripMarkdown(page.content);

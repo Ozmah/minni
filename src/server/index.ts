@@ -19,6 +19,7 @@ import type { MinniDB } from "../helpers";
 import { getRuntimeInfo } from "./lib/canvas";
 import { canvasRoutes } from "./routes/canvas";
 import { changesRoutes } from "./routes/changes";
+import { hudRoutes } from "./routes/hud";
 import { memoryRoutes } from "./routes/memories";
 import { projectRoutes } from "./routes/projects";
 import { statsRoutes } from "./routes/stats";
@@ -71,6 +72,7 @@ async function createApp(db: MinniDB, distPath: string) {
 				}
 			})
 			.use(statsRoutes(db))
+			.use(hudRoutes(db))
 			.use(projectRoutes(db))
 			.use(memoryRoutes(db))
 			.use(taskRoutes(db))
