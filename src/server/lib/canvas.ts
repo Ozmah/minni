@@ -10,7 +10,7 @@ import { desc, eq, count } from "drizzle-orm";
 import type { MinniDB } from "../../helpers";
 
 import { truncateWithWordBoundary } from "../../helpers";
-import { canvas, type CanvasPage } from "../../schema";
+import { canvas, type CanvasPage, type CanvasPageType } from "../../schema";
 import { DEFAULT_CONFIG, UUID_REGEX } from "../types";
 
 export function getRuntimeInfo() {
@@ -39,6 +39,7 @@ export async function getPagesTruncated(db: MinniDB, limit = 100): Promise<Canva
 	let canvasPages: {
 		id: string;
 		content: string;
+		type: CanvasPageType;
 		createdAt: Date;
 	}[] = [];
 
@@ -46,6 +47,7 @@ export async function getPagesTruncated(db: MinniDB, limit = 100): Promise<Canva
 		canvasPages.push({
 			id: page.id,
 			content: truncateWithWordBoundary(page.content, 25),
+			type: page.type,
 			createdAt: page.createdAt,
 		});
 	}
@@ -60,12 +62,16 @@ export async function getPageCount(db: MinniDB): Promise<number> {
 }
 
 /** Inserts a canvas page and returns it. */
-export async function addPage(db: MinniDB, content: string): Promise<CanvasPage> {
+export async function addPage(
+	db: MinniDB,
+	content: string,
+	type: CanvasPageType = "markdown",
+): Promise<CanvasPage> {
 	const id = crypto.randomUUID();
 	const createdAt = new Date();
-	await db.insert(canvas).values({ id, content, createdAt });
+	await db.insert(canvas).values({ id, content, type, createdAt });
 
-	return { id, content, createdAt };
+	return { id, content, type, createdAt };
 }
 
 /** Deletes a canvas page by UUID. Returns true if deleted. */

@@ -42,12 +42,15 @@ export const canvasRoutes = (db: MinniDB) =>
 				const err = validateContent(body.content);
 				if (err) return status(400, { error: err });
 
-				const page = await addPage(db, body.content);
+				const page = await addPage(db, body.content, body.type ?? "markdown");
 				markChanged("canvas");
 				return { ok: true, id: page.id };
 			},
 			{
-				body: z.object({ content: z.string().min(1) }),
+				body: z.object({
+					content: z.string().min(1),
+					type: z.enum(["markdown", "html"]).optional(),
+				}),
 				response: {
 					400: ErrorResponse,
 				},

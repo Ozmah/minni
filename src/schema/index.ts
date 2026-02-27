@@ -8,12 +8,14 @@ export {
 	MEMORY_STATUS,
 	TASK_PRIORITY,
 	TASK_STATUS,
+	CANVAS_PAGE_TYPE,
 	type ProjectStatus,
 	type Permission,
 	type MemoryType,
 	type MemoryStatus,
 	type TaskPriority,
 	type TaskStatus,
+	type CanvasPageType,
 } from "./base";
 
 // Tables

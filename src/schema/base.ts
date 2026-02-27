@@ -39,6 +39,7 @@ export const MEMORY_STATUS = [
 ] as const;
 export const TASK_PRIORITY = ["high", "medium", "low"] as const;
 export const TASK_STATUS = ["todo", "in_progress", "done", "cancelled"] as const;
+export const CANVAS_PAGE_TYPE = ["markdown", "html"] as const;
 
 export type ProjectStatus = (typeof PROJECT_STATUS)[number];
 export type Permission = (typeof PERMISSION)[number];
@@ -46,3 +47,4 @@ export type MemoryType = (typeof MEMORY_TYPE)[number];
 export type MemoryStatus = (typeof MEMORY_STATUS)[number];
 export type TaskPriority = (typeof TASK_PRIORITY)[number];
 export type TaskStatus = (typeof TASK_STATUS)[number];
+export type CanvasPageType = (typeof CANVAS_PAGE_TYPE)[number];

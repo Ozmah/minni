@@ -2,11 +2,14 @@ import { sql } from "drizzle-orm";
 import { sqliteTable, integer, text, index } from "drizzle-orm/sqlite-core";
 import { createSelectSchema } from "drizzle-orm/zod";
 
+import { CANVAS_PAGE_TYPE } from "./base";
+
 export const canvas = sqliteTable(
 	"canvas",
 	{
 		id: text("id").primaryKey(),
 		content: text("content").notNull(),
+		type: text("type", { enum: CANVAS_PAGE_TYPE }).default("markdown").notNull(),
 		createdAt: integer("created_at", { mode: "timestamp_ms" as const })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),

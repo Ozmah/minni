@@ -14,16 +14,22 @@ export function CopyButtons({ page }: { page: CanvasPage | null }) {
 		if (!page) return;
 
 		let content: string;
-		switch (type) {
-			case "markdown":
-				content = page.content;
-				break;
-			case "html":
-				content = await parseMarkdown(page.content);
-				break;
-			case "text":
-				content = stripMarkdown(page.content);
-				break;
+
+		// For HTML pages, raw source is already HTML — copy as-is for all modes
+		if (page.type === "html") {
+			content = page.content;
+		} else {
+			switch (type) {
+				case "markdown":
+					content = page.content;
+					break;
+				case "html":
+					content = await parseMarkdown(page.content);
+					break;
+				case "text":
+					content = stripMarkdown(page.content);
+					break;
+			}
 		}
 
 		await navigator.clipboard.writeText(content);

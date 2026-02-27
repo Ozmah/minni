@@ -1,6 +1,7 @@
 import { tool } from "@opencode-ai/plugin";
 import { Result } from "better-result";
 
+import type { CanvasPageType } from "../schema";
 import { getViewerPort } from "../server";
 
 // ============================================================================
@@ -10,6 +11,7 @@ import { getViewerPort } from "../server";
 interface CanvasPage {
 	id: string;
 	content: string;
+	type: CanvasPageType;
 	createdAt: string;
 }
 
@@ -37,17 +39,68 @@ async function fetchJson<T>(url: string, init?: RequestInit) {
 	});
 }
 
-/** Formats a single canvas page for LLM consumption: `Page 2/5 (10:30:00 AM):\n\n<content>` */
+/** Formats a single canvas page for LLM consumption: `Page 2/5 [html] (10:30:00 AM):\n\n<content>` */
 function formatPage(page: CanvasPage, index: number, total: number): string {
 	const time = new Date(page.createdAt).toLocaleTimeString();
-	return `Page ${index + 1}/${total} (${time}):\n\n${page.content}`;
+	const typeTag = page.type === "html" ? " [html]" : "";
+	return `Page ${index + 1}/${total}${typeTag} (${time}):\n\n${page.content}`;
 }
 
 function formatAllPages(pages: CanvasPage[]): string {
-	const lines = pages.map(
-		(p, i) => `## Page ${i + 1} (${new Date(p.createdAt).toLocaleTimeString()})\n\n${p.content}`,
-	);
+	const lines = pages.map((p, i) => {
+		const typeTag = p.type === "html" ? " [html]" : "";
+		return `## Page ${i + 1}${typeTag} (${new Date(p.createdAt).toLocaleTimeString()})\n\n${p.content}`;
+	});
 	return `${pages.length} pages:\n\n${lines.join("\n\n---\n\n")}`;
+}
+
+// ============================================================================
+// BUN.BUILD PIPELINE
+// ============================================================================
+
+/**
+ * Compiles HTML content through Bun.build to produce a self-contained HTML string.
+ * Inlines all <script src>, <link rel="stylesheet">, and asset references.
+ * Falls back to raw content if build fails (e.g. content is already self-contained).
+ */
+async function compileHtml(content: string): Promise<string> {
+	const tempPath = `/tmp/minni-canvas-${crypto.randomUUID()}.html`;
+
+	const writeResult = await Result.tryPromise({
+		try: async () => {
+			await Bun.write(tempPath, content);
+		},
+		catch: (e) => (e instanceof Error ? e.message : String(e)),
+	});
+	if (writeResult.isErr()) return content;
+
+	const buildResult = await Result.tryPromise({
+		try: () =>
+			Bun.build({
+				entrypoints: [tempPath],
+				target: "browser",
+				compile: true,
+			}),
+		catch: (e) => (e instanceof Error ? e.message : String(e)),
+	});
+
+	// Always clean up temp file
+	await Result.tryPromise({
+		try: () => Bun.file(tempPath).exists().then(() => require("fs").unlinkSync(tempPath)),
+		catch: () => "cleanup failed",
+	});
+
+	if (buildResult.isErr()) return content;
+
+	const build = buildResult.value;
+	if (!build.success || build.outputs.length === 0) return content;
+
+	const textResult = await Result.tryPromise({
+		try: () => build.outputs[0].text(),
+		catch: (e) => (e instanceof Error ? e.message : String(e)),
+	});
+
+	return textResult.isOk() ? textResult.value : content;
 }
 
 // ============================================================================
@@ -86,20 +139,22 @@ async function clearCanvas(viewerUrl: string): Promise<string> {
 	return `Canvas cleared. ${result.value.deleted} pages deleted.`;
 }
 
-async function pushToCanvas(viewerUrl: string, content: string) {
+async function pushToCanvas(viewerUrl: string, content: string, type: CanvasPageType = "markdown") {
 	const result = await fetchJson<{ ok: boolean }>(`${viewerUrl}/api/canvas/push`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ content }),
+		body: JSON.stringify({ content, type }),
 	});
 	if (result.isErr()) return result;
 	return Result.ok(undefined);
 }
 
-function openBrowser(url: string): void {
+function openBrowser(url: string): boolean {
 	const { platform } = process;
 	const cmd = platform === "darwin" ? "open" : platform === "win32" ? "start" : "xdg-open";
+	if (!Bun.which(cmd)) return false;
 	Bun.spawn([cmd, url]);
+	return true;
 }
 
 // ============================================================================
@@ -126,9 +181,16 @@ export function canvasTools() {
 					.number()
 					.optional()
 					.describe("For read: page index (0-based, default: latest)"),
+				type: tool.schema
+					.enum(["markdown", "html"])
+					.optional()
+					.describe(
+						"Page type: markdown (default) renders as rich text, html renders as a live website in a sandboxed iframe. HTML content is compiled through Bun.build for self-contained output.",
+					),
 			},
 			async execute(args) {
 				const action = args.action ?? "show";
+				const type = args.type ?? "markdown";
 				const viewerPort = getViewerPort();
 
 				if (!viewerPort) {
@@ -149,20 +211,26 @@ export function canvasTools() {
 					return `Content is required for action: ${action}`;
 				}
 
-				const pushResult = await pushToCanvas(viewerUrl, args.content);
+				let content = args.content;
+				if (type === "html") {
+					content = await compileHtml(content);
+				}
+
+				const pushResult = await pushToCanvas(viewerUrl, content, type);
 				if (pushResult.isErr()) {
 					return `Failed to send to canvas: ${pushResult.error}. Is the viewer running?`;
 				}
 
-				if (action === "open") {
-					openBrowser(viewerUrl);
-				}
+				const browserNote =
+					action === "open" && !openBrowser(viewerUrl)
+						? " (could not open browser)"
+						: "";
 
 				if (action === "save") {
-					return `Content sent to canvas (${args.content.length} chars). Save to memory: coming soon. View at ${viewerUrl}`;
+					return `Content sent to canvas (${content.length} chars, type: ${type})${browserNote}. Save to memory: coming soon. View at ${viewerUrl}`;
 				}
 
-				return `Content sent to canvas (${args.content.length} chars). View at ${viewerUrl}`;
+				return `Content sent to canvas (${content.length} chars, type: ${type})${browserNote}. View at ${viewerUrl}`;
 			},
 		}),
 	};

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Globe, Trash2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { MarkdownContent } from "@/components/ui";
@@ -8,6 +8,7 @@ import { api, unwrap } from "@/lib/api";
 import { canvasStore, navigateNext, navigatePrev, navigateTo } from "@/stores/canvas";
 
 import { CopyButtons } from "./CopyButtons";
+import { HtmlRenderer } from "./HtmlRenderer";
 
 export function Canvas() {
 	const queryClient = useQueryClient();
@@ -100,14 +101,23 @@ export function Canvas() {
 			</div>
 
 			{/* Content */}
-			<div className="flex-1 overflow-auto p-6">
-				{currentPage && <MarkdownContent content={currentPage.content} />}
-			</div>
+			{currentPage?.type === "html" ? (
+				<HtmlRenderer content={currentPage.content} />
+			) : (
+				<div className="flex-1 overflow-auto p-6">
+					{currentPage && <MarkdownContent content={currentPage.content} />}
+				</div>
+			)}
 
 			{/* Footer */}
 			{currentPage && (
-				<div className="border-t border-gray-700 px-4 py-4 text-xs text-gray-500">
-					{new Date(currentPage.createdAt).toLocaleString()}
+				<div className="flex items-center gap-2 border-t border-gray-700 px-4 py-4 text-xs text-gray-500">
+					{currentPage.type === "html" && (
+						<Globe size={12} className="text-blue-400" />
+					)}
+					<span>{currentPage.type === "html" ? "HTML" : "Markdown"}</span>
+					<span>&middot;</span>
+					<span>{new Date(currentPage.createdAt).toLocaleString()}</span>
 				</div>
 			)}
 		</div>
