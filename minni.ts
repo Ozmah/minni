@@ -20,12 +20,27 @@ import { memories } from "./src/schema";
 import { startViewerServer } from "./src/server";
 import { createTools } from "./src/tools/index";
 
-export const MinniPlugin: Plugin = async () => {
-	const dbPath = join(homedir(), ".config", "opencode", "minni.db");
-	const db = drizzle(dbPath);
+const dbPath = join(homedir(), ".config", "opencode", "minni.db");
+const db = drizzle(dbPath);
 
-	await initializeDatabase(db);
-	await startViewerServer(db);
+let bootPromise: Promise<void> | null = null;
+
+function boot() {
+	if (!bootPromise) {
+		bootPromise = (async () => {
+			await initializeDatabase(db);
+			await startViewerServer(db);
+		})().catch((err) => {
+			bootPromise = null;
+			throw err;
+		});
+	}
+
+	return bootPromise;
+}
+
+export const MinniPlugin: Plugin = async () => {
+	await boot();
 
 	return {
 		/**

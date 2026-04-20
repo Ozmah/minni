@@ -40,3 +40,6 @@ lerna-debug.log*
 # Markdown
 *.md
 !README.md
+!minni-system-design.md
+!database-backup.md
+!migration-rules.md

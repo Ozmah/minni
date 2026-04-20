@@ -202,7 +202,9 @@ export async function initializeDatabase(db: MinniDB): Promise<void> {
 		type TEXT DEFAULT 'markdown' NOT NULL,
 		created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
 	)`);
-	await db.run(sql`ALTER TABLE canvas ADD COLUMN type TEXT DEFAULT 'markdown' NOT NULL`).catch(() => {});
+	await db
+		.run(sql`ALTER TABLE canvas ADD COLUMN type TEXT DEFAULT 'markdown' NOT NULL`)
+		.catch(() => {});
 	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_canvas_created_at ON canvas (created_at)`);
 
 	// Ensure global_context singleton row exists

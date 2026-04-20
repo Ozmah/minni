@@ -112,9 +112,7 @@ export function Canvas() {
 			{/* Footer */}
 			{currentPage && (
 				<div className="flex items-center gap-2 border-t border-gray-700 px-4 py-4 text-xs text-gray-500">
-					{currentPage.type === "html" && (
-						<Globe size={12} className="text-blue-400" />
-					)}
+					{currentPage.type === "html" && <Globe size={12} className="text-blue-400" />}
 					<span>{currentPage.type === "html" ? "HTML" : "Markdown"}</span>
 					<span>&middot;</span>
 					<span>{new Date(currentPage.createdAt).toLocaleString()}</span>

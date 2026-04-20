@@ -2,6 +2,7 @@ import { tool } from "@opencode-ai/plugin";
 import { Result } from "better-result";
 
 import type { CanvasPageType } from "../schema";
+
 import { getViewerPort } from "../server";
 
 // ============================================================================
@@ -86,7 +87,10 @@ async function compileHtml(content: string): Promise<string> {
 
 	// Always clean up temp file
 	await Result.tryPromise({
-		try: () => Bun.file(tempPath).exists().then(() => require("fs").unlinkSync(tempPath)),
+		try: () =>
+			Bun.file(tempPath)
+				.exists()
+				.then(() => require("fs").unlinkSync(tempPath)),
 		catch: () => "cleanup failed",
 	});
 
@@ -222,9 +226,7 @@ export function canvasTools() {
 				}
 
 				const browserNote =
-					action === "open" && !openBrowser(viewerUrl)
-						? " (could not open browser)"
-						: "";
+					action === "open" && !openBrowser(viewerUrl) ? " (could not open browser)" : "";
 
 				if (action === "save") {
 					return `Content sent to canvas (${content.length} chars, type: ${type})${browserNote}. Save to memory: coming soon. View at ${viewerUrl}`;
