@@ -59,6 +59,9 @@ Canvas is:
 
 Canvas is where you can dump working material without forcing structure too early.
 
+Canvas pages keep an explicit `type` because rendering depends on it.
+Current values are `markdown` and `html`, and this leaves room for richer canvas molds later.
+
 **Typical flow:**
 
 1. Freeform entry

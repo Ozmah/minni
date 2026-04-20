@@ -1,50 +1,38 @@
 import { Result } from "better-result";
-import { count, sql, eq, ne, and } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/tursodatabase/database";
 
 import {
-	projects,
-	tags,
-	memoryTags,
-	globalContext,
+	activeState,
+	commands,
+	devModes,
 	memories,
+	memoryTags,
+	projects,
+	rules,
 	settings,
-	tasks,
+	tags,
 	type Permission,
-	type Memory,
 } from "./schema";
 import { getPageCount } from "./server/lib/canvas";
 
 export type MinniDB = ReturnType<typeof drizzle>;
 
 export type ActiveProject = { id: number; name: string } | null;
+export type ActiveDevMode = { id: number; name: string } | null;
 
-/**
- * Truncates a string at the last word boundary.
- * @param str - Input string to truncate.
- * @param maxLength - Maximum length of the truncated string (including ellipsis).
- * @param ellipsis - Ellipsis to append (default: '...').
- * @returns Truncated string with ellipsis.
- *
- * 🏴‍☠️ Plundered from https://www.w3tutorials.net/blog/smart-way-to-truncate-long-strings/
- */
 export function truncateWithWordBoundary(str: string, maxLength: number, ellipsis = "...") {
 	if (str.length <= maxLength) return str;
 
 	const ellipsisLength = ellipsis.length;
 	const availableLength = maxLength - ellipsisLength;
-
-	// Slice to available length and find the last space
 	const truncated = str.slice(0, availableLength);
 	const lastSpaceIndex = truncated.lastIndexOf(" ");
-
-	// If no space found, truncate at availableLength (mid-word)
 	const cutoffIndex = lastSpaceIndex > 0 ? lastSpaceIndex : availableLength;
 
 	return `${truncated.slice(0, cutoffIndex)}${ellipsis}`;
 }
 
-/** Validates a value against an allowed set. Returns the value if valid, or an error string. */
 export function validateEnum(
 	value: string,
 	allowed: readonly string[],
@@ -54,12 +42,6 @@ export function validateEnum(
 	return `Invalid ${fieldName}: "${value}". Allowed: ${allowed.join(", ")}`;
 }
 
-/**
- * Normalizes a project name for storage and lookup.
- * Lowercases, trims, replaces spaces/underscores with hyphens,
- * strips anything that isn't alphanumeric or hyphen, and collapses
- * consecutive hyphens.
- */
 export function normalizeProjectName(name: string): string {
 	return name
 		.toLowerCase()
@@ -70,61 +52,65 @@ export function normalizeProjectName(name: string): string {
 		.replace(/^-|-$/g, "");
 }
 
-/**
- * Returns the currently loaded project, or null if none is active (global mode).
- */
 export async function getActiveProject(db: MinniDB): Promise<ActiveProject> {
-	const ctx = await db.select().from(globalContext).where(eq(globalContext.id, 1)).limit(1);
+	const ctx = await db.select().from(activeState).where(eq(activeState.id, 1)).limit(1);
 
-	if (!ctx[0]?.activeProjectId) {
-		return null;
-	}
+	if (!ctx[0]?.activeProjectId) return null;
 
 	const proj = await db
-		.select()
+		.select({ id: projects.id, name: projects.name })
 		.from(projects)
 		.where(eq(projects.id, ctx[0].activeProjectId))
 		.limit(1);
 
-	return proj[0] ? { id: proj[0].id, name: proj[0].name } : null;
+	return proj[0] ?? null;
 }
 
-/**
- * Sets the active project and persists to global_context.
- * Pass null to switch to global mode (no active project).
- */
 export async function setActiveProject(db: MinniDB, project: ActiveProject): Promise<void> {
 	await db
-		.update(globalContext)
-		.set({
-			activeProjectId: project?.id ?? null,
-			updatedAt: new Date(),
-		})
-		.where(eq(globalContext.id, 1));
+		.update(activeState)
+		.set({ activeProjectId: project?.id ?? null, updatedAt: new Date() })
+		.where(eq(activeState.id, 1));
 }
 
-/**
- * Resolves a project by name, falling back to the active project.
- * Returns null if no project is found and no active project is set.
- */
+export async function getActiveDevMode(db: MinniDB): Promise<ActiveDevMode> {
+	const ctx = await db.select().from(activeState).where(eq(activeState.id, 1)).limit(1);
+
+	if (!ctx[0]?.activeDevModeId) return null;
+
+	const mode = await db
+		.select({ id: devModes.id, name: devModes.name })
+		.from(devModes)
+		.where(eq(devModes.id, ctx[0].activeDevModeId))
+		.limit(1);
+
+	return mode[0] ?? null;
+}
+
+export async function setActiveDevMode(db: MinniDB, devMode: ActiveDevMode): Promise<void> {
+	await db
+		.update(activeState)
+		.set({ activeDevModeId: devMode?.id ?? null, updatedAt: new Date() })
+		.where(eq(activeState.id, 1));
+}
+
 export async function resolveProject(db: MinniDB, name?: string): Promise<ActiveProject> {
 	if (name) {
 		const normalized = normalizeProjectName(name);
-		const found = await db.select().from(projects).where(eq(projects.name, normalized)).limit(1);
-		return found[0] ? { id: found[0].id, name: found[0].name } : null;
+		const found = await db
+			.select({ id: projects.id, name: projects.name })
+			.from(projects)
+			.where(eq(projects.name, normalized))
+			.limit(1);
+		return found[0] ?? null;
 	}
+
 	return getActiveProject(db);
 }
 
-/**
- * Persists tag associations for a memory.
- * Tags are normalized, inserted if new (via INSERT OR IGNORE),
- * and linked through the memory_tags join table.
- */
 export async function saveTags(db: MinniDB, memoryId: number, tagNames: string[]): Promise<void> {
 	for (const name of tagNames) {
 		const normalized = name.toLowerCase().trim();
-		// TODO need to investigate if this is possible using drizzle alone
 		await db.run(sql`INSERT OR IGNORE INTO tags (name) VALUES (${normalized})`);
 		const tag = await db.select().from(tags).where(eq(tags.name, normalized)).limit(1);
 		if (tag[0]) {
@@ -133,144 +119,68 @@ export async function saveTags(db: MinniDB, memoryId: number, tagNames: string[]
 	}
 }
 
-// ============================================================================
-// SETTINGS
-// ============================================================================
-
-/**
- * Reads a setting from the settings table.
- * Returns null if the key doesn't exist.
- */
 export async function getSetting(db: MinniDB, key: string): Promise<string | null> {
 	const row = await db.select().from(settings).where(eq(settings.key, key)).limit(1);
 	return row[0]?.value ?? null;
 }
 
-// ============================================================================
-// IDENTITY
-// ============================================================================
-
-/**
- * Resolves the active identity memory.
- * Cascade: active_identity_id pointer → default_identity setting → null.
- */
-export async function getActiveIdentity(db: MinniDB): Promise<Memory | null> {
-	const ctx = await db.select().from(globalContext).where(eq(globalContext.id, 1)).limit(1);
-
-	let identityId = ctx[0]?.activeIdentityId ?? null;
-
-	// Fallback to default_identity setting (stores identity title)
-	if (!identityId) {
-		const defaultName = await getSetting(db, "default_identity");
-		if (defaultName && defaultName !== "null") {
-			const mem = await db
-				.select()
-				.from(memories)
-				.where(
-					and(
-						eq(memories.type, "identity"),
-						eq(memories.title, defaultName),
-						ne(memories.permission, "locked"),
-					),
-				)
-				.limit(1);
-			if (mem[0]) identityId = mem[0].id;
-		}
-	}
-
-	if (!identityId) return null;
-
-	const mem = await db.select().from(memories).where(eq(memories.id, identityId)).limit(1);
-	return mem[0] ?? null;
-}
-
-// ============================================================================
-// HUD DATA
-// ============================================================================
-
-/** Structured HUD state consumed by both the MCP tool and the viewer API. */
 export interface HudData {
-	project: { id: number; name: string; status: string | null } | null;
-	identity: { id: number; title: string } | null;
+	project: { id: number; name: string } | null;
+	devMode: { id: number; name: string } | null;
 	counts: {
 		projects: number;
+		devModes: number;
 		memories: number;
-		tasks: { total: number; todo: number; inProgress: number; done: number };
+		commands: number;
+		rules: number;
 		canvas: number;
 	};
 }
 
-/**
- * Single source of truth for HUD state.
- * Returns structured data, each consumer formats as needed.
- */
 export async function getHudData(db: MinniDB): Promise<HudData> {
-	const active = await getActiveProject(db);
-	const identity = await getActiveIdentity(db);
-
-	const taskFilter = active ? eq(tasks.projectId, active.id) : sql`1=1`;
-	const memoryFilter = active ? eq(memories.projectId, active.id) : sql`1=1`;
-
-	const [projectCount, taskCounts, memoryCount, canvasPages] = await Promise.all([
-		db
-			.select({ total: count() })
-			.from(projects)
-			.where(sql`status != 'deleted'`),
-		db
-			.select({ status: tasks.status, total: count() })
-			.from(tasks)
-			.where(taskFilter)
-			.groupBy(tasks.status),
-		db.select({ total: count() }).from(memories).where(memoryFilter),
+	const [
+		project,
+		devMode,
+		projectCount,
+		devModeCount,
+		memoryCount,
+		commandCount,
+		ruleCount,
+		canvasPages,
+	] = await Promise.all([
+		getActiveProject(db),
+		getActiveDevMode(db),
+		db.select({ total: count() }).from(projects),
+		db.select({ total: count() }).from(devModes),
+		db.select({ total: count() }).from(memories),
+		db.select({ total: count() }).from(commands),
+		db.select({ total: count() }).from(rules),
 		getPageCount(db),
 	]);
 
-	const todo = taskCounts.find((t) => t.status === "todo")?.total ?? 0;
-	const inProgress = taskCounts.find((t) => t.status === "in_progress")?.total ?? 0;
-	const done = taskCounts.find((t) => t.status === "done")?.total ?? 0;
-
-	let projectStatus: string | null = null;
-	if (active) {
-		const proj = await db
-			.select({ status: projects.status })
-			.from(projects)
-			.where(eq(projects.id, active.id))
-			.limit(1);
-		projectStatus = proj[0]?.status ?? null;
-	}
-
 	return {
-		project: active ? { id: active.id, name: active.name, status: projectStatus } : null,
-		identity: identity ? { id: identity.id, title: identity.title } : null,
+		project,
+		devMode,
 		counts: {
 			projects: projectCount[0].total,
+			devModes: devModeCount[0].total,
 			memories: memoryCount[0].total,
-			tasks: { total: todo + inProgress + done, todo, inProgress, done },
+			commands: commandCount[0].total,
+			rules: ruleCount[0].total,
 			canvas: canvasPages,
 		},
 	};
 }
 
-// ============================================================================
-// PERMISSION SYSTEM
-// ============================================================================
-
-/**
- * Entity protected by the permission system.
- * Only memories and projects have permissions; tasks are always open.
- */
 export type ProtectedEntity = {
 	id: number;
 	name: string;
-	type: "memory" | "project";
+	type: "memory" | "project" | "dev_mode" | "command" | "rule";
 	permission: Permission;
 };
 
 export type ActionType = "read" | "update" | "delete";
 
-/**
- * OpenCode tool context type (subset we need for permission checks).
- */
 export type ToolContext = {
 	ask: (opts: {
 		permission: string;
@@ -280,21 +190,6 @@ export type ToolContext = {
 	}) => Promise<void>;
 };
 
-/**
- * Centralized permission enforcement for all protected entities.
- *
- * Permission matrix:
- * ┌─────────────┬─────────┬─────────┬─────────┐
- * │ Permission  │  READ   │ UPDATE  │ DELETE  │
- * ├─────────────┼─────────┼─────────┼─────────┤
- * │ locked      │ BLOCK   │ BLOCK   │ BLOCK   │
- * │ read_only   │ ALLOW   │ BLOCK   │ BLOCK   │
- * │ guarded     │ ALLOW   │ ASK     │ ASK     │
- * │ open        │ ALLOW   │ ALLOW   │ ALLOW   │
- * └─────────────┴─────────┴─────────┴─────────┘
- *
- * If dangerously_skip_memory_permission is "true", bypasses ALL checks.
- */
 export async function guardedAction<T>(
 	db: MinniDB,
 	context: ToolContext,
@@ -309,7 +204,6 @@ export async function guardedAction<T>(
 				`ERROR: Failed to ${action} ${entity.type} [${entity.id}]: ${e instanceof Error ? e.message : String(e)}`,
 		});
 
-	// Nuclear bypass: skip ALL permission checks
 	const skipAll = await getSetting(db, "dangerously_skip_memory_permission");
 	if (skipAll === "true") return execWithError();
 

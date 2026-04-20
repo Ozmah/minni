@@ -5,7 +5,6 @@ import { equipTools } from "./equip";
 import { hudTools } from "./hud";
 import { memoryTools } from "./memory";
 import { projectTools } from "./project";
-import { taskTools } from "./task";
 
 /**
  * Creates all Minni tools bound to a specific database instance.
@@ -17,7 +16,6 @@ export function createTools(db: MinniDB) {
 		...equipTools(db),
 		...memoryTools(db),
 		...projectTools(db),
-		...taskTools(db),
 		...canvasTools(),
 	};
 }

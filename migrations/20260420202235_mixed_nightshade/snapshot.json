@@ -1,0 +1,1288 @@
+{
+	"version": "7",
+	"dialect": "sqlite",
+	"id": "7ee86ce4-cdab-4f25-b8ec-4842361e71e1",
+	"prevIds": ["bc8a11ce-5f16-415e-b030-00903b58db87"],
+	"ddl": [
+		{
+			"name": "active_state",
+			"entityType": "tables"
+		},
+		{
+			"name": "canvas",
+			"entityType": "tables"
+		},
+		{
+			"name": "commands",
+			"entityType": "tables"
+		},
+		{
+			"name": "dev_mode_memories",
+			"entityType": "tables"
+		},
+		{
+			"name": "dev_modes",
+			"entityType": "tables"
+		},
+		{
+			"name": "memories",
+			"entityType": "tables"
+		},
+		{
+			"name": "memory_relations",
+			"entityType": "tables"
+		},
+		{
+			"name": "memory_tags",
+			"entityType": "tables"
+		},
+		{
+			"name": "project_memories",
+			"entityType": "tables"
+		},
+		{
+			"name": "projects",
+			"entityType": "tables"
+		},
+		{
+			"name": "rules",
+			"entityType": "tables"
+		},
+		{
+			"name": "settings",
+			"entityType": "tables"
+		},
+		{
+			"name": "tags",
+			"entityType": "tables"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": "1",
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "active_state"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "active_project_id",
+			"entityType": "columns",
+			"table": "active_state"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "active_dev_mode_id",
+			"entityType": "columns",
+			"table": "active_state"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "active_state"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "updated_at",
+			"entityType": "columns",
+			"table": "active_state"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "canvas"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "content",
+			"entityType": "columns",
+			"table": "canvas"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'markdown'",
+			"generated": null,
+			"name": "type",
+			"entityType": "columns",
+			"table": "canvas"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "canvas"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": true,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "project_id",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "key",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "command",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "summary",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'misc'",
+			"generated": null,
+			"name": "group",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'safe'",
+			"generated": null,
+			"name": "risk",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'secondary'",
+			"generated": null,
+			"name": "visibility",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'guarded'",
+			"generated": null,
+			"name": "permission",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "notes",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "0",
+			"generated": null,
+			"name": "sort_order",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "updated_at",
+			"entityType": "columns",
+			"table": "commands"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "dev_mode_id",
+			"entityType": "columns",
+			"table": "dev_mode_memories"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "memory_id",
+			"entityType": "columns",
+			"table": "dev_mode_memories"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "0",
+			"generated": null,
+			"name": "sort_order",
+			"entityType": "columns",
+			"table": "dev_mode_memories"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": true,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "dev_modes"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "name",
+			"entityType": "columns",
+			"table": "dev_modes"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "description",
+			"entityType": "columns",
+			"table": "dev_modes"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'guarded'",
+			"generated": null,
+			"name": "permission",
+			"entityType": "columns",
+			"table": "dev_modes"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "dev_modes"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "updated_at",
+			"entityType": "columns",
+			"table": "dev_modes"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": true,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "type",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "title",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "content",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'draft'",
+			"generated": null,
+			"name": "status",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'guarded'",
+			"generated": null,
+			"name": "permission",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "updated_at",
+			"entityType": "columns",
+			"table": "memories"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "memory_id",
+			"entityType": "columns",
+			"table": "memory_relations"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "related_id",
+			"entityType": "columns",
+			"table": "memory_relations"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "memory_id",
+			"entityType": "columns",
+			"table": "memory_tags"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "tag_id",
+			"entityType": "columns",
+			"table": "memory_tags"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "project_id",
+			"entityType": "columns",
+			"table": "project_memories"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "memory_id",
+			"entityType": "columns",
+			"table": "project_memories"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "0",
+			"generated": null,
+			"name": "sort_order",
+			"entityType": "columns",
+			"table": "project_memories"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": true,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "name",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "description",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "stack",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'guarded'",
+			"generated": null,
+			"name": "permission",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "updated_at",
+			"entityType": "columns",
+			"table": "projects"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": true,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "rules"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "dev_mode_id",
+			"entityType": "columns",
+			"table": "rules"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "project_id",
+			"entityType": "columns",
+			"table": "rules"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "kind",
+			"entityType": "columns",
+			"table": "rules"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "statement",
+			"entityType": "columns",
+			"table": "rules"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "rationale",
+			"entityType": "columns",
+			"table": "rules"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'default'",
+			"generated": null,
+			"name": "severity",
+			"entityType": "columns",
+			"table": "rules"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'guarded'",
+			"generated": null,
+			"name": "permission",
+			"entityType": "columns",
+			"table": "rules"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "example",
+			"entityType": "columns",
+			"table": "rules"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "0",
+			"generated": null,
+			"name": "sort_order",
+			"entityType": "columns",
+			"table": "rules"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "rules"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "updated_at",
+			"entityType": "columns",
+			"table": "rules"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "key",
+			"entityType": "columns",
+			"table": "settings"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "value",
+			"entityType": "columns",
+			"table": "settings"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": true,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "tags"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "name",
+			"entityType": "columns",
+			"table": "tags"
+		},
+		{
+			"columns": ["active_project_id"],
+			"tableTo": "projects",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "SET NULL",
+			"nameExplicit": false,
+			"name": "fk_active_state_active_project_id_projects_id_fk",
+			"entityType": "fks",
+			"table": "active_state"
+		},
+		{
+			"columns": ["active_dev_mode_id"],
+			"tableTo": "dev_modes",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "SET NULL",
+			"nameExplicit": false,
+			"name": "fk_active_state_active_dev_mode_id_dev_modes_id_fk",
+			"entityType": "fks",
+			"table": "active_state"
+		},
+		{
+			"columns": ["project_id"],
+			"tableTo": "projects",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_commands_project_id_projects_id_fk",
+			"entityType": "fks",
+			"table": "commands"
+		},
+		{
+			"columns": ["dev_mode_id"],
+			"tableTo": "dev_modes",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_dev_mode_memories_dev_mode_id_dev_modes_id_fk",
+			"entityType": "fks",
+			"table": "dev_mode_memories"
+		},
+		{
+			"columns": ["memory_id"],
+			"tableTo": "memories",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_dev_mode_memories_memory_id_memories_id_fk",
+			"entityType": "fks",
+			"table": "dev_mode_memories"
+		},
+		{
+			"columns": ["memory_id"],
+			"tableTo": "memories",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_memory_relations_memory_id_memories_id_fk",
+			"entityType": "fks",
+			"table": "memory_relations"
+		},
+		{
+			"columns": ["related_id"],
+			"tableTo": "memories",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_memory_relations_related_id_memories_id_fk",
+			"entityType": "fks",
+			"table": "memory_relations"
+		},
+		{
+			"columns": ["memory_id"],
+			"tableTo": "memories",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_memory_tags_memory_id_memories_id_fk",
+			"entityType": "fks",
+			"table": "memory_tags"
+		},
+		{
+			"columns": ["tag_id"],
+			"tableTo": "tags",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_memory_tags_tag_id_tags_id_fk",
+			"entityType": "fks",
+			"table": "memory_tags"
+		},
+		{
+			"columns": ["project_id"],
+			"tableTo": "projects",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_project_memories_project_id_projects_id_fk",
+			"entityType": "fks",
+			"table": "project_memories"
+		},
+		{
+			"columns": ["memory_id"],
+			"tableTo": "memories",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_project_memories_memory_id_memories_id_fk",
+			"entityType": "fks",
+			"table": "project_memories"
+		},
+		{
+			"columns": ["dev_mode_id"],
+			"tableTo": "dev_modes",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_rules_dev_mode_id_dev_modes_id_fk",
+			"entityType": "fks",
+			"table": "rules"
+		},
+		{
+			"columns": ["project_id"],
+			"tableTo": "projects",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_rules_project_id_projects_id_fk",
+			"entityType": "fks",
+			"table": "rules"
+		},
+		{
+			"columns": ["dev_mode_id", "memory_id"],
+			"nameExplicit": false,
+			"name": "dev_mode_memories_pk",
+			"entityType": "pks",
+			"table": "dev_mode_memories"
+		},
+		{
+			"columns": ["memory_id", "related_id"],
+			"nameExplicit": false,
+			"name": "memory_relations_pk",
+			"entityType": "pks",
+			"table": "memory_relations"
+		},
+		{
+			"columns": ["memory_id", "tag_id"],
+			"nameExplicit": false,
+			"name": "memory_tags_pk",
+			"entityType": "pks",
+			"table": "memory_tags"
+		},
+		{
+			"columns": ["project_id", "memory_id"],
+			"nameExplicit": false,
+			"name": "project_memories_pk",
+			"entityType": "pks",
+			"table": "project_memories"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "active_state_pk",
+			"table": "active_state",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "canvas_pk",
+			"table": "canvas",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "commands_pk",
+			"table": "commands",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "dev_modes_pk",
+			"table": "dev_modes",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "memories_pk",
+			"table": "memories",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "projects_pk",
+			"table": "projects",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "rules_pk",
+			"table": "rules",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["key"],
+			"nameExplicit": false,
+			"name": "settings_pk",
+			"table": "settings",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "tags_pk",
+			"table": "tags",
+			"entityType": "pks"
+		},
+		{
+			"columns": [
+				{
+					"value": "created_at",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_canvas_created_at",
+			"entityType": "indexes",
+			"table": "canvas"
+		},
+		{
+			"columns": [
+				{
+					"value": "project_id",
+					"isExpression": false
+				},
+				{
+					"value": "key",
+					"isExpression": false
+				}
+			],
+			"isUnique": true,
+			"where": null,
+			"origin": "manual",
+			"name": "commands_project_key_unique",
+			"entityType": "indexes",
+			"table": "commands"
+		},
+		{
+			"columns": [
+				{
+					"value": "project_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_commands_project",
+			"entityType": "indexes",
+			"table": "commands"
+		},
+		{
+			"columns": [
+				{
+					"value": "group",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_commands_group",
+			"entityType": "indexes",
+			"table": "commands"
+		},
+		{
+			"columns": [
+				{
+					"value": "visibility",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_commands_visibility",
+			"entityType": "indexes",
+			"table": "commands"
+		},
+		{
+			"columns": [
+				{
+					"value": "dev_mode_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_dev_mode_memories_dev_mode",
+			"entityType": "indexes",
+			"table": "dev_mode_memories"
+		},
+		{
+			"columns": [
+				{
+					"value": "memory_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_dev_mode_memories_memory",
+			"entityType": "indexes",
+			"table": "dev_mode_memories"
+		},
+		{
+			"columns": [
+				{
+					"value": "type",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memories_type",
+			"entityType": "indexes",
+			"table": "memories"
+		},
+		{
+			"columns": [
+				{
+					"value": "status",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memories_status",
+			"entityType": "indexes",
+			"table": "memories"
+		},
+		{
+			"columns": [
+				{
+					"value": "memory_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memory_relations_memory",
+			"entityType": "indexes",
+			"table": "memory_relations"
+		},
+		{
+			"columns": [
+				{
+					"value": "related_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memory_relations_related",
+			"entityType": "indexes",
+			"table": "memory_relations"
+		},
+		{
+			"columns": [
+				{
+					"value": "memory_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memory_tags_memory",
+			"entityType": "indexes",
+			"table": "memory_tags"
+		},
+		{
+			"columns": [
+				{
+					"value": "tag_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_memory_tags_tag",
+			"entityType": "indexes",
+			"table": "memory_tags"
+		},
+		{
+			"columns": [
+				{
+					"value": "project_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_project_memories_project",
+			"entityType": "indexes",
+			"table": "project_memories"
+		},
+		{
+			"columns": [
+				{
+					"value": "memory_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_project_memories_memory",
+			"entityType": "indexes",
+			"table": "project_memories"
+		},
+		{
+			"columns": [
+				{
+					"value": "dev_mode_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_rules_dev_mode",
+			"entityType": "indexes",
+			"table": "rules"
+		},
+		{
+			"columns": [
+				{
+					"value": "project_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_rules_project",
+			"entityType": "indexes",
+			"table": "rules"
+		},
+		{
+			"columns": [
+				{
+					"value": "kind",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_rules_kind",
+			"entityType": "indexes",
+			"table": "rules"
+		},
+		{
+			"columns": [
+				{
+					"value": "severity",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "idx_rules_severity",
+			"entityType": "indexes",
+			"table": "rules"
+		},
+		{
+			"columns": ["name"],
+			"nameExplicit": false,
+			"name": "dev_modes_name_unique",
+			"entityType": "uniques",
+			"table": "dev_modes"
+		},
+		{
+			"columns": ["name"],
+			"nameExplicit": false,
+			"name": "projects_name_unique",
+			"entityType": "uniques",
+			"table": "projects"
+		},
+		{
+			"columns": ["name"],
+			"nameExplicit": false,
+			"name": "tags_name_unique",
+			"entityType": "uniques",
+			"table": "tags"
+		},
+		{
+			"value": "\"id\" = 1",
+			"name": "active_state_singleton_check",
+			"entityType": "checks",
+			"table": "active_state"
+		},
+		{
+			"value": "(\n\t\t\t\t(\"kind\" = 'principle' AND \"dev_mode_id\" IS NOT NULL AND \"project_id\" IS NULL)\n\t\t\t\tOR\n\t\t\t\t(\"kind\" IN ('convention', 'gotcha') AND \"project_id\" IS NOT NULL AND \"dev_mode_id\" IS NULL)\n\t\t\t)",
+			"name": "rules_kind_scope_check",
+			"entityType": "checks",
+			"table": "rules"
+		}
+	],
+	"renames": []
+}

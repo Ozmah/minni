@@ -207,8 +207,8 @@ export async function initializeDatabase(db: MinniDB): Promise<void> {
 		.catch(() => {});
 	await db.run(sql`CREATE INDEX IF NOT EXISTS idx_canvas_created_at ON canvas (created_at)`);
 
-	// Ensure global_context singleton row exists
-	await db.run(sql`INSERT OR IGNORE INTO global_context (id) VALUES (1)`);
+	// Ensure active_state singleton row exists
+	await db.run(sql`INSERT OR IGNORE INTO active_state (id) VALUES (1)`);
 
 	// Legacy cleanup: drop deprecated tables
 	await db.run(sql`DROP TABLE IF EXISTS memory_paths`);
@@ -233,105 +233,7 @@ export async function initializeDatabase(db: MinniDB): Promise<void> {
 // ============================================================================
 
 async function migrateFromV1(db: MinniDB): Promise<void> {
-	type LegacyGlobal = {
-		identity: string | null;
-		preferences: string | null;
-		context_summary: string | null;
-	};
-
-	const legacyResult = await Result.tryPromise(() =>
-		db.all<LegacyGlobal>(
-			sql`SELECT identity, preferences, context_summary FROM global_context WHERE id = 1`,
-		),
-	);
-
-	// Columns don't exist → fresh DB
-	if (legacyResult.isErr()) return;
-
-	const legacy = legacyResult.value[0] ?? null;
-	if (!legacy) return;
-
-	const now = Date.now();
-
-	// Identity → memory + pointer
-	if (legacy.identity) {
-		const ctx = await db.all<{ active_identity_id: number | null }>(
-			sql`SELECT active_identity_id FROM global_context WHERE id = 1`,
-		);
-		if (!ctx[0]?.active_identity_id) {
-			const firstLine = legacy.identity.split("\n")[0].trim().substring(0, 100);
-			const title = firstLine || "Default Identity";
-
-			const result = await db.all<{ id: number }>(
-				sql`INSERT INTO memories (type, title, content, status, permission, created_at, updated_at)
-					VALUES ('identity', ${title}, ${legacy.identity}, 'proven', 'guarded', ${now}, ${now})
-					RETURNING id`,
-			);
-			if (result[0]) {
-				await db.run(
-					sql`UPDATE global_context SET active_identity_id = ${result[0].id}, updated_at = ${now} WHERE id = 1`,
-				);
-			}
-		}
-	}
-
-	// Preferences → settings
-	if (legacy.preferences) {
-		const parsed = Result.try(() => JSON.parse(legacy.preferences!) as Record<string, unknown>);
-		if (parsed.isOk()) {
-			const prefs = parsed.value;
-			const mappings: [string, unknown][] = [
-				[
-					"default_memory_permission",
-					(prefs?.memory as Record<string, unknown>)?.defaultPermission,
-				],
-				["auto_create_tasks", (prefs?.planning as Record<string, unknown>)?.autoCreateTasks],
-				["search_default_limit", (prefs?.search as Record<string, unknown>)?.defaultLimit],
-			];
-			for (const [key, value] of mappings) {
-				if (value != null) {
-					await db.run(
-						sql`INSERT OR REPLACE INTO settings (key, value) VALUES (${key}, ${String(value)})`,
-					);
-				}
-			}
-		}
-	}
-
-	// Global context_summary → context memory
-	if (legacy.context_summary) {
-		const existing = await db.all<{ id: number }>(
-			sql`SELECT id FROM memories WHERE type = 'context' AND project_id IS NULL LIMIT 1`,
-		);
-		if (existing.length === 0) {
-			await db.run(
-				sql`INSERT INTO memories (type, title, content, status, permission, created_at, updated_at)
-					VALUES ('context', 'Global Context', ${legacy.context_summary}, 'draft', 'open', ${now}, ${now})`,
-			);
-		}
-	}
-
-	// Project context_summaries → context memories
-
-	type ProjectSummary = { id: number; name: string; context_summary: string };
-	const projResult = await Result.tryPromise(() =>
-		db.all<ProjectSummary>(
-			sql`SELECT id, name, context_summary FROM projects WHERE context_summary IS NOT NULL`,
-		),
-	);
-	if (projResult.isOk()) {
-		for (const proj of projResult.value) {
-			const existing = await db.all<{ id: number }>(
-				sql`SELECT id FROM memories WHERE type = 'context' AND project_id = ${proj.id} LIMIT 1`,
-			);
-			if (existing.length === 0) {
-				await db.run(
-					sql`INSERT INTO memories (project_id, type, title, content, status, permission, created_at, updated_at)
-						VALUES (${proj.id}, 'context', ${`${proj.name} Context`}, ${proj.context_summary}, 'draft', 'open', ${now}, ${now})`,
-				);
-			}
-		}
-	}
+	void db;
 }
 
 // ============================================================================

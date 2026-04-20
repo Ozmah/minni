@@ -1,11 +1,10 @@
 import { tool } from "@opencode-ai/plugin";
 import { Result } from "better-result";
-import { eq, ne, and, sql, desc } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 
 import { type MinniDB, resolveProject } from "../helpers";
-import { memories, projects, tasks, memoryRelations } from "../schema";
+import { memories, memoryRelations, projects } from "../schema";
 
-/** Normalizes a title for use in beacon tags. */
 function beaconTag(title: string): string {
 	return title
 		.toLowerCase()
@@ -16,7 +15,6 @@ function beaconTag(title: string): string {
 		.replace(/^-|-$/g, "");
 }
 
-/** Resolves `uses` relations for a memory. Returns formatted line or null. */
 async function resolveRelations(db: MinniDB, memoryId: number): Promise<string | null> {
 	const relations = await db
 		.select()
@@ -39,8 +37,6 @@ async function resolveRelations(db: MinniDB, memoryId: number): Promise<string |
 	return `uses: ${related.map((m) => `[M${m.id}] ${m.title}`).join(", ")}`;
 }
 
-// TODO corrección de raw sql -> drizzle
-/** Resolves tags for a memory. Returns formatted line or null. */
 async function resolveTags(db: MinniDB, memoryId: number): Promise<string | null> {
 	const memTags = await db.all<{ name: string }>(sql`
 		SELECT t.name FROM tags t
@@ -51,9 +47,6 @@ async function resolveTags(db: MinniDB, memoryId: number): Promise<string | null
 	return `Tags: ${memTags.map((t) => t.name).join(", ")}`;
 }
 
-/**
- * Creates equip tool: minni_equip
- */
 export function equipTools(db: MinniDB) {
 	return {
 		minni_equip: tool({
@@ -61,12 +54,10 @@ export function equipTools(db: MinniDB) {
 				"Load context into your working memory. Everything you read goes through equip. Use minni_memory(find) to discover, then equip what you need.",
 			args: {
 				ids: tool.schema.string().optional().describe("Comma-separated memory IDs, e.g. '1,5,12'"),
-				identity: tool.schema.string().optional().describe("Identity name to load"),
 				project: tool.schema
 					.string()
 					.optional()
-					.describe("Project name — equips description, stack, and status"),
-				task: tool.schema.number().optional().describe("Task ID to load"),
+					.describe("Project name — equips description, stack, and permission"),
 			},
 			async execute(args) {
 				const ids = args.ids
@@ -76,19 +67,17 @@ export function equipTools(db: MinniDB) {
 							.filter((n) => !Number.isNaN(n))
 					: [];
 
-				if (!ids.length && !args.identity && !args.project && args.task === undefined) {
-					return "At least one parameter required: ids, identity, project, or task.";
+				if (!ids.length && !args.project) {
+					return "At least one parameter required: ids or project.";
 				}
 
 				const sections: string[] = [];
-
-				// === Memories by ID ===
 
 				for (const id of ids) {
 					const mem = await db
 						.select()
 						.from(memories)
-						.where(and(eq(memories.id, id), ne(memories.permission, "locked")))
+						.where(and(ne(memories.permission, "locked"), eq(memories.id, id)))
 						.limit(1);
 
 					if (!mem[0]) {
@@ -99,49 +88,18 @@ export function equipTools(db: MinniDB) {
 					const tag = beaconTag(mem[0].title);
 					const beacon = mem[0].type.toUpperCase();
 					const lines: string[] = [`[${beacon}:${tag}]`];
-
 					lines.push(
 						`ID: ${mem[0].id} | Status: ${mem[0].status} | Permission: ${mem[0].permission}`,
 					);
-
 					const tagsLine = await resolveTags(db, id);
 					if (tagsLine) lines.push(tagsLine);
-
 					const usesLine = await resolveRelations(db, id);
 					if (usesLine) lines.push(usesLine);
-
 					lines.push("");
 					lines.push(mem[0].content);
 					lines.push(`[/${beacon}:${tag}]`);
 					sections.push(lines.join("\n"));
 				}
-
-				// === Identity by name ===
-
-				if (args.identity) {
-					const mem = await db
-						.select()
-						.from(memories)
-						.where(
-							and(
-								eq(memories.type, "identity"),
-								eq(memories.title, args.identity),
-								ne(memories.permission, "locked"),
-							),
-						)
-						.limit(1);
-
-					if (!mem[0]) {
-						sections.push(`Identity "${args.identity}" not found.`);
-					} else {
-						const lines: string[] = [`[IDENTITY:${mem[0].title}]`];
-						lines.push(mem[0].content);
-						lines.push(`[/IDENTITY:${mem[0].title}]`);
-						sections.push(lines.join("\n"));
-					}
-				}
-
-				// === Project briefing ===
 
 				if (args.project) {
 					const resolved = await resolveProject(db, args.project);
@@ -164,62 +122,10 @@ export function equipTools(db: MinniDB) {
 									.unwrapOr(p.stack);
 								lines.push(`Stack: ${parsed}`);
 							}
-							lines.push(`Status: ${p.status} | Permission: ${p.permission}`);
+							lines.push(`Permission: ${p.permission}`);
 							lines.push(`[/PROJECT:${p.name}]`);
 							sections.push(lines.join("\n"));
 						}
-					}
-				}
-
-				// === Task by ID ===
-
-				if (args.task !== undefined) {
-					const t = await db.select().from(tasks).where(eq(tasks.id, args.task)).limit(1);
-
-					if (!t[0]) {
-						sections.push(`Task ${args.task} not found.`);
-					} else {
-						const lines: string[] = [`[TASK:T${t[0].id}]`];
-						lines.push(t[0].title);
-						lines.push(`Priority: ${t[0].priority} | Status: ${t[0].status}`);
-
-						if (t[0].projectId) {
-							const proj = await db
-								.select()
-								.from(projects)
-								.where(eq(projects.id, t[0].projectId))
-								.limit(1);
-							if (proj[0]) lines.push(`Project: ${proj[0].name}`);
-						}
-
-						if (t[0].parentId) {
-							const parent = await db
-								.select()
-								.from(tasks)
-								.where(eq(tasks.id, t[0].parentId))
-								.limit(1);
-							if (parent[0]) lines.push(`Parent: [T${parent[0].id}] ${parent[0].title}`);
-						}
-
-						const subtasks = await db
-							.select()
-							.from(tasks)
-							.where(eq(tasks.parentId, t[0].id))
-							.orderBy(desc(tasks.createdAt));
-
-						if (subtasks.length > 0) {
-							lines.push(`\nSubtasks (${subtasks.length}):`);
-							for (const st of subtasks) {
-								lines.push(`- [T${st.id}] ${st.title} — ${st.status}`);
-							}
-						}
-
-						if (t[0].description) {
-							lines.push(`\n${t[0].description}`);
-						}
-
-						lines.push(`[/TASK:T${t[0].id}]`);
-						sections.push(lines.join("\n"));
 					}
 				}
 

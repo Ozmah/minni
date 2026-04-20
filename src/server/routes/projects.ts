@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { Elysia } from "elysia";
 import { z } from "zod";
 
@@ -12,11 +12,7 @@ export const projectRoutes = (db: MinniDB) =>
 		.get(
 			"/",
 			async () => {
-				return db
-					.select()
-					.from(projects)
-					.where(sql`status != 'deleted'`)
-					.orderBy(desc(projects.updatedAt));
+				return db.select().from(projects).orderBy(desc(projects.updatedAt));
 			},
 			{
 				response: {
@@ -44,8 +40,7 @@ export const projectRoutes = (db: MinniDB) =>
 			"/:id",
 			async ({ params, status }) => {
 				const result = await db
-					.update(projects)
-					.set({ status: "deleted" })
+					.delete(projects)
 					.where(eq(projects.id, params.id))
 					.returning({ id: projects.id });
 

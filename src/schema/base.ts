@@ -11,9 +11,6 @@ export const timestamp = {
 		.notNull(),
 };
 
-export const PROJECT_STATUS = ["active", "paused", "completed", "archived", "deleted"] as const;
-/** Subset of PROJECT_STATUS that agents can set via tools. "deleted" is internal (soft-delete only). */
-export const WRITABLE_PROJECT_STATUS = ["active", "paused", "completed", "archived"] as const;
 export const PERMISSION = ["open", "guarded", "read_only", "locked"] as const;
 export const MEMORY_TYPE = [
 	"skill",
@@ -27,8 +24,6 @@ export const MEMORY_TYPE = [
 	"article",
 	"video",
 	"documentation",
-	"identity",
-	"context",
 ] as const;
 export const MEMORY_STATUS = [
 	"draft",
@@ -37,14 +32,29 @@ export const MEMORY_STATUS = [
 	"battle_tested",
 	"deprecated",
 ] as const;
-export const TASK_PRIORITY = ["high", "medium", "low"] as const;
-export const TASK_STATUS = ["todo", "in_progress", "done", "cancelled"] as const;
+export const COMMAND_GROUP = [
+	"run",
+	"quality",
+	"build",
+	"test",
+	"db",
+	"infra",
+	"worker",
+	"setup",
+	"misc",
+] as const;
+export const COMMAND_RISK = ["safe", "mutating", "destructive"] as const;
+export const COMMAND_VISIBILITY = ["primary", "secondary", "hidden"] as const;
+export const RULE_KIND = ["principle", "convention", "gotcha"] as const;
+export const RULE_SEVERITY = ["critical", "strong", "default"] as const;
 export const CANVAS_PAGE_TYPE = ["markdown", "html"] as const;
 
-export type ProjectStatus = (typeof PROJECT_STATUS)[number];
 export type Permission = (typeof PERMISSION)[number];
 export type MemoryType = (typeof MEMORY_TYPE)[number];
 export type MemoryStatus = (typeof MEMORY_STATUS)[number];
-export type TaskPriority = (typeof TASK_PRIORITY)[number];
-export type TaskStatus = (typeof TASK_STATUS)[number];
+export type CommandGroup = (typeof COMMAND_GROUP)[number];
+export type CommandRisk = (typeof COMMAND_RISK)[number];
+export type CommandVisibility = (typeof COMMAND_VISIBILITY)[number];
+export type RuleKind = (typeof RULE_KIND)[number];
+export type RuleSeverity = (typeof RULE_SEVERITY)[number];
 export type CanvasPageType = (typeof CANVAS_PAGE_TYPE)[number];

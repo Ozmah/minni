@@ -1,10 +1,17 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { Elysia } from "elysia";
 import { z } from "zod";
 
 import type { MinniDB } from "../../helpers";
 
-import { memories, memorySelectSchema, MEMORY_TYPE, MEMORY_STATUS, PERMISSION } from "../../schema";
+import {
+	memories,
+	memorySelectSchema,
+	MEMORY_TYPE,
+	MEMORY_STATUS,
+	PERMISSION,
+	projectMemories,
+} from "../../schema";
 import { ErrorResponse, SuccessResponse } from "../types";
 
 const MemoryPatchBody = z.object({
@@ -24,9 +31,12 @@ export const memoryRoutes = (db: MinniDB) =>
 
 				if (query.project) {
 					return db
-						.select()
+						.select({ ...getTableColumns(memories) })
 						.from(memories)
-						.where(sql`permission != 'locked' AND project_id = ${query.project}`)
+						.innerJoin(projectMemories, eq(projectMemories.memoryId, memories.id))
+						.where(
+							sql`${memories.permission} != 'locked' AND ${projectMemories.projectId} = ${query.project}`,
+						)
 						.orderBy(desc(memories.updatedAt))
 						.limit(limit);
 				}

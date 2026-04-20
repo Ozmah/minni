@@ -1,48 +1,65 @@
 // Base
 export {
 	timestamp,
-	PROJECT_STATUS,
-	WRITABLE_PROJECT_STATUS,
 	PERMISSION,
 	MEMORY_TYPE,
 	MEMORY_STATUS,
-	TASK_PRIORITY,
-	TASK_STATUS,
+	COMMAND_GROUP,
+	COMMAND_RISK,
+	COMMAND_VISIBILITY,
+	RULE_KIND,
+	RULE_SEVERITY,
 	CANVAS_PAGE_TYPE,
-	type ProjectStatus,
 	type Permission,
 	type MemoryType,
 	type MemoryStatus,
-	type TaskPriority,
-	type TaskStatus,
+	type CommandGroup,
+	type CommandRisk,
+	type CommandVisibility,
+	type RuleKind,
+	type RuleSeverity,
 	type CanvasPageType,
 } from "./base";
 
 // Tables
+export { devModes } from "./dev-modes";
 export { projects } from "./projects";
-export { globalContext } from "./global-context";
+export { activeState } from "./active-state";
 export { memories } from "./memories";
-export { tasks } from "./tasks";
+export { projectMemories } from "./project-memories";
+export { devModeMemories } from "./dev-mode-memories";
+export { commands } from "./commands";
+export { rules } from "./rules";
 export { tags, memoryTags } from "./tags";
 export { settings } from "./settings";
 export { memoryRelations } from "./memory-relations";
 export { canvas } from "./canvas";
+export * as tables from "./tables";
+export { relations } from "./relations";
 
 // Types
+export type { DevMode, NewDevMode } from "./dev-modes";
 export type { Project, NewProject } from "./projects";
-export type { GlobalContext, NewGlobalContext } from "./global-context";
+export type { ActiveState, NewActiveState } from "./active-state";
 export type { Memory, NewMemory } from "./memories";
-export type { Task, NewTask } from "./tasks";
+export type { ProjectMemory } from "./project-memories";
+export type { DevModeMemory } from "./dev-mode-memories";
+export type { Command, NewCommand } from "./commands";
+export type { Rule, NewRule } from "./rules";
 export type { Tag, NewTag, MemoryTag } from "./tags";
 export type { Settings } from "./settings";
 export type { MemoryRelation } from "./memory-relations";
 export type { CanvasPage, NewCanvasPage } from "./canvas";
 
 // Zod Schemas
+export { devModeSelectSchema, devModeInsertSchema } from "./dev-modes";
 export { projectSelectSchema, projectInsertSchema } from "./projects";
-export { globalContextSelectSchema, globalContextInsertSchema } from "./global-context";
+export { activeStateSelectSchema, activeStateInsertSchema } from "./active-state";
 export { memorySelectSchema, memoryInsertSchema } from "./memories";
-export { taskSelectSchema, taskInsertSchema } from "./tasks";
+export { projectMemorySelectSchema } from "./project-memories";
+export { devModeMemorySelectSchema } from "./dev-mode-memories";
+export { commandSelectSchema, commandInsertSchema } from "./commands";
+export { ruleSelectSchema, ruleInsertSchema } from "./rules";
 export { tagSelectSchema, tagInsertSchema } from "./tags";
 export { settingsSelectSchema } from "./settings";
 export { memoryRelationSelectSchema } from "./memory-relations";

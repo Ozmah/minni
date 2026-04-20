@@ -11,15 +11,11 @@ import {
 	type MemoryStatus,
 	type Permission,
 } from "./base";
-import { projects } from "./projects";
 
 export const memories = sqliteTable(
 	"memories",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		projectId: integer("project_id").references(() => projects.id, {
-			onDelete: "cascade",
-		}),
 		type: text("type").$type<MemoryType>().notNull(),
 		title: text("title").notNull(),
 		content: text("content").notNull(),
@@ -28,10 +24,8 @@ export const memories = sqliteTable(
 		...timestamp,
 	},
 	(table) => [
-		index("idx_memories_project").on(table.projectId),
 		index("idx_memories_type").on(table.type),
 		index("idx_memories_status").on(table.status),
-		index("idx_memories_project_type").on(table.projectId, table.type),
 	],
 );
 

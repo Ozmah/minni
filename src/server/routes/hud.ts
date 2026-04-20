@@ -8,24 +8,20 @@ const HudResponse = z.object({
 		.object({
 			id: z.number(),
 			name: z.string(),
-			status: z.string().nullable(),
 		})
 		.nullable(),
-	identity: z
+	devMode: z
 		.object({
 			id: z.number(),
-			title: z.string(),
+			name: z.string(),
 		})
 		.nullable(),
 	counts: z.object({
 		projects: z.number(),
+		devModes: z.number(),
 		memories: z.number(),
-		tasks: z.object({
-			total: z.number(),
-			todo: z.number(),
-			inProgress: z.number(),
-			done: z.number(),
-		}),
+		commands: z.number(),
+		rules: z.number(),
 		canvas: z.number(),
 	}),
 });

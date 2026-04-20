@@ -9,6 +9,8 @@ export const canvas = sqliteTable(
 	{
 		id: text("id").primaryKey(),
 		content: text("content").notNull(),
+		// Canvas pages keep an explicit type because rendering depends on it.
+		// This supports markdown, HTML, and future template-driven canvas surfaces.
 		type: text("type", { enum: CANVAS_PAGE_TYPE }).default("markdown").notNull(),
 		createdAt: integer("created_at", { mode: "timestamp_ms" as const })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)

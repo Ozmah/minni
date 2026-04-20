@@ -3,7 +3,7 @@
  *
  * Elysia-powered API serving:
  * - Canvas (persistent markdown pages)
- * - Database queries (projects, memories, tasks)
+ * - Database queries (projects, memories, dev modes)
  * - Polling-based change detection (invalidation signals)
  * - Static frontend (React SPA)
  */
@@ -26,7 +26,6 @@ import { hudRoutes } from "./routes/hud";
 import { memoryRoutes } from "./routes/memories";
 import { projectRoutes } from "./routes/projects";
 import { statsRoutes } from "./routes/stats";
-import { taskRoutes } from "./routes/tasks";
 import { DEFAULT_CONFIG } from "./types";
 
 // === Server State ===
@@ -73,7 +72,6 @@ async function createApp(db: MinniDB, distPath: string) {
 		.use(hudRoutes(db))
 		.use(projectRoutes(db))
 		.use(memoryRoutes(db))
-		.use(taskRoutes(db))
 		.use(canvasRoutes(db))
 		.use(changesRoutes())
 		.get("/api/runtime", () => getRuntimeInfo())

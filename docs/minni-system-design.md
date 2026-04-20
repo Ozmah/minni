@@ -122,6 +122,9 @@ The name does not change.
 
 Canvas is the live, unstructured, low-friction surface where context can appear before it deserves structure.
 
+Canvas pages keep an explicit `type` because rendering depends on it.
+Current values are `markdown` and `html`, and this leaves room for richer template-driven canvas surfaces later.
+
 ### Canvas is
 
 - a freeform entry point
