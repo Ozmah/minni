@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import type { MinniDB } from "../../helpers";
 
-import { projects, projectSelectSchema } from "../../schema";
+import { activeState, projects, projectSelectSchema } from "../../schema";
 import { ErrorResponse, SuccessResponse } from "../types";
 
 export const projectRoutes = (db: MinniDB) =>
@@ -33,6 +33,44 @@ export const projectRoutes = (db: MinniDB) =>
 				response: {
 					200: projectSelectSchema,
 					404: ErrorResponse,
+				},
+			},
+		)
+		.post(
+			"/:id/activate",
+			async ({ params, status }) => {
+				const result = await db.select().from(projects).where(eq(projects.id, params.id)).limit(1);
+
+				if (!result.length) return status(404, { error: "Project not found" });
+
+				await db
+					.update(activeState)
+					.set({ activeProjectId: params.id, updatedAt: new Date() })
+					.where(eq(activeState.id, 1));
+
+				return { success: true as const, id: result[0].id };
+			},
+			{
+				params: z.object({ id: z.coerce.number().int() }),
+				response: {
+					200: SuccessResponse,
+					404: ErrorResponse,
+				},
+			},
+		)
+		.post(
+			"/clear-active",
+			async () => {
+				await db
+					.update(activeState)
+					.set({ activeProjectId: null, updatedAt: new Date() })
+					.where(eq(activeState.id, 1));
+
+				return { success: true as const, id: 1 };
+			},
+			{
+				response: {
+					200: SuccessResponse,
 				},
 			},
 		)

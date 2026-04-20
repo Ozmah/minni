@@ -1,6 +1,7 @@
 import type { MinniDB } from "../helpers";
 
 import { canvasTools } from "./canvas";
+import { devModeTools } from "./dev-mode";
 import { equipTools } from "./equip";
 import { hudTools } from "./hud";
 import { memoryTools } from "./memory";
@@ -13,6 +14,7 @@ import { projectTools } from "./project";
 export function createTools(db: MinniDB) {
 	return {
 		...hudTools(db),
+		...devModeTools(db),
 		...equipTools(db),
 		...memoryTools(db),
 		...projectTools(db),
