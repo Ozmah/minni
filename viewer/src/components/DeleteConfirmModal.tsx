@@ -17,6 +17,11 @@ const TYPE_ROUTES: Record<string, string> = {
 	memory: "/memories",
 };
 
+const TYPE_QUERY_KEYS: Record<string, string> = {
+	project: "projects",
+	memory: "memories",
+};
+
 export function DeleteConfirmModal() {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
@@ -36,7 +41,8 @@ export function DeleteConfirmModal() {
 	const handleConfirm = async () => {
 		const { success, type } = await confirmDelete();
 		if (success && type) {
-			await queryClient.invalidateQueries({ queryKey: [`${type}s`] });
+			await queryClient.invalidateQueries({ queryKey: [TYPE_QUERY_KEYS[type]] });
+			await queryClient.invalidateQueries({ queryKey: [type] });
 			navigate({ to: TYPE_ROUTES[type] });
 		}
 	};

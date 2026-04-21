@@ -1,15 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Brain, CircleDot, Clock, Pencil, Shield, Tag, Trash2 } from "lucide-react";
+import {
+	Brain,
+	CircleDot,
+	Clock,
+	FolderKanban,
+	GitBranch,
+	Link2,
+	Pencil,
+	Shield,
+	Tag,
+	Trash2,
+	Wrench,
+} from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
 import { Section, InfoItem, LoadingState, ErrorState, MarkdownContent } from "@/components/ui";
 import { api, unwrap } from "@/lib/api";
 import { MEMORY_TYPE_CONFIG, MEMORY_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
+import { normalizeMemoryDetail, type MemoryDetail } from "@/lib/memories";
 import { formatDate } from "@/lib/utils";
 import { setDeleteTarget, setEditTarget } from "@/stores/ui";
-
-import type { Memory } from "../../../src/schema";
 
 export const Route = createFileRoute("/memories/$id")({
 	component: MemoryDetail,
@@ -24,12 +35,17 @@ function MemoryDetail() {
 		isLoading,
 		error,
 	} = useQuery({
-		queryKey: ["memory", id],
+		queryKey: ["memory", id, "enriched"],
 		queryFn: () =>
 			api.api
 				.memories({ id: Number(id) })
-				.get()
-				.then(unwrap),
+				.enriched.get()
+				.then(unwrap)
+				.then(normalizeMemoryDetail),
+		staleTime: 0,
+		gcTime: 0,
+		refetchOnMount: "always",
+		refetchOnWindowFocus: true,
 	});
 
 	const handleClose = () => navigate({ to: "/memories" });
@@ -49,7 +65,7 @@ function MemoryDetail() {
 	);
 }
 
-function MemoryMetadata({ memory }: { memory: Memory }) {
+function MemoryMetadata({ memory }: { memory: MemoryDetail }) {
 	const type = getStatusConfig(MEMORY_TYPE_CONFIG, memory.type, memory.type);
 	const status = getStatusConfig(MEMORY_STATUS_CONFIG, memory.status, memory.status);
 
@@ -84,6 +100,116 @@ function MemoryMetadata({ memory }: { memory: Memory }) {
 				<InfoItem icon={Shield} label="Access" value={memory.permission} />
 			</Section>
 
+			{memory.tags.length > 0 && (
+				<Section title="Tags">
+					<div className="flex flex-wrap gap-2">
+						{memory.tags.map((tag) => (
+							<span
+								key={tag}
+								className="rounded-full bg-gray-800 px-2 py-1 text-xs text-gray-300 ring-1 ring-gray-700 ring-inset"
+							>
+								#{tag}
+							</span>
+						))}
+					</div>
+				</Section>
+			)}
+
+			<Section title="Affiliations">
+				<div className="space-y-4 text-sm">
+					<div>
+						<div className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
+							<FolderKanban size={12} />
+							Projects
+						</div>
+						{memory.associations.projects.length > 0 ? (
+							<div className="space-y-1">
+								{memory.associations.projects.map((project) => (
+									<div key={project.id} className="text-gray-300">
+										{project.name}
+									</div>
+								))}
+							</div>
+						) : (
+							<div className="text-gray-500">No project affiliations</div>
+						)}
+					</div>
+
+					<div>
+						<div className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
+							<Wrench size={12} />
+							Dev Modes
+						</div>
+						{memory.associations.devModes.length > 0 ? (
+							<div className="space-y-1">
+								{memory.associations.devModes.map((mode) => (
+									<div key={mode.id} className="text-gray-300">
+										{mode.name}
+									</div>
+								))}
+							</div>
+						) : (
+							<div className="text-gray-500">No dev mode affiliations</div>
+						)}
+					</div>
+				</div>
+			</Section>
+
+			<Section title="Connections">
+				<div className="space-y-4 text-sm">
+					<div>
+						<div className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
+							<Link2 size={12} />
+							Outgoing
+						</div>
+						{memory.relations.outgoing.length > 0 ? (
+							<div className="space-y-1">
+								{memory.relations.outgoing.map((item) => (
+									<div key={item.id} className="text-gray-300">
+										{item.title}
+									</div>
+								))}
+							</div>
+						) : (
+							<div className="text-gray-500">No outgoing relations</div>
+						)}
+					</div>
+
+					<div>
+						<div className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
+							<GitBranch size={12} />
+							Incoming
+						</div>
+						{memory.relations.incoming.length > 0 ? (
+							<div className="space-y-1">
+								{memory.relations.incoming.map((item) => (
+									<div key={item.id} className="text-gray-300">
+										{item.title}
+									</div>
+								))}
+							</div>
+						) : (
+							<div className="text-gray-500">No incoming relations</div>
+						)}
+					</div>
+				</div>
+			</Section>
+
+			<Section title="Active Context">
+				<div className="grid grid-cols-2 gap-4 text-sm">
+					<InfoItem
+						icon={FolderKanban}
+						label="Active Project"
+						value={memory.activeContext.inActiveProject ? "Included" : "Not included"}
+					/>
+					<InfoItem
+						icon={Wrench}
+						label="Active Dev Mode"
+						value={memory.activeContext.inActiveDevMode ? "Included" : "Not included"}
+					/>
+				</div>
+			</Section>
+
 			{/* Timestamps */}
 			<Section title="Timestamps">
 				<div className="grid grid-cols-2 gap-4 text-sm">
@@ -95,7 +221,7 @@ function MemoryMetadata({ memory }: { memory: Memory }) {
 	);
 }
 
-function MemoryBody({ memory }: { memory: Memory }) {
+function MemoryBody({ memory }: { memory: MemoryDetail }) {
 	return (
 		<Section title="Content">
 			<div className="rounded-lg bg-gray-800/50 p-4">
@@ -105,7 +231,7 @@ function MemoryBody({ memory }: { memory: Memory }) {
 	);
 }
 
-function MemoryActions({ memory }: { memory: Memory }) {
+function MemoryActions({ memory }: { memory: MemoryDetail }) {
 	return (
 		<div className="flex gap-2">
 			<button

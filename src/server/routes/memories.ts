@@ -12,6 +12,13 @@ import {
 	PERMISSION,
 	projectMemories,
 } from "../../schema";
+import {
+	getEnrichedMemoryDetail,
+	listEnrichedMemories,
+	MemoriesEnrichedListResponseSchema,
+	MemoriesEnrichedQuerySchema,
+	MemoryDetailResponseSchema,
+} from "../lib/memories";
 import { ErrorResponse, SuccessResponse } from "../types";
 
 const MemoryPatchBody = z.object({
@@ -24,6 +31,25 @@ const MemoryPatchBody = z.object({
 
 export const memoryRoutes = (db: MinniDB) =>
 	new Elysia({ prefix: "/api/memories" })
+		.get(
+			"/enriched",
+			async ({ query, status }) => {
+				try {
+					return await listEnrichedMemories(db, query);
+				} catch (error) {
+					return status(400, {
+						error: error instanceof Error ? error.message : "Invalid memories query",
+					});
+				}
+			},
+			{
+				query: MemoriesEnrichedQuerySchema,
+				response: {
+					200: MemoriesEnrichedListResponseSchema,
+					400: ErrorResponse,
+				},
+			},
+		)
 		.get(
 			"/",
 			async ({ query }) => {
@@ -55,6 +81,21 @@ export const memoryRoutes = (db: MinniDB) =>
 				}),
 				response: {
 					200: z.array(memorySelectSchema),
+				},
+			},
+		)
+		.get(
+			"/:id/enriched",
+			async ({ params, status }) => {
+				const result = await getEnrichedMemoryDetail(db, params.id);
+				if (!result) return status(404, { error: "Memory not found" });
+				return result;
+			},
+			{
+				params: z.object({ id: z.coerce.number().int() }),
+				response: {
+					200: MemoryDetailResponseSchema,
+					404: ErrorResponse,
 				},
 			},
 		)
