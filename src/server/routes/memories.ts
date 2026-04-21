@@ -13,9 +13,12 @@ import {
 	projectMemories,
 } from "../../schema";
 import {
+	applyMemoryStatusAction,
 	getEnrichedMemoryDetail,
 	listEnrichedMemories,
 	MemoriesEnrichedListResponseSchema,
+	MemoryStatusActionBodySchema,
+	MemoryStatusActionResponseSchema,
 	MemoriesEnrichedQuerySchema,
 	MemoryDetailResponseSchema,
 } from "../lib/memories";
@@ -111,6 +114,23 @@ export const memoryRoutes = (db: MinniDB) =>
 				params: z.object({ id: z.coerce.number().int() }),
 				response: {
 					200: memorySelectSchema,
+					404: ErrorResponse,
+				},
+			},
+		)
+		.post(
+			"/:id/status",
+			async ({ params, body, status }) => {
+				const result = await applyMemoryStatusAction(db, params.id, body.action);
+				if (!result.success) return status(result.code, { error: result.error });
+				return result;
+			},
+			{
+				params: z.object({ id: z.coerce.number().int() }),
+				body: MemoryStatusActionBodySchema,
+				response: {
+					200: MemoryStatusActionResponseSchema,
+					400: ErrorResponse,
 					404: ErrorResponse,
 				},
 			},

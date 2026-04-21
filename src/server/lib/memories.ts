@@ -19,6 +19,8 @@ import {
 	projectMemories,
 	projects,
 	tags,
+	type MemoryStatus,
+	type Permission,
 } from "../../schema";
 
 export const MEMORY_PLACEMENT = ["unaffiliated", "project", "dev_mode", "shared"] as const;
@@ -68,6 +70,31 @@ export const MemoryRelationRefSchema = z.object({
 	type: z.enum(MEMORY_TYPE),
 });
 
+export const MemoryStatusActionsSchema = z.object({
+	canPromote: z.boolean(),
+	canDegrade: z.boolean(),
+	canDeprecate: z.boolean(),
+});
+
+export const MemorySummarySchema = z.object({
+	relationCount: z.number(),
+	projectCount: z.number(),
+	devModeCount: z.number(),
+	tagCount: z.number(),
+});
+
+export const MemoryStatusActionBodySchema = z.object({
+	action: z.enum(["promote", "degrade", "deprecate"]),
+});
+
+export const MemoryStatusActionResponseSchema = z.object({
+	success: z.literal(true),
+	id: z.number(),
+	previousStatus: z.enum(MEMORY_STATUS),
+	status: z.enum(MEMORY_STATUS),
+	availableActions: MemoryStatusActionsSchema,
+});
+
 export const MemoryPlacementSchema = z.enum(MEMORY_PLACEMENT);
 
 export const MemoryListItemSchema = z.object({
@@ -90,6 +117,8 @@ export const MemoryListItemSchema = z.object({
 		inActiveDevMode: z.boolean(),
 	}),
 	placement: MemoryPlacementSchema,
+	actions: MemoryStatusActionsSchema,
+	summary: MemorySummarySchema,
 });
 
 const TypeFacetSchema = z.object({ value: z.enum(MEMORY_TYPE), count: z.number() });
@@ -164,6 +193,10 @@ type EnrichedMemory = {
 	placement: MemoryPlacement;
 };
 
+type MemoryStatusAction = z.infer<typeof MemoryStatusActionBodySchema>["action"];
+type MemoryStatusActionError = { success: false; error: string; code: 400 | 404 };
+type MemoryStatusActionSuccess = z.infer<typeof MemoryStatusActionResponseSchema>;
+
 function parseCsvEnum<T extends string>(
 	value: string | undefined,
 	allowed: readonly T[],
@@ -200,6 +233,63 @@ function getPlacement(
 
 function buildExcerpt(content: string): string {
 	return truncateWithWordBoundary(content.replace(/\s+/g, " ").trim(), 180);
+}
+
+export function getMemoryStatusActions(status: MemoryStatus, permission: Permission) {
+	if (permission === "locked" || permission === "read_only") {
+		return { canPromote: false, canDegrade: false, canDeprecate: false };
+	}
+
+	switch (status) {
+		case "draft":
+			return { canPromote: true, canDegrade: false, canDeprecate: true };
+		case "experimental":
+			return { canPromote: true, canDegrade: true, canDeprecate: true };
+		case "proven":
+			return { canPromote: true, canDegrade: true, canDeprecate: true };
+		case "battle_tested":
+			return { canPromote: false, canDegrade: true, canDeprecate: true };
+		case "deprecated":
+		default:
+			return { canPromote: false, canDegrade: false, canDeprecate: false };
+	}
+}
+
+function getNextMemoryStatus(
+	currentStatus: MemoryStatus,
+	action: MemoryStatusAction,
+): MemoryStatus | null {
+	if (action === "deprecate") {
+		return currentStatus === "deprecated" ? null : "deprecated";
+	}
+
+	if (action === "promote") {
+		switch (currentStatus) {
+			case "draft":
+				return "experimental";
+			case "experimental":
+				return "proven";
+			case "proven":
+				return "battle_tested";
+			default:
+				return null;
+		}
+	}
+
+	if (action === "degrade") {
+		switch (currentStatus) {
+			case "battle_tested":
+				return "proven";
+			case "proven":
+				return "experimental";
+			case "experimental":
+				return "draft";
+			default:
+				return null;
+		}
+	}
+
+	return null;
 }
 
 function sortItems(items: EnrichedMemory[], sort: MemoryListSort) {
@@ -402,6 +492,13 @@ export async function listEnrichedMemories(db: MinniDB, query: EnrichedMemoryLis
 			relationCount: item.relationCount,
 			activeContext: item.activeContext,
 			placement: item.placement,
+			actions: getMemoryStatusActions(item.base.status, item.base.permission),
+			summary: {
+				relationCount: item.relationCount,
+				projectCount: item.projects.length,
+				devModeCount: item.devModes.length,
+				tagCount: item.tags.length,
+			},
 		})),
 		meta: {
 			total: filtered.length,
@@ -498,5 +595,52 @@ export async function getEnrichedMemoryDetail(db: MinniDB, id: number) {
 				!!activeDevMode && devModesForMemory.some((item) => item.id === activeDevMode.id),
 		},
 		placement: getPlacement(projectsForMemory, devModesForMemory),
+		actions: getMemoryStatusActions(memory[0].status, memory[0].permission),
+		summary: {
+			relationCount: outgoing.length + incoming.length,
+			projectCount: projectsForMemory.length,
+			devModeCount: devModesForMemory.length,
+			tagCount: tagRows.length,
+		},
+	};
+}
+
+export async function applyMemoryStatusAction(
+	db: MinniDB,
+	id: number,
+	action: MemoryStatusAction,
+): Promise<MemoryStatusActionSuccess | MemoryStatusActionError> {
+	const memory = await db.select().from(memories).where(eq(memories.id, id)).limit(1);
+	if (!memory[0]) return { success: false, error: "Memory not found", code: 404 };
+
+	if (memory[0].permission === "locked") {
+		return { success: false, error: "Memory is locked", code: 400 };
+	}
+
+	if (memory[0].permission === "read_only") {
+		return { success: false, error: "Memory is read-only", code: 400 };
+	}
+
+	const nextStatus = getNextMemoryStatus(memory[0].status, action);
+	if (!nextStatus) {
+		return {
+			success: false,
+			error: `Cannot ${action} memory from status "${memory[0].status}"`,
+			code: 400,
+		};
+	}
+
+	const updated = await db
+		.update(memories)
+		.set({ status: nextStatus, updatedAt: new Date() })
+		.where(eq(memories.id, id))
+		.returning({ id: memories.id, status: memories.status, permission: memories.permission });
+
+	return {
+		success: true as const,
+		id: updated[0].id,
+		previousStatus: memory[0].status,
+		status: updated[0].status,
+		availableActions: getMemoryStatusActions(updated[0].status, updated[0].permission),
 	};
 }

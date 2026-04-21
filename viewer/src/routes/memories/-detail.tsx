@@ -1,28 +1,41 @@
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
-	Brain,
-	CircleDot,
-	Clock,
-	FolderKanban,
-	GitBranch,
-	Link2,
+	ArrowDownToLine,
+	ArrowUpFromLine,
+	Archive,
+	Copy,
+	Hash,
 	Pencil,
-	Shield,
-	Tag,
 	Trash2,
-	Wrench,
 } from "lucide-react";
 
-import type { MemoryDetail } from "@/lib/memories";
-
 import { Drawer } from "@/components/Drawer";
-import { Section, InfoItem, LoadingState, ErrorState, MarkdownContent } from "@/components/ui";
-import { MEMORY_TYPE_CONFIG, MEMORY_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
+import { CopyIconButton, ErrorState, LoadingState, MarkdownContent } from "@/components/ui";
+import { copyText, copyWithAdapter } from "@/lib/clipboard";
+import { memoryDetailToMarkdown } from "@/lib/copy-adapters/memory";
+import {
+	deriveMemoryActions,
+	normalizeMemorySummary,
+	type MemoryDetail,
+	type MemoryRelationRef,
+	type MemoryStatusAction,
+} from "@/lib/memories";
 import { formatDate } from "@/lib/utils";
 import { setDeleteTarget, setEditTarget } from "@/stores/ui";
 
-import { memoryDetailQueryOptions } from "./-queries";
+import { memoryDetailQueryOptions, useMemoryStatusMutation } from "./-queries";
+import {
+	formatRelative,
+	NEXT_STATUS_ON_DEGRADE,
+	NEXT_STATUS_ON_PROMOTE,
+	PERMISSION_DOT,
+	PERMISSION_LABEL,
+	PLACEMENT_LABEL,
+	STATUS_STYLE,
+	TYPE_ICON,
+	TYPE_LABEL,
+} from "./-shared";
 
 export function MemoryDetailRoute({ id }: { id: number }) {
 	const navigate = useNavigate();
@@ -34,192 +47,362 @@ export function MemoryDetailRoute({ id }: { id: number }) {
 			open={true}
 			onClose={handleClose}
 			title={memory?.title ?? "Memory"}
-			content={memory && <MemoryBody memory={memory} />}
-			footer={memory && <MemoryActions memory={memory} />}
+			content={memory ? <MemoryContent memory={memory} /> : undefined}
+			footer={memory ? <MemoryFooter memory={memory} /> : undefined}
 		>
 			{isLoading && <LoadingState message="Loading memory..." />}
 			{error && <ErrorState error={error} />}
-			{memory && <MemoryMetadata memory={memory} />}
+			{memory && <MemoryHeader memory={memory} />}
 		</Drawer>
 	);
 }
 
-function MemoryMetadata({ memory }: { memory: MemoryDetail }) {
-	const type = getStatusConfig(MEMORY_TYPE_CONFIG, memory.type, memory.type);
-	const status = getStatusConfig(MEMORY_STATUS_CONFIG, memory.status, memory.status);
+function MemoryHeader({ memory }: { memory: MemoryDetail }) {
+	return (
+		<div className="space-y-3 border-b border-gray-800/70 pb-4">
+			<MemoryEyebrow memory={memory} />
+			<StatusActions memory={memory} />
+		</div>
+	);
+}
+
+function MemoryEyebrow({ memory }: { memory: MemoryDetail }) {
+	const TypeIcon = TYPE_ICON[memory.type];
+	const status = STATUS_STYLE[memory.status];
+	const { inActiveProject, inActiveDevMode } = memory.activeContext;
+	const inActive = inActiveProject || inActiveDevMode;
 
 	return (
-		<div className="space-y-6">
-			<div className="flex items-start gap-3">
-				<div className="rounded-lg bg-gray-800 p-2">
-					<Brain size={24} className="text-gray-400" />
-				</div>
-				<div className="flex-1">
-					<h3 className="text-xl font-semibold text-white">{memory.title}</h3>
-					<div className="mt-1 flex items-center gap-2">
-						<span
-							className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${type.color}`}
-						>
-							<Tag size={10} />
-							{type.label}
-						</span>
-						<span
-							className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status.color}`}
-						>
-							<CircleDot size={10} />
-							{status.label}
-						</span>
-					</div>
-				</div>
-			</div>
-			<Section title="Permission">
-				<InfoItem icon={Shield} label="Access" value={memory.permission} />
-			</Section>
-			{memory.tags.length > 0 && (
-				<Section title="Tags">
-					<div className="flex flex-wrap gap-2">
-						{memory.tags.map((tag) => (
-							<span
-								key={tag}
-								className="rounded-full bg-gray-800 px-2 py-1 text-xs text-gray-300 ring-1 ring-gray-700 ring-inset"
-							>
-								#{tag}
-							</span>
-						))}
-					</div>
-				</Section>
+		<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+			<span className="inline-flex items-center gap-1.5 text-sm text-gray-300">
+				<TypeIcon size={14} className="text-gray-500" aria-hidden="true" />
+				{TYPE_LABEL[memory.type]}
+			</span>
+			<span aria-hidden="true" className="text-gray-700">
+				·
+			</span>
+			<span className={`text-sm ${status.color}`}>{status.label}</span>
+			<span aria-hidden="true" className="text-gray-700">
+				·
+			</span>
+			<span className="inline-flex items-center gap-1.5 text-sm text-gray-300">
+				<span
+					aria-label={PERMISSION_LABEL[memory.permission]}
+					className={`size-1.5 rounded-full ${PERMISSION_DOT[memory.permission]}`}
+				/>
+				{PERMISSION_LABEL[memory.permission]}
+			</span>
+			{inActive && (
+				<>
+					<span aria-hidden="true" className="text-gray-700">
+						·
+					</span>
+					<span className="inline-flex items-center gap-1.5 text-sm text-emerald-400">
+						<span aria-hidden="true" className="size-1.5 rounded-full bg-emerald-500" />
+						In active context
+					</span>
+				</>
 			)}
-			<Section title="Affiliations">
-				<div className="space-y-4 text-sm">
-					<div>
-						<div className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
-							<FolderKanban size={12} />
-							Projects
-						</div>
-						{memory.associations.projects.length > 0 ? (
-							memory.associations.projects.map((project) => (
-								<div key={project.id} className="text-gray-300">
+			<span className="ml-auto text-xs text-gray-500 tabular-nums">
+				Updated {formatRelative(memory.updatedAt)}
+			</span>
+		</div>
+	);
+}
+
+function StatusActions({ memory }: { memory: MemoryDetail }) {
+	const mutation = useMemoryStatusMutation(memory.id);
+	const { canPromote, canDegrade, canDeprecate } =
+		memory.actions ?? deriveMemoryActions(memory.status, memory.permission);
+
+	if (memory.permission === "locked" || memory.permission === "read_only") {
+		return (
+			<p className="text-xs text-gray-600">
+				Status locked — {PERMISSION_LABEL[memory.permission].toLowerCase()} permission.
+			</p>
+		);
+	}
+
+	const promoteTarget = NEXT_STATUS_ON_PROMOTE[memory.status];
+	const degradeTarget = NEXT_STATUS_ON_DEGRADE[memory.status];
+
+	const run = (action: MemoryStatusAction) => mutation.mutate(action);
+
+	return (
+		<div className="flex flex-wrap items-center gap-2">
+			<StatusButton
+				icon={ArrowUpFromLine}
+				label={promoteTarget ? `Promote to ${STATUS_STYLE[promoteTarget].label}` : "Promote"}
+				tone="primary"
+				disabled={!canPromote || mutation.isPending}
+				onClick={() => run("promote")}
+			/>
+			<StatusButton
+				icon={ArrowDownToLine}
+				label={degradeTarget ? `Degrade to ${STATUS_STYLE[degradeTarget].label}` : "Degrade"}
+				tone="neutral"
+				disabled={!canDegrade || mutation.isPending}
+				onClick={() => run("degrade")}
+			/>
+			<StatusButton
+				icon={Archive}
+				label="Deprecate"
+				tone="warning"
+				disabled={!canDeprecate || mutation.isPending}
+				onClick={() => run("deprecate")}
+			/>
+			{mutation.isError && (
+				<span className="text-xs text-red-400" role="alert">
+					{mutation.error instanceof Error ? mutation.error.message : "Action failed"}
+				</span>
+			)}
+		</div>
+	);
+}
+
+type StatusButtonTone = "primary" | "neutral" | "warning";
+
+const TONE_CLASSES: Record<StatusButtonTone, string> = {
+	primary: "hover:bg-emerald-500/10 hover:text-emerald-300 focus-visible:outline-emerald-500",
+	neutral: "hover:bg-gray-700 hover:text-gray-100 focus-visible:outline-emerald-500",
+	warning: "hover:bg-amber-500/10 hover:text-amber-300 focus-visible:outline-amber-500",
+};
+
+function StatusButton({
+	icon: Icon,
+	label,
+	tone,
+	disabled,
+	onClick,
+}: {
+	icon: typeof ArrowUpFromLine;
+	label: string;
+	tone: StatusButtonTone;
+	disabled: boolean;
+	onClick: () => void;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			disabled={disabled}
+			className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-gray-400 ring-1 ring-gray-700 transition-colors ring-inset focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400 motion-reduce:transition-none ${TONE_CLASSES[tone]}`}
+		>
+			<Icon size={12} aria-hidden="true" />
+			{label}
+		</button>
+	);
+}
+
+function MemoryContent({ memory }: { memory: MemoryDetail }) {
+	return (
+		<div className="space-y-8">
+			<MemoryDetails memory={memory} />
+			<MemoryRelations memory={memory} />
+			<MemoryBody memory={memory} />
+			<MemoryFootnote memory={memory} />
+		</div>
+	);
+}
+
+function MemoryDetails({ memory }: { memory: MemoryDetail }) {
+	const hasProjects = memory.associations.projects.length > 0;
+	const hasDevModes = memory.associations.devModes.length > 0;
+	const hasTags = memory.tags.length > 0;
+	const summary = normalizeMemorySummary(memory.summary, {
+		relationCount: memory.relations.outgoing.length + memory.relations.incoming.length,
+		projectCount: memory.associations.projects.length,
+		devModeCount: memory.associations.devModes.length,
+		tagCount: memory.tags.length,
+	});
+
+	return (
+		<section>
+			<h3 className="mb-4 text-sm font-medium text-gray-300">Details</h3>
+			<dl className="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-3 text-sm">
+				<dt className="font-medium text-gray-300">Placement</dt>
+				<dd className="text-gray-400">{PLACEMENT_LABEL[memory.placement]}</dd>
+
+				<dt className="font-medium text-gray-300">
+					Projects{" "}
+					<span className="font-normal text-gray-600 tabular-nums">· {summary.projectCount}</span>
+				</dt>
+				<dd className="text-gray-400">
+					{hasProjects ? (
+						<ul role="list" className="flex flex-wrap gap-1.5">
+							{memory.associations.projects.map((project) => (
+								<li
+									key={project.id}
+									className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-200 ring-1 ring-gray-700 ring-inset"
+								>
 									{project.name}
-								</div>
-							))
-						) : (
-							<div className="text-gray-500">No project affiliations</div>
-						)}
-					</div>
-					<div>
-						<div className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
-							<Wrench size={12} />
-							Dev Modes
-						</div>
-						{memory.associations.devModes.length > 0 ? (
-							memory.associations.devModes.map((mode) => (
-								<div key={mode.id} className="text-gray-300">
+								</li>
+							))}
+						</ul>
+					) : (
+						<span className="text-gray-600">None</span>
+					)}
+				</dd>
+
+				<dt className="font-medium text-gray-300">
+					Dev modes{" "}
+					<span className="font-normal text-gray-600 tabular-nums">· {summary.devModeCount}</span>
+				</dt>
+				<dd className="text-gray-400">
+					{hasDevModes ? (
+						<ul role="list" className="flex flex-wrap gap-1.5">
+							{memory.associations.devModes.map((mode) => (
+								<li
+									key={mode.id}
+									className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-200 ring-1 ring-gray-700 ring-inset"
+								>
 									{mode.name}
-								</div>
-							))
-						) : (
-							<div className="text-gray-500">No dev mode affiliations</div>
-						)}
-					</div>
-				</div>
-			</Section>
-			<Section title="Connections">
-				<div className="space-y-4 text-sm">
-					<div>
-						<div className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
-							<Link2 size={12} />
-							Outgoing
-						</div>
-						{memory.relations.outgoing.length > 0 ? (
-							memory.relations.outgoing.map((item) => (
-								<div key={item.id} className="text-gray-300">
-									{item.title}
-								</div>
-							))
-						) : (
-							<div className="text-gray-500">No outgoing relations</div>
-						)}
-					</div>
-					<div>
-						<div className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
-							<GitBranch size={12} />
-							Incoming
-						</div>
-						{memory.relations.incoming.length > 0 ? (
-							memory.relations.incoming.map((item) => (
-								<div key={item.id} className="text-gray-300">
-									{item.title}
-								</div>
-							))
-						) : (
-							<div className="text-gray-500">No incoming relations</div>
-						)}
-					</div>
-				</div>
-			</Section>
-			<Section title="Active Context">
-				<div className="grid grid-cols-2 gap-4 text-sm">
-					<InfoItem
-						icon={FolderKanban}
-						label="Active Project"
-						value={memory.activeContext.inActiveProject ? "Included" : "Not included"}
-					/>
-					<InfoItem
-						icon={Wrench}
-						label="Active Dev Mode"
-						value={memory.activeContext.inActiveDevMode ? "Included" : "Not included"}
-					/>
-				</div>
-			</Section>
-			<Section title="Timestamps">
-				<div className="grid grid-cols-2 gap-4 text-sm">
-					<InfoItem icon={Clock} label="Created" value={formatDate(memory.createdAt)} />
-					<InfoItem icon={Clock} label="Updated" value={formatDate(memory.updatedAt)} />
-				</div>
-			</Section>
+								</li>
+							))}
+						</ul>
+					) : (
+						<span className="text-gray-600">None</span>
+					)}
+				</dd>
+
+				<dt className="font-medium text-gray-300">
+					Tags <span className="font-normal text-gray-600 tabular-nums">· {summary.tagCount}</span>
+				</dt>
+				<dd className="text-gray-400">
+					{hasTags ? (
+						<p className="text-sm">
+							{memory.tags.map((tag) => (
+								<span key={tag} className="mr-2 text-gray-500">
+									#{tag}
+								</span>
+							))}
+						</p>
+					) : (
+						<span className="text-gray-600">None</span>
+					)}
+				</dd>
+			</dl>
+		</section>
+	);
+}
+
+function MemoryRelations({ memory }: { memory: MemoryDetail }) {
+	const { outgoing, incoming } = memory.relations;
+	const summary = normalizeMemorySummary(memory.summary, {
+		relationCount: outgoing.length + incoming.length,
+		projectCount: memory.associations.projects.length,
+		devModeCount: memory.associations.devModes.length,
+		tagCount: memory.tags.length,
+	});
+	if (outgoing.length === 0 && incoming.length === 0) return null;
+
+	return (
+		<section className="border-t border-gray-800 pt-6">
+			<h3 className="mb-4 flex items-baseline gap-2 text-sm font-medium text-gray-300">
+				Related memories
+				<span className="text-xs font-normal text-gray-600 tabular-nums">
+					· {summary.relationCount}
+				</span>
+			</h3>
+			<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+				<RelationColumn title="Outgoing" items={outgoing} />
+				<RelationColumn title="Incoming" items={incoming} />
+			</div>
+		</section>
+	);
+}
+
+function RelationColumn({ title, items }: { title: string; items: MemoryRelationRef[] }) {
+	return (
+		<div>
+			<h4 className="mb-2 font-mono text-[0.6875rem] tracking-widest text-gray-500 uppercase">
+				{title}
+				<span className="ml-1.5 text-gray-700 normal-case tabular-nums">({items.length})</span>
+			</h4>
+			{items.length > 0 ? (
+				<ul role="list" className="-mx-2">
+					{items.map((item) => {
+						const TypeIcon = TYPE_ICON[item.type];
+						return (
+							<li key={item.id}>
+								<Link
+									to="/memories/$id"
+									params={{ id: String(item.id) }}
+									className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-300 hover:bg-gray-800 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-500"
+								>
+									<TypeIcon size={12} className="shrink-0 text-gray-500" aria-hidden="true" />
+									<span className="truncate">{item.title}</span>
+								</Link>
+							</li>
+						);
+					})}
+				</ul>
+			) : (
+				<p className="text-sm text-gray-600">None</p>
+			)}
 		</div>
 	);
 }
 
 function MemoryBody({ memory }: { memory: MemoryDetail }) {
 	return (
-		<Section title="Content">
-			<div className="rounded-lg bg-gray-800/50 p-4">
-				<MarkdownContent content={memory.content} className="prose-sm" />
-			</div>
-		</Section>
+		<section className="border-t border-gray-800 pt-6">
+			<h3 className="mb-4 text-sm font-medium text-gray-300">Content</h3>
+			<MarkdownContent content={memory.content} className="max-w-none" />
+		</section>
 	);
 }
 
-function MemoryActions({ memory }: { memory: MemoryDetail }) {
+function MemoryFootnote({ memory }: { memory: MemoryDetail }) {
 	return (
-		<div className="flex gap-2">
-			<button
-				onClick={() =>
-					setEditTarget({
-						type: "memory",
-						id: memory.id,
-						data: {
-							title: memory.title,
-							content: memory.content,
-							type: memory.type,
-							status: memory.status,
-							permission: memory.permission,
-						},
-					})
-				}
-				className="flex items-center gap-2 rounded-md border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-sm text-blue-400 hover:bg-blue-500/20"
-			>
-				<Pencil size={16} />
-				Edit
-			</button>
-			<button
-				onClick={() => setDeleteTarget({ type: "memory", id: memory.id, name: memory.title })}
-				className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20"
-			>
-				<Trash2 size={16} />
-				Delete
-			</button>
+		<footer className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-gray-800/60 pt-4 text-xs text-gray-500 tabular-nums">
+			<span>Created {formatDate(memory.createdAt)}</span>
+			<span>Updated {formatDate(memory.updatedAt)}</span>
+			<span>ID #{memory.id}</span>
+		</footer>
+	);
+}
+
+function MemoryFooter({ memory }: { memory: MemoryDetail }) {
+	const handleCopyMarkdown = () => copyWithAdapter(memory, memoryDetailToMarkdown);
+	const handleCopyId = () => copyText(String(memory.id));
+
+	return (
+		<div className="flex items-center gap-2">
+			<div className="flex items-center gap-0.5">
+				<CopyIconButton icon={Copy} label="Copy as Markdown" onCopy={handleCopyMarkdown} />
+				<CopyIconButton icon={Hash} label="Copy ID" onCopy={handleCopyId} />
+			</div>
+			<div className="ml-auto flex items-center gap-2">
+				<button
+					type="button"
+					onClick={() =>
+						setEditTarget({
+							type: "memory",
+							id: memory.id,
+							data: {
+								title: memory.title,
+								content: memory.content,
+								type: memory.type,
+								status: memory.status,
+								permission: memory.permission,
+							},
+						})
+					}
+					className="inline-flex items-center gap-2 rounded-md bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-200 ring-1 ring-gray-700 transition-colors ring-inset hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 motion-reduce:transition-none"
+				>
+					<Pencil size={14} aria-hidden="true" />
+					Edit
+				</button>
+				<button
+					type="button"
+					onClick={() => setDeleteTarget({ type: "memory", id: memory.id, name: memory.title })}
+					className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-gray-400 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 motion-reduce:transition-none"
+				>
+					<Trash2 size={14} aria-hidden="true" />
+					Delete
+				</button>
+			</div>
 		</div>
 	);
 }

@@ -17,6 +17,7 @@
 		"fmt:check": "oxfmt --check",
 		"glados": "bun run lint && bun run fmt:check && bunx tsc --noEmit && cd viewer && bunx tsc --noEmit && bun run build",
 		"sync": "rsync -av --delete --exclude='viewer/node_modules' --exclude='viewer/.git' --include='minni.ts' --include='src/***' --include='scripts/***' --include='migrations/***' --include='viewer/***' --include='drizzle.config.ts' --include='package.json' --include='tsconfig.json' --exclude='*' ./ ~/.config/opencode/plugins/minni/",
+		"sync:full": "bun run lint:fix && bun run fmt && bunx tsc --noEmit && (cd viewer && bunx tsc --noEmit && bun run build) && bun run sync",
 		"postinstall": "node scripts/postinstall.js",
 		"prepare": "husky"
 	},

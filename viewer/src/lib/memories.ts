@@ -36,6 +36,21 @@ export type MemoryFacetItem<T extends string> = {
 	count: number;
 };
 
+export type MemoryStatusActions = {
+	canPromote: boolean;
+	canDegrade: boolean;
+	canDeprecate: boolean;
+};
+
+export type MemorySummary = {
+	relationCount: number;
+	projectCount: number;
+	devModeCount: number;
+	tagCount: number;
+};
+
+export type MemoryStatusAction = "promote" | "degrade" | "deprecate";
+
 export type MemoryListItem = {
 	id: number;
 	title: string;
@@ -56,6 +71,8 @@ export type MemoryListItem = {
 		inActiveDevMode: boolean;
 	};
 	placement: MemoryPlacement;
+	actions: MemoryStatusActions;
+	summary: MemorySummary;
 };
 
 export type MemoriesListResponse = {
@@ -98,6 +115,8 @@ export type MemoryDetail = {
 		inActiveDevMode: boolean;
 	};
 	placement: MemoryPlacement;
+	actions: MemoryStatusActions;
+	summary: MemorySummary;
 };
 
 export type MemoryFilters = {
@@ -108,8 +127,85 @@ export type MemoryFilters = {
 	onlyActive: boolean;
 };
 
+export const DEFAULT_MEMORY_ACTIONS: MemoryStatusActions = {
+	canPromote: false,
+	canDegrade: false,
+	canDeprecate: false,
+};
+
+export const DEFAULT_MEMORY_SUMMARY: MemorySummary = {
+	relationCount: 0,
+	projectCount: 0,
+	devModeCount: 0,
+	tagCount: 0,
+};
+
 function serializeSet(values: Set<string>) {
 	return values.size > 0 ? [...values].join(",") : undefined;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+export function deriveMemoryActions(
+	status: MemoryStatus,
+	permission: Permission,
+): MemoryStatusActions {
+	if (permission === "locked" || permission === "read_only") {
+		return DEFAULT_MEMORY_ACTIONS;
+	}
+
+	switch (status) {
+		case "draft":
+			return { canPromote: true, canDegrade: false, canDeprecate: true };
+		case "experimental":
+			return { canPromote: true, canDegrade: true, canDeprecate: true };
+		case "proven":
+			return { canPromote: true, canDegrade: true, canDeprecate: true };
+		case "battle_tested":
+			return { canPromote: false, canDegrade: true, canDeprecate: true };
+		case "deprecated":
+		default:
+			return DEFAULT_MEMORY_ACTIONS;
+	}
+}
+
+export function normalizeMemoryActions(
+	value: unknown,
+	status: MemoryStatus,
+	permission: Permission,
+): MemoryStatusActions {
+	if (!isObject(value)) return deriveMemoryActions(status, permission);
+
+	return {
+		canPromote:
+			typeof value.canPromote === "boolean"
+				? value.canPromote
+				: deriveMemoryActions(status, permission).canPromote,
+		canDegrade:
+			typeof value.canDegrade === "boolean"
+				? value.canDegrade
+				: deriveMemoryActions(status, permission).canDegrade,
+		canDeprecate:
+			typeof value.canDeprecate === "boolean"
+				? value.canDeprecate
+				: deriveMemoryActions(status, permission).canDeprecate,
+	};
+}
+
+export function normalizeMemorySummary(value: unknown, fallback: MemorySummary): MemorySummary {
+	if (!isObject(value)) return fallback;
+
+	return {
+		relationCount:
+			typeof value.relationCount === "number" ? value.relationCount : fallback.relationCount,
+		projectCount:
+			typeof value.projectCount === "number" ? value.projectCount : fallback.projectCount,
+		devModeCount:
+			typeof value.devModeCount === "number" ? value.devModeCount : fallback.devModeCount,
+		tagCount: typeof value.tagCount === "number" ? value.tagCount : fallback.tagCount,
+	};
 }
 
 export function buildMemoriesQuery(filters: MemoryFilters) {
@@ -126,9 +222,40 @@ export function buildMemoriesQuery(filters: MemoryFilters) {
 }
 
 export function normalizeMemoriesListResponse(value: unknown): MemoriesListResponse {
-	return value as MemoriesListResponse;
+	const response = value as MemoriesListResponse;
+
+	return {
+		...response,
+		items: (response.items ?? []).map((item) => {
+			const fallbackSummary: MemorySummary = {
+				relationCount: item.relationCount ?? 0,
+				projectCount: item.associations?.projects?.length ?? 0,
+				devModeCount: item.associations?.devModes?.length ?? 0,
+				tagCount: item.tags?.length ?? 0,
+			};
+
+			return {
+				...item,
+				actions: normalizeMemoryActions(item.actions, item.status, item.permission),
+				summary: normalizeMemorySummary(item.summary, fallbackSummary),
+			};
+		}),
+	};
 }
 
 export function normalizeMemoryDetail(value: unknown): MemoryDetail {
-	return value as MemoryDetail;
+	const detail = value as MemoryDetail;
+	const fallbackSummary: MemorySummary = {
+		relationCount:
+			(detail.relations?.incoming?.length ?? 0) + (detail.relations?.outgoing?.length ?? 0),
+		projectCount: detail.associations?.projects?.length ?? 0,
+		devModeCount: detail.associations?.devModes?.length ?? 0,
+		tagCount: detail.tags?.length ?? 0,
+	};
+
+	return {
+		...detail,
+		actions: normalizeMemoryActions(detail.actions, detail.status, detail.permission),
+		summary: normalizeMemorySummary(detail.summary, fallbackSummary),
+	};
 }

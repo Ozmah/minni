@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { api, unwrap } from "@/lib/api";
 import {
@@ -6,6 +6,7 @@ import {
 	normalizeMemoriesListResponse,
 	normalizeMemoryDetail,
 	type MemoryFilters,
+	type MemoryStatusAction,
 } from "@/lib/memories";
 
 export function memoriesEnrichedQueryOptions(filters: MemoryFilters) {
@@ -30,5 +31,19 @@ export function memoryDetailQueryOptions(id: number) {
 		gcTime: 0,
 		refetchOnMount: "always",
 		refetchOnWindowFocus: true,
+	});
+}
+
+export function useMemoryStatusMutation(id: number) {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (action: MemoryStatusAction) =>
+			api.api.memories({ id }).status.post({ action }).then(unwrap),
+		onSuccess: async () => {
+			await Promise.all([
+				qc.invalidateQueries({ queryKey: ["memory", String(id)] }),
+				qc.invalidateQueries({ queryKey: ["memories"] }),
+			]);
+		},
 	});
 }

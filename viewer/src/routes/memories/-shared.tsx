@@ -24,6 +24,7 @@ import { useEffect, useRef, useState } from "react";
 import type {
 	MemoryFilters,
 	MemoryListItem,
+	MemoryPlacement,
 	MemoryStatus,
 	MemoryType,
 	Permission,
@@ -72,6 +73,22 @@ export const STATUS_STYLE: Record<MemoryStatus, { label: string; color: string }
 	deprecated: { label: "Deprecated", color: "text-red-400" },
 };
 
+export const NEXT_STATUS_ON_PROMOTE: Record<MemoryStatus, MemoryStatus | null> = {
+	draft: "experimental",
+	experimental: "proven",
+	proven: "battle_tested",
+	battle_tested: null,
+	deprecated: null,
+};
+
+export const NEXT_STATUS_ON_DEGRADE: Record<MemoryStatus, MemoryStatus | null> = {
+	draft: null,
+	experimental: "draft",
+	proven: "experimental",
+	battle_tested: "proven",
+	deprecated: null,
+};
+
 export const PERMISSION_DOT: Record<Permission, string> = {
 	open: "bg-emerald-500",
 	guarded: "bg-amber-500",
@@ -84,6 +101,13 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
 	guarded: "Guarded",
 	read_only: "Read-only",
 	locked: "Locked",
+};
+
+export const PLACEMENT_LABEL: Record<MemoryPlacement, string> = {
+	unaffiliated: "Unaffiliated",
+	project: "Project",
+	dev_mode: "Dev mode",
+	shared: "Shared",
 };
 
 export type GroupBy = "type" | "status" | "updated";
