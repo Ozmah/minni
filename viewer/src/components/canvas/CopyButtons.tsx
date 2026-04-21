@@ -1,6 +1,7 @@
 import { ClipboardCopy, FileText, Code } from "lucide-react";
-import { useState } from "react";
 
+import { CopyIconButton } from "@/components/ui";
+import { copyWithAdapter } from "@/lib/clipboard";
 import { parseMarkdown } from "@/lib/marked-config";
 
 import type { CanvasPage } from "../../../../src/schema";
@@ -8,84 +9,41 @@ import type { CanvasPage } from "../../../../src/schema";
 type CopyType = "markdown" | "text" | "html";
 
 export function CopyButtons({ page }: { page: CanvasPage | null }) {
-	const [copied, setCopied] = useState<CopyType | null>(null);
-
 	const copy = async (type: CopyType) => {
 		if (!page) return;
 
-		let content: string;
+		await copyWithAdapter(page, async (currentPage) => {
+			if (currentPage.type === "html") return currentPage.content;
 
-		// For HTML pages, raw source is already HTML — copy as-is for all modes
-		if (page.type === "html") {
-			content = page.content;
-		} else {
 			switch (type) {
 				case "markdown":
-					content = page.content;
-					break;
+					return currentPage.content;
 				case "html":
-					content = await parseMarkdown(page.content);
-					break;
+					return parseMarkdown(currentPage.content);
 				case "text":
-					content = stripMarkdown(page.content);
-					break;
+					return stripMarkdown(currentPage.content);
 			}
-		}
-
-		await navigator.clipboard.writeText(content);
-		setCopied(type);
-		setTimeout(() => setCopied(null), 1500);
+		});
 	};
 
 	if (!page) return null;
 
 	return (
 		<div className="flex items-center gap-1">
-			<CopyButton
-				onClick={() => copy("markdown")}
-				active={copied === "markdown"}
-				title="Copy Markdown"
-				icon={<ClipboardCopy size={16} />}
+			<CopyIconButton
+				icon={ClipboardCopy}
+				label="Copy Markdown"
+				onCopy={() => copy("markdown")}
+				iconSize={16}
 			/>
-			<CopyButton
-				onClick={() => copy("text")}
-				active={copied === "text"}
-				title="Copy Plain Text"
-				icon={<FileText size={16} />}
+			<CopyIconButton
+				icon={FileText}
+				label="Copy Plain Text"
+				onCopy={() => copy("text")}
+				iconSize={16}
 			/>
-			<CopyButton
-				onClick={() => copy("html")}
-				active={copied === "html"}
-				title="Copy HTML"
-				icon={<Code size={16} />}
-			/>
+			<CopyIconButton icon={Code} label="Copy HTML" onCopy={() => copy("html")} iconSize={16} />
 		</div>
-	);
-}
-
-function CopyButton({
-	onClick,
-	active,
-	title,
-	icon,
-}: {
-	onClick: () => void;
-	active: boolean;
-	title: string;
-	icon: React.ReactNode;
-}) {
-	return (
-		<button
-			onClick={onClick}
-			title={title}
-			className={`rounded p-1.5 transition-colors ${
-				active
-					? "bg-green-900/50 text-green-400"
-					: "text-gray-400 hover:bg-gray-700 hover:text-gray-200"
-			}`}
-		>
-			{active ? "✓" : icon}
-		</button>
 	);
 }
 

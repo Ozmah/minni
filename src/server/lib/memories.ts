@@ -178,7 +178,7 @@ function parseCsvEnum<T extends string>(
 
 	for (const item of parsed) {
 		if (!allowed.includes(item as T)) {
-			throw new Error(`Invalid ${fieldName}: \"${item}\"`);
+			throw new Error(`Invalid ${fieldName}: "${item}"`);
 		}
 	}
 
