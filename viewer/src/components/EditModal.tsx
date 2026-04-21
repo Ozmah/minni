@@ -9,7 +9,6 @@ import { Modal } from "./ui";
 const TYPE_LABELS: Record<EntityType, string> = {
 	project: "project",
 	memory: "memory",
-	task: "task",
 };
 
 export function EditModal() {

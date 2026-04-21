@@ -18,8 +18,8 @@ import { getPageCount } from "./server/lib/canvas";
 
 export type MinniDB = ReturnType<typeof drizzle>;
 
-export type ActiveProject = { id: number; name: string } | null;
-export type ActiveDevMode = { id: number; name: string } | null;
+export type ActiveProject = { id: number; name: string; permission: Permission } | null;
+export type ActiveDevMode = { id: number; name: string; permission: Permission } | null;
 
 export function truncateWithWordBoundary(str: string, maxLength: number, ellipsis = "...") {
 	if (str.length <= maxLength) return str;
@@ -58,7 +58,7 @@ export async function getActiveProject(db: MinniDB): Promise<ActiveProject> {
 	if (!ctx[0]?.activeProjectId) return null;
 
 	const proj = await db
-		.select({ id: projects.id, name: projects.name })
+		.select({ id: projects.id, name: projects.name, permission: projects.permission })
 		.from(projects)
 		.where(eq(projects.id, ctx[0].activeProjectId))
 		.limit(1);
@@ -79,7 +79,7 @@ export async function getActiveDevMode(db: MinniDB): Promise<ActiveDevMode> {
 	if (!ctx[0]?.activeDevModeId) return null;
 
 	const mode = await db
-		.select({ id: devModes.id, name: devModes.name })
+		.select({ id: devModes.id, name: devModes.name, permission: devModes.permission })
 		.from(devModes)
 		.where(eq(devModes.id, ctx[0].activeDevModeId))
 		.limit(1);
@@ -98,7 +98,7 @@ export async function resolveProject(db: MinniDB, name?: string): Promise<Active
 	if (name) {
 		const normalized = normalizeProjectName(name);
 		const found = await db
-			.select({ id: projects.id, name: projects.name })
+			.select({ id: projects.id, name: projects.name, permission: projects.permission })
 			.from(projects)
 			.where(eq(projects.name, normalized))
 			.limit(1);
@@ -125,8 +125,8 @@ export async function getSetting(db: MinniDB, key: string): Promise<string | nul
 }
 
 export interface HudData {
-	project: { id: number; name: string } | null;
-	devMode: { id: number; name: string } | null;
+	project: { id: number; name: string; permission: Permission } | null;
+	devMode: { id: number; name: string; permission: Permission } | null;
 	counts: {
 		projects: number;
 		devModes: number;

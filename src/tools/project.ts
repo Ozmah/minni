@@ -74,7 +74,11 @@ async function handleLoad(db: MinniDB, args: LoadArgs): Promise<string> {
 
 	if (!proj[0]) return `Project "${projectName}" not found. Use action: create.`;
 
-	await setActiveProject(db, { id: proj[0].id, name: proj[0].name });
+	await setActiveProject(db, {
+		id: proj[0].id,
+		name: proj[0].name,
+		permission: proj[0].permission,
+	});
 
 	const sections: string[] = [`## ${proj[0].name}`];
 	if (proj[0].description) sections.push(proj[0].description);

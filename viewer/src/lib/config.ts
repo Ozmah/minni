@@ -1,14 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
-import { Circle, CircleCheck, CircleDot, CircleX } from "lucide-react";
-
-import type {
-	TaskStatus,
-	TaskPriority,
-	MemoryType,
-	MemoryStatus,
-	ProjectStatus,
-} from "../../../src/schema";
+import type { MemoryType, MemoryStatus } from "../../../src/schema";
 
 // === Types ===
 
@@ -20,21 +12,6 @@ export interface StatusConfig {
 export interface StatusConfigWithIcon extends StatusConfig {
 	icon: LucideIcon;
 }
-
-// === Task Configs ===
-
-export const TASK_STATUS_CONFIG: Record<TaskStatus, StatusConfigWithIcon> = {
-	todo: { color: "bg-gray-500/20 text-gray-400", label: "To Do", icon: Circle },
-	in_progress: { color: "bg-yellow-500/20 text-yellow-400", label: "In Progress", icon: CircleDot },
-	done: { color: "bg-green-500/20 text-green-400", label: "Done", icon: CircleCheck },
-	cancelled: { color: "bg-red-500/20 text-red-400", label: "Cancelled", icon: CircleX },
-};
-
-export const TASK_PRIORITY_CONFIG: Record<TaskPriority, StatusConfig> = {
-	high: { color: "bg-red-500/20 text-red-400", label: "High" },
-	medium: { color: "bg-yellow-500/20 text-yellow-400", label: "Medium" },
-	low: { color: "bg-gray-500/20 text-gray-400", label: "Low" },
-};
 
 // === Memory Configs ===
 
@@ -50,8 +27,6 @@ export const MEMORY_TYPE_CONFIG: Record<MemoryType, StatusConfig> = {
 	article: { color: "bg-orange-500/20 text-orange-400", label: "Article" },
 	video: { color: "bg-pink-500/20 text-pink-400", label: "Video" },
 	documentation: { color: "bg-teal-500/20 text-teal-400", label: "Documentation" },
-	identity: { color: "bg-amber-500/20 text-amber-400", label: "Identity" },
-	context: { color: "bg-emerald-500/20 text-emerald-400", label: "Context" },
 };
 
 export const MEMORY_STATUS_CONFIG: Record<MemoryStatus, StatusConfig> = {
@@ -60,16 +35,6 @@ export const MEMORY_STATUS_CONFIG: Record<MemoryStatus, StatusConfig> = {
 	proven: { color: "bg-green-500/20 text-green-400", label: "Proven" },
 	battle_tested: { color: "bg-blue-500/20 text-blue-400", label: "Battle Tested" },
 	deprecated: { color: "bg-red-500/20 text-red-400", label: "Deprecated" },
-};
-
-// === Project Configs ===
-
-export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, StatusConfig> = {
-	active: { color: "bg-green-500/20 text-green-400", label: "Active" },
-	paused: { color: "bg-yellow-500/20 text-yellow-400", label: "Paused" },
-	completed: { color: "bg-blue-500/20 text-blue-400", label: "Completed" },
-	archived: { color: "bg-gray-500/20 text-gray-400", label: "Archived" },
-	deleted: { color: "bg-red-500/20 text-red-400", label: "Deleted" },
 };
 
 // === Fallback ===

@@ -191,6 +191,8 @@ export async function initializeDatabase(db: MinniDB): Promise<void> {
 		}
 	}
 
+	await repairLegacyForeignKeyTargets(db);
+
 	// Apply pending migrations (skips already-tracked ones).
 	await migrate(db, { migrationsFolder: migrationsPath });
 
@@ -222,6 +224,21 @@ export async function initializeDatabase(db: MinniDB): Promise<void> {
 	// Seeds
 	await seedSettings(db);
 	await seedSkills(db);
+}
+
+async function repairLegacyForeignKeyTargets(db: MinniDB): Promise<void> {
+	const hasTasksTable = await Result.tryPromise(() =>
+		db.all<{ name: string }>(sql`
+			SELECT name
+			FROM sqlite_master
+			WHERE type = 'table' AND name = 'tasks'
+		`),
+	);
+
+	if (hasTasksTable.isErr() || hasTasksTable.value.length === 0) return;
+
+	await db.run(sql`CREATE TABLE IF NOT EXISTS goals (id INTEGER PRIMARY KEY)`);
+	await db.run(sql`CREATE TABLE IF NOT EXISTS milestones (id INTEGER PRIMARY KEY)`);
 }
 
 // ============================================================================

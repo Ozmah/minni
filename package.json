@@ -9,6 +9,7 @@
 		"url": "https://github.com/Ozmah/minni"
 	},
 	"scripts": {
+		"db:setup:opencode": "bun run scripts/setup-opencode-db.ts",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"fmt": "oxfmt",
@@ -22,6 +23,7 @@
 		"@elysiajs/cors": "^1.4.1",
 		"@elysiajs/eden": "^1.4.8",
 		"@elysiajs/static": "^1.4.7",
+		"@libsql/client": "^0.17.2",
 		"@opencode-ai/plugin": "1.1.42",
 		"@tursodatabase/database": "^0.4.4",
 		"better-result": "^2.7.0",

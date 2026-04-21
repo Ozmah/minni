@@ -5,7 +5,7 @@ import { api } from "../lib/api";
 
 // === Types ===
 
-export type EntityType = "project" | "memory" | "task";
+export type EntityType = "project" | "memory";
 
 export type DeleteTargetType = EntityType;
 
@@ -67,8 +67,6 @@ export const confirmDelete = async (): Promise<{
 				return api.api.projects({ id: target.id }).delete();
 			case "memory":
 				return api.api.memories({ id: target.id }).delete();
-			case "task":
-				return api.api.tasks({ id: target.id }).delete();
 		}
 	};
 
@@ -111,9 +109,8 @@ export const confirmEdit = async (
 		switch (target.type) {
 			case "memory":
 				return api.api.memories({ id: target.id }).patch(updates);
-			// TODO: Add PATCH endpoints for projects and tasks
+			// TODO: Add PATCH endpoint for projects
 			case "project":
-			case "task":
 				throw new Error(`Edit not yet implemented for ${target.type}`);
 		}
 	};

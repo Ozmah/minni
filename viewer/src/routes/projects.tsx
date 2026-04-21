@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
-import { FolderKanban, Clock, CircleDot } from "lucide-react";
+import { FolderKanban, Clock } from "lucide-react";
 
 import { api, unwrap } from "@/lib/api";
-import { PROJECT_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
 import { parseJsonArray, extractDescription } from "@/lib/utils";
 
 import type { Project } from "../../../src/schema";
@@ -58,7 +57,6 @@ function ProjectsPage() {
 function ProjectCard({ project }: { project: Project }) {
 	const stack = parseJsonArray(project.stack);
 	const description = extractDescription(project.description);
-	const statusConfig = getStatusConfig(PROJECT_STATUS_CONFIG, project.status);
 
 	return (
 		<Link
@@ -71,10 +69,6 @@ function ProjectCard({ project }: { project: Project }) {
 					<FolderKanban size={18} className="text-gray-400" />
 					<h3 className="font-medium text-white">{project.name}</h3>
 				</div>
-				<span className={`flex items-center gap-1 text-xs ${statusConfig.color}`}>
-					<CircleDot size={12} />
-					{statusConfig.label}
-				</span>
 			</div>
 
 			{description && <p className="mt-2 text-sm text-gray-400">{description}</p>}

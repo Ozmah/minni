@@ -12,7 +12,6 @@ import { drizzle } from "drizzle-orm/tursodatabase/database";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { initializeDatabase } from "./src/init";
 import { startViewerServer } from "./src/server";
 import { createTools } from "./src/tools/index";
 
@@ -24,10 +23,10 @@ let bootPromise: Promise<void> | null = null;
 function boot() {
 	if (!bootPromise) {
 		bootPromise = (async () => {
-			await initializeDatabase(db);
 			await startViewerServer(db);
 		})().catch((err) => {
 			bootPromise = null;
+			console.error("[Minni] boot failed", err);
 			throw err;
 		});
 	}

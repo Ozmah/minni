@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FolderKanban, CircleDot, Clock, Shield, Brain, Trash2 } from "lucide-react";
+import { FolderKanban, Clock, Shield, Trash2 } from "lucide-react";
 
 import { Drawer } from "@/components/Drawer";
 import { Section, InfoItem, LoadingState, ErrorState, MarkdownContent } from "@/components/ui";
 import { api, unwrap } from "@/lib/api";
-import { PROJECT_STATUS_CONFIG, getStatusConfig } from "@/lib/config";
 import { parseJsonArray, formatDate } from "@/lib/utils";
 import { setDeleteTarget } from "@/stores/ui";
 
@@ -51,7 +50,6 @@ function ProjectDetail() {
 
 function ProjectMetadata({ project }: { project: Project }) {
 	const stack = parseJsonArray(project.stack);
-	const status = getStatusConfig(PROJECT_STATUS_CONFIG, project.status, project.status);
 
 	return (
 		<div className="space-y-6">
@@ -62,14 +60,6 @@ function ProjectMetadata({ project }: { project: Project }) {
 				</div>
 				<div className="flex-1">
 					<h3 className="text-xl font-semibold text-white">{project.name}</h3>
-					<div className="mt-1 flex items-center gap-2">
-						<span
-							className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status.color}`}
-						>
-							<CircleDot size={10} />
-							{status.label}
-						</span>
-					</div>
 				</div>
 			</div>
 
@@ -88,9 +78,8 @@ function ProjectMetadata({ project }: { project: Project }) {
 
 			{/* Permissions */}
 			<Section title="Permissions">
-				<div className="grid grid-cols-2 gap-4">
+				<div className="grid grid-cols-1 gap-4">
 					<InfoItem icon={Shield} label="Project" value={project.permission} />
-					<InfoItem icon={Brain} label="Default Memory" value={project.defaultMemoryPermission} />
 				</div>
 			</Section>
 

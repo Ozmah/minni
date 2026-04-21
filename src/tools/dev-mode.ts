@@ -70,7 +70,11 @@ async function handleLoad(db: MinniDB, args: LoadArgs): Promise<string> {
 	const mode = await db.select().from(devModes).where(eq(devModes.name, name)).limit(1);
 	if (!mode[0]) return `Dev Mode "${name}" not found. Use action: create.`;
 
-	await setActiveDevMode(db, { id: mode[0].id, name: mode[0].name });
+	await setActiveDevMode(db, {
+		id: mode[0].id,
+		name: mode[0].name,
+		permission: mode[0].permission,
+	});
 
 	const lines = [`## ${mode[0].name}`];
 	if (mode[0].description) lines.push(mode[0].description);

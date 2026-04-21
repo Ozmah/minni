@@ -9,15 +9,6 @@ CREATE TABLE `active_state` (
 	CONSTRAINT "active_state_singleton_check" CHECK("id" = 1)
 );
 --> statement-breakpoint
-INSERT INTO `active_state` (`id`, `active_project_id`, `active_dev_mode_id`, `created_at`, `updated_at`)
-VALUES (
-	1,
-	NULL,
-	NULL,
-	cast(unixepoch('subsecond') * 1000 as integer),
-	cast(unixepoch('subsecond') * 1000 as integer)
-);
---> statement-breakpoint
 CREATE TABLE `commands` (
 	`id` integer PRIMARY KEY AUTOINCREMENT,
 	`project_id` integer NOT NULL,
@@ -84,7 +75,6 @@ CREATE TABLE `rules` (
 			))
 );
 --> statement-breakpoint
-ALTER TABLE `canvas` ADD `type` text DEFAULT 'markdown' NOT NULL;--> statement-breakpoint
 PRAGMA foreign_keys=OFF;--> statement-breakpoint
 CREATE TABLE `__new_memories` (
 	`id` integer PRIMARY KEY AUTOINCREMENT,
@@ -120,7 +110,9 @@ CREATE INDEX `idx_rules_dev_mode` ON `rules` (`dev_mode_id`);--> statement-break
 CREATE INDEX `idx_rules_project` ON `rules` (`project_id`);--> statement-breakpoint
 CREATE INDEX `idx_rules_kind` ON `rules` (`kind`);--> statement-breakpoint
 CREATE INDEX `idx_rules_severity` ON `rules` (`severity`);--> statement-breakpoint
+PRAGMA foreign_keys=OFF;--> statement-breakpoint
 DROP TABLE `global_context`;--> statement-breakpoint
 DROP TABLE `tasks`;--> statement-breakpoint
+PRAGMA foreign_keys=ON;--> statement-breakpoint
 ALTER TABLE `projects` DROP COLUMN `status`;--> statement-breakpoint
 ALTER TABLE `projects` DROP COLUMN `default_memory_permission`;

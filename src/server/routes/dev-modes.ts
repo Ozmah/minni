@@ -77,6 +77,22 @@ export const devModeRoutes = (db: MinniDB) =>
 				},
 			},
 		)
+		.post(
+			"/clear-active",
+			async () => {
+				await db
+					.update(activeState)
+					.set({ activeDevModeId: null, updatedAt: new Date() })
+					.where(eq(activeState.id, 1));
+
+				return { success: true as const, id: 1 };
+			},
+			{
+				response: {
+					200: SuccessResponse,
+				},
+			},
+		)
 		.delete(
 			"/:id",
 			async ({ params, status }) => {

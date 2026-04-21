@@ -8,12 +8,14 @@ const HudResponse = z.object({
 		.object({
 			id: z.number(),
 			name: z.string(),
+			permission: z.enum(["open", "guarded", "read_only", "locked"]),
 		})
 		.nullable(),
 	devMode: z
 		.object({
 			id: z.number(),
 			name: z.string(),
+			permission: z.enum(["open", "guarded", "read_only", "locked"]),
 		})
 		.nullable(),
 	counts: z.object({

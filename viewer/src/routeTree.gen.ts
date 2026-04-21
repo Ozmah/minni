@@ -9,20 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as MemoriesRouteImport } from './routes/memories'
 import { Route as CanvasRouteImport } from './routes/canvas'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TasksIdRouteImport } from './routes/tasks.$id'
 import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 import { Route as MemoriesIdRouteImport } from './routes/memories.$id'
 
-const TasksRoute = TasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ProjectsRoute = ProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
@@ -43,11 +36,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TasksIdRoute = TasksIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => TasksRoute,
-} as any)
 const ProjectsIdRoute = ProjectsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -64,20 +52,16 @@ export interface FileRoutesByFullPath {
   '/canvas': typeof CanvasRoute
   '/memories': typeof MemoriesRouteWithChildren
   '/projects': typeof ProjectsRouteWithChildren
-  '/tasks': typeof TasksRouteWithChildren
   '/memories/$id': typeof MemoriesIdRoute
   '/projects/$id': typeof ProjectsIdRoute
-  '/tasks/$id': typeof TasksIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
   '/memories': typeof MemoriesRouteWithChildren
   '/projects': typeof ProjectsRouteWithChildren
-  '/tasks': typeof TasksRouteWithChildren
   '/memories/$id': typeof MemoriesIdRoute
   '/projects/$id': typeof ProjectsIdRoute
-  '/tasks/$id': typeof TasksIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -85,10 +69,8 @@ export interface FileRoutesById {
   '/canvas': typeof CanvasRoute
   '/memories': typeof MemoriesRouteWithChildren
   '/projects': typeof ProjectsRouteWithChildren
-  '/tasks': typeof TasksRouteWithChildren
   '/memories/$id': typeof MemoriesIdRoute
   '/projects/$id': typeof ProjectsIdRoute
-  '/tasks/$id': typeof TasksIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,30 +79,24 @@ export interface FileRouteTypes {
     | '/canvas'
     | '/memories'
     | '/projects'
-    | '/tasks'
     | '/memories/$id'
     | '/projects/$id'
-    | '/tasks/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/canvas'
     | '/memories'
     | '/projects'
-    | '/tasks'
     | '/memories/$id'
     | '/projects/$id'
-    | '/tasks/$id'
   id:
     | '__root__'
     | '/'
     | '/canvas'
     | '/memories'
     | '/projects'
-    | '/tasks'
     | '/memories/$id'
     | '/projects/$id'
-    | '/tasks/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -128,18 +104,10 @@ export interface RootRouteChildren {
   CanvasRoute: typeof CanvasRoute
   MemoriesRoute: typeof MemoriesRouteWithChildren
   ProjectsRoute: typeof ProjectsRouteWithChildren
-  TasksRoute: typeof TasksRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/tasks': {
-      id: '/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof TasksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/projects': {
       id: '/projects'
       path: '/projects'
@@ -167,13 +135,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/tasks/$id': {
-      id: '/tasks/$id'
-      path: '/$id'
-      fullPath: '/tasks/$id'
-      preLoaderRoute: typeof TasksIdRouteImport
-      parentRoute: typeof TasksRoute
     }
     '/projects/$id': {
       id: '/projects/$id'
@@ -216,22 +177,11 @@ const ProjectsRouteWithChildren = ProjectsRoute._addFileChildren(
   ProjectsRouteChildren,
 )
 
-interface TasksRouteChildren {
-  TasksIdRoute: typeof TasksIdRoute
-}
-
-const TasksRouteChildren: TasksRouteChildren = {
-  TasksIdRoute: TasksIdRoute,
-}
-
-const TasksRouteWithChildren = TasksRoute._addFileChildren(TasksRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CanvasRoute: CanvasRoute,
   MemoriesRoute: MemoriesRouteWithChildren,
   ProjectsRoute: ProjectsRouteWithChildren,
-  TasksRoute: TasksRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

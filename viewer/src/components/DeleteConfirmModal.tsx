@@ -10,13 +10,11 @@ import { Modal } from "./ui";
 const TYPE_LABELS: Record<string, string> = {
 	project: "proyecto",
 	memory: "memoria",
-	task: "tarea",
 };
 
 const TYPE_ROUTES: Record<string, string> = {
 	project: "/projects",
 	memory: "/memories",
-	task: "/tasks",
 };
 
 export function DeleteConfirmModal() {
