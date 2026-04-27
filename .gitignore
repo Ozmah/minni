@@ -43,3 +43,6 @@ lerna-debug.log*
 !minni-system-design.md
 !database-backup.md
 !migration-rules.md
+
+# Local-only bootstrap / context data
+.local/

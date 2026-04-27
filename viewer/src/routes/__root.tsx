@@ -1,7 +1,7 @@
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { FolderKanban, Brain, PanelLeft } from "lucide-react";
+import { Brain, FolderKanban, Hammer, PanelLeft } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
@@ -13,6 +13,7 @@ import { queryClient } from "@/lib/query-client";
 
 const navItems = [
 	{ to: "/projects", label: "Projects", icon: FolderKanban },
+	{ to: "/composer", label: "Composer", icon: Hammer },
 	{ to: "/memories", label: "Memories", icon: Brain },
 	{ to: "/canvas", label: "Canvas", icon: PanelLeft },
 ] as const;
@@ -28,6 +29,7 @@ const ENTITY_QUERY_MAP: Record<string, string[]> = {
 	canvas: ["canvas", "hud"],
 	memory: ["memories", "memory", "hud"],
 	project: ["projects", "project", "hud"],
+	dev_mode: ["dev-modes", "dev-mode", "hud"],
 };
 
 function RootLayout() {
