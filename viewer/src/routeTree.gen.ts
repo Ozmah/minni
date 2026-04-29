@@ -14,8 +14,11 @@ import { Route as MemoriesRouteImport } from './routes/memories'
 import { Route as ComposerRouteImport } from './routes/composer'
 import { Route as CanvasRouteImport } from './routes/canvas'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
+import { Route as MemoriesNewRouteImport } from './routes/memories.new'
 import { Route as MemoriesIdRouteImport } from './routes/memories.$id'
+import { Route as ComposerDevModesNewRouteImport } from './routes/composer.dev-modes.new'
 import { Route as ComposerDevModesIdRouteImport } from './routes/composer.dev-modes.$id'
 
 const ProjectsRoute = ProjectsRouteImport.update({
@@ -43,15 +46,30 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectsNewRoute = ProjectsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => ProjectsRoute,
+} as any)
 const ProjectsIdRoute = ProjectsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => ProjectsRoute,
 } as any)
+const MemoriesNewRoute = MemoriesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => MemoriesRoute,
+} as any)
 const MemoriesIdRoute = MemoriesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => MemoriesRoute,
+} as any)
+const ComposerDevModesNewRoute = ComposerDevModesNewRouteImport.update({
+  id: '/dev-modes/new',
+  path: '/dev-modes/new',
+  getParentRoute: () => ComposerRoute,
 } as any)
 const ComposerDevModesIdRoute = ComposerDevModesIdRouteImport.update({
   id: '/dev-modes/$id',
@@ -66,8 +84,11 @@ export interface FileRoutesByFullPath {
   '/memories': typeof MemoriesRouteWithChildren
   '/projects': typeof ProjectsRouteWithChildren
   '/memories/$id': typeof MemoriesIdRoute
+  '/memories/new': typeof MemoriesNewRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/projects/new': typeof ProjectsNewRoute
   '/composer/dev-modes/$id': typeof ComposerDevModesIdRoute
+  '/composer/dev-modes/new': typeof ComposerDevModesNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -76,8 +97,11 @@ export interface FileRoutesByTo {
   '/memories': typeof MemoriesRouteWithChildren
   '/projects': typeof ProjectsRouteWithChildren
   '/memories/$id': typeof MemoriesIdRoute
+  '/memories/new': typeof MemoriesNewRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/projects/new': typeof ProjectsNewRoute
   '/composer/dev-modes/$id': typeof ComposerDevModesIdRoute
+  '/composer/dev-modes/new': typeof ComposerDevModesNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -87,8 +111,11 @@ export interface FileRoutesById {
   '/memories': typeof MemoriesRouteWithChildren
   '/projects': typeof ProjectsRouteWithChildren
   '/memories/$id': typeof MemoriesIdRoute
+  '/memories/new': typeof MemoriesNewRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/projects/new': typeof ProjectsNewRoute
   '/composer/dev-modes/$id': typeof ComposerDevModesIdRoute
+  '/composer/dev-modes/new': typeof ComposerDevModesNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -99,8 +126,11 @@ export interface FileRouteTypes {
     | '/memories'
     | '/projects'
     | '/memories/$id'
+    | '/memories/new'
     | '/projects/$id'
+    | '/projects/new'
     | '/composer/dev-modes/$id'
+    | '/composer/dev-modes/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -109,8 +139,11 @@ export interface FileRouteTypes {
     | '/memories'
     | '/projects'
     | '/memories/$id'
+    | '/memories/new'
     | '/projects/$id'
+    | '/projects/new'
     | '/composer/dev-modes/$id'
+    | '/composer/dev-modes/new'
   id:
     | '__root__'
     | '/'
@@ -119,8 +152,11 @@ export interface FileRouteTypes {
     | '/memories'
     | '/projects'
     | '/memories/$id'
+    | '/memories/new'
     | '/projects/$id'
+    | '/projects/new'
     | '/composer/dev-modes/$id'
+    | '/composer/dev-modes/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -168,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projects/new': {
+      id: '/projects/new'
+      path: '/new'
+      fullPath: '/projects/new'
+      preLoaderRoute: typeof ProjectsNewRouteImport
+      parentRoute: typeof ProjectsRoute
+    }
     '/projects/$id': {
       id: '/projects/$id'
       path: '/$id'
@@ -175,12 +218,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsIdRouteImport
       parentRoute: typeof ProjectsRoute
     }
+    '/memories/new': {
+      id: '/memories/new'
+      path: '/new'
+      fullPath: '/memories/new'
+      preLoaderRoute: typeof MemoriesNewRouteImport
+      parentRoute: typeof MemoriesRoute
+    }
     '/memories/$id': {
       id: '/memories/$id'
       path: '/$id'
       fullPath: '/memories/$id'
       preLoaderRoute: typeof MemoriesIdRouteImport
       parentRoute: typeof MemoriesRoute
+    }
+    '/composer/dev-modes/new': {
+      id: '/composer/dev-modes/new'
+      path: '/dev-modes/new'
+      fullPath: '/composer/dev-modes/new'
+      preLoaderRoute: typeof ComposerDevModesNewRouteImport
+      parentRoute: typeof ComposerRoute
     }
     '/composer/dev-modes/$id': {
       id: '/composer/dev-modes/$id'
@@ -194,10 +251,12 @@ declare module '@tanstack/react-router' {
 
 interface ComposerRouteChildren {
   ComposerDevModesIdRoute: typeof ComposerDevModesIdRoute
+  ComposerDevModesNewRoute: typeof ComposerDevModesNewRoute
 }
 
 const ComposerRouteChildren: ComposerRouteChildren = {
   ComposerDevModesIdRoute: ComposerDevModesIdRoute,
+  ComposerDevModesNewRoute: ComposerDevModesNewRoute,
 }
 
 const ComposerRouteWithChildren = ComposerRoute._addFileChildren(
@@ -206,10 +265,12 @@ const ComposerRouteWithChildren = ComposerRoute._addFileChildren(
 
 interface MemoriesRouteChildren {
   MemoriesIdRoute: typeof MemoriesIdRoute
+  MemoriesNewRoute: typeof MemoriesNewRoute
 }
 
 const MemoriesRouteChildren: MemoriesRouteChildren = {
   MemoriesIdRoute: MemoriesIdRoute,
+  MemoriesNewRoute: MemoriesNewRoute,
 }
 
 const MemoriesRouteWithChildren = MemoriesRoute._addFileChildren(
@@ -218,10 +279,12 @@ const MemoriesRouteWithChildren = MemoriesRoute._addFileChildren(
 
 interface ProjectsRouteChildren {
   ProjectsIdRoute: typeof ProjectsIdRoute
+  ProjectsNewRoute: typeof ProjectsNewRoute
 }
 
 const ProjectsRouteChildren: ProjectsRouteChildren = {
   ProjectsIdRoute: ProjectsIdRoute,
+  ProjectsNewRoute: ProjectsNewRoute,
 }
 
 const ProjectsRouteWithChildren = ProjectsRoute._addFileChildren(

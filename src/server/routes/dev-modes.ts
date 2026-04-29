@@ -23,6 +23,12 @@ const DevModePatchBody = z.object({
 	permission: z.enum(["open", "guarded", "read_only", "locked"]).optional(),
 });
 
+const DevModeCreateBody = z.object({
+	name: z.string().trim().min(1).max(100),
+	description: z.string().max(500).optional(),
+	permission: z.enum(PERMISSION).default("guarded"),
+});
+
 const DevModePrincipleInputSchema = z.object({
 	id: z.number().int().optional(),
 	statement: z.string().trim().min(1),
@@ -161,6 +167,37 @@ export const devModeRoutes = (db: MinniDB) =>
 				200: z.array(devModeSelectSchema),
 			},
 		})
+		.post(
+			"/",
+			async ({ body, status }) => {
+				const existing = await db
+					.select()
+					.from(devModes)
+					.where(eq(devModes.name, body.name))
+					.limit(1);
+				if (existing[0]) return status(409, { error: `Dev Mode "${body.name}" already exists` });
+
+				const result = await db
+					.insert(devModes)
+					.values({
+						name: body.name,
+						description: body.description ?? null,
+						permission: body.permission,
+						createdAt: new Date(),
+						updatedAt: new Date(),
+					})
+					.returning();
+
+				return result[0];
+			},
+			{
+				body: DevModeCreateBody,
+				response: {
+					200: devModeSelectSchema,
+					409: ErrorResponse,
+				},
+			},
+		)
 		.get(
 			"/:id/enriched",
 			async ({ params, status }) => {

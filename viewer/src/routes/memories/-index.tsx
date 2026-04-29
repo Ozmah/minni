@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { MemoryFilters } from "@/lib/memories";
@@ -42,7 +43,15 @@ export function MemoriesPage() {
 								{data?.meta.total ?? 0} results
 							</p>
 						</div>
-						<SegmentedGroupBy value={groupBy} onChange={setGroupBy} />
+						<div className="flex items-center gap-2">
+							<Link
+								to="/memories/new"
+								className="inline-flex min-h-10 items-center gap-2 rounded-md border border-gray-700 px-3 text-sm text-gray-200 hover:bg-gray-800"
+							>
+								<Plus size={16} aria-hidden="true" /> New Memory
+							</Link>
+							<SegmentedGroupBy value={groupBy} onChange={setGroupBy} />
+						</div>
 					</div>
 					<div className="mt-3">
 						<Toolbar filters={filters} setFilters={setFilters} facets={data?.facets} />

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
-import { FolderKanban, Clock } from "lucide-react";
+import { Clock, FolderKanban, Plus } from "lucide-react";
 
 import { api, unwrap } from "@/lib/api";
 import { parseJsonArray, extractDescription } from "@/lib/utils";
@@ -31,18 +31,29 @@ function ProjectsPage() {
 
 	if (!projects?.length) {
 		return (
-			<PageEmpty
-				icon={FolderKanban}
-				title="No projects yet"
-				description="Create one using minni_project"
-			/>
+			<>
+				<PageEmpty
+					icon={FolderKanban}
+					title="No projects yet"
+					description="Create one from the UI or using minni_project"
+				/>
+				<Outlet />
+			</>
 		);
 	}
 
 	return (
 		<>
 			<div className="p-6">
-				<h2 className="mb-6 text-2xl font-semibold tracking-tight">Projects</h2>
+				<div className="mb-6 flex items-center justify-between gap-3">
+					<h2 className="text-2xl font-semibold tracking-tight">Projects</h2>
+					<Link
+						to="/projects/new"
+						className="inline-flex items-center gap-2 rounded-md border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
+					>
+						<Plus size={16} aria-hidden="true" /> New Project
+					</Link>
+				</div>
 				<div className="space-y-3">
 					{projects.map((project) => (
 						<ProjectCard key={project.id} project={project} />
@@ -113,6 +124,12 @@ function PageEmpty({
 			<Icon size={48} className="mb-4 opacity-50" />
 			<p className="text-lg">{title}</p>
 			<p className="mt-2 text-sm">{description}</p>
+			<Link
+				to="/projects/new"
+				className="mt-4 inline-flex items-center gap-2 rounded-md border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
+			>
+				<Plus size={16} aria-hidden="true" /> New Project
+			</Link>
 		</div>
 	);
 }

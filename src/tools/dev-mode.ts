@@ -1,5 +1,5 @@
 import { tool } from "@opencode-ai/plugin";
-import { eq, desc } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 
 import {
 	type MinniDB,
@@ -9,10 +9,34 @@ import {
 	setActiveDevMode,
 	validateEnum,
 } from "../helpers";
-import { devModes, PERMISSION, type Permission } from "../schema";
+import { devModeMemories, devModes, memories, PERMISSION, rules, type Permission } from "../schema";
 
 function normalizeDevModeName(name: string): string {
 	return name.trim();
+}
+
+async function getDevModeComposition(db: MinniDB, devModeId: number) {
+	const [principles, associatedMemories] = await Promise.all([
+		db
+			.select({ id: rules.id, statement: rules.statement, severity: rules.severity })
+			.from(rules)
+			.where(and(eq(rules.devModeId, devModeId), eq(rules.kind, "principle")))
+			.orderBy(asc(rules.sortOrder), asc(rules.id)),
+		db
+			.select({
+				id: memories.id,
+				title: memories.title,
+				type: memories.type,
+				status: memories.status,
+				permission: memories.permission,
+			})
+			.from(devModeMemories)
+			.innerJoin(memories, eq(memories.id, devModeMemories.memoryId))
+			.where(and(eq(devModeMemories.devModeId, devModeId), sql`${memories.permission} != 'locked'`))
+			.orderBy(asc(devModeMemories.sortOrder), asc(memories.title)),
+	]);
+
+	return { principles, associatedMemories };
 }
 
 export function devModeTools(db: MinniDB) {
@@ -59,7 +83,10 @@ async function handleLoad(db: MinniDB, args: LoadArgs): Promise<string> {
 		if (modes.length > 0) {
 			sections.push("\n### Available Dev Modes");
 			for (const mode of modes) {
-				sections.push(`- [D${mode.id}] ${mode.name}`);
+				const { principles, associatedMemories } = await getDevModeComposition(db, mode.id);
+				sections.push(
+					`- [D${mode.id}] ${mode.name} — ${principles.length} principles, ${associatedMemories.length} memories`,
+				);
 			}
 		}
 
@@ -79,6 +106,24 @@ async function handleLoad(db: MinniDB, args: LoadArgs): Promise<string> {
 	const lines = [`## ${mode[0].name}`];
 	if (mode[0].description) lines.push(mode[0].description);
 	lines.push(`Permission: ${mode[0].permission}`);
+
+	const { principles, associatedMemories } = await getDevModeComposition(db, mode[0].id);
+
+	if (principles.length > 0) {
+		lines.push("", "### Principles");
+		for (const principle of principles) {
+			lines.push(`- [R${principle.id}] [${principle.severity}] ${principle.statement}`);
+		}
+	}
+
+	if (associatedMemories.length > 0) {
+		lines.push("", "### Associated Memories");
+		for (const memory of associatedMemories) {
+			lines.push(
+				`- [M${memory.id}] ${memory.title} (${memory.type}, ${memory.status}, ${memory.permission})`,
+			);
+		}
+	}
 
 	return lines.join("\n");
 }
@@ -167,5 +212,14 @@ async function handleDelete(db: MinniDB, context: unknown, args: DeleteArgs): Pr
 async function handleList(db: MinniDB): Promise<string> {
 	const all = await db.select().from(devModes).orderBy(desc(devModes.updatedAt));
 	if (all.length === 0) return "No Dev Modes.";
-	return all.map((mode) => `[D${mode.id}] ${mode.name}`).join("\n");
+
+	const lines: string[] = [];
+	for (const mode of all) {
+		const { principles, associatedMemories } = await getDevModeComposition(db, mode.id);
+		lines.push(
+			`[D${mode.id}] ${mode.name} — ${principles.length} principles, ${associatedMemories.length} memories`,
+		);
+	}
+
+	return lines.join("\n");
 }

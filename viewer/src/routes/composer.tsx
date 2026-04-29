@@ -61,9 +61,15 @@ function ComposerIndex() {
 			)}
 
 			<section>
-				<h3 className="mb-3 text-sm font-medium tracking-wide text-gray-500 uppercase">
-					Dev modes
-				</h3>
+				<div className="mb-3 flex items-center justify-between gap-3">
+					<h3 className="text-sm font-medium tracking-wide text-gray-500 uppercase">Dev modes</h3>
+					<Link
+						to="/composer/dev-modes/new"
+						className="rounded-md border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
+					>
+						New Dev Mode
+					</Link>
+				</div>
 
 				{isLoading && <p className="text-sm text-gray-400">Loading dev modes...</p>}
 				{error && <p className="text-sm text-red-400">Failed to load dev modes.</p>}

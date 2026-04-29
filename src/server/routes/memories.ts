@@ -32,6 +32,14 @@ const MemoryPatchBody = z.object({
 	permission: z.enum(PERMISSION).optional(),
 });
 
+const MemoryCreateBody = z.object({
+	title: z.string().min(1).max(200),
+	content: z.string().min(1),
+	type: z.enum(MEMORY_TYPE).default("note"),
+	status: z.enum(MEMORY_STATUS).default("draft"),
+	permission: z.enum(PERMISSION).default("guarded"),
+});
+
 export const memoryRoutes = (db: MinniDB) =>
 	new Elysia({ prefix: "/api/memories" })
 		.get(
@@ -84,6 +92,23 @@ export const memoryRoutes = (db: MinniDB) =>
 				}),
 				response: {
 					200: z.array(memorySelectSchema),
+				},
+			},
+		)
+		.post(
+			"/",
+			async ({ body }) => {
+				const result = await db
+					.insert(memories)
+					.values({ ...body, createdAt: new Date(), updatedAt: new Date() })
+					.returning();
+
+				return result[0];
+			},
+			{
+				body: MemoryCreateBody,
+				response: {
+					200: memorySelectSchema,
 				},
 			},
 		)
