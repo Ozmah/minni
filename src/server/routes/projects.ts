@@ -1,24 +1,23 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { Elysia } from "elysia";
 import { z } from "zod";
 
 import { normalizeProjectName, type MinniDB } from "../../helpers";
-import { activeState, PERMISSION, projects, projectSelectSchema } from "../../schema";
+import { activeState, projects, projectSelectSchema, rules } from "../../schema";
+import {
+	getUnavailableMemoryIds,
+	replaceProjectMemoryAssociations,
+	uniqueMemoryIds,
+} from "../lib/memory-associations";
+import { withTransaction } from "../lib/transactions";
+import {
+	ProjectCompositionBody,
+	ProjectCreateBody,
+	ProjectEnrichedResponseSchema,
+	ProjectPatchBody,
+} from "../projects/schemas";
+import { getEnrichedProject } from "../projects/service";
 import { ErrorResponse, SuccessResponse } from "../types";
-
-const ProjectCreateBody = z.object({
-	name: z.string().trim().min(1).max(100),
-	description: z.string().max(5000).optional(),
-	stack: z.array(z.string().trim().min(1)).max(50).default([]),
-	permission: z.enum(PERMISSION).default("guarded"),
-});
-
-const ProjectPatchBody = z.object({
-	name: z.string().trim().min(1).max(100).optional(),
-	description: z.string().max(5000).optional(),
-	stack: z.array(z.string().trim().min(1)).max(50).optional(),
-	permission: z.enum(PERMISSION).optional(),
-});
 
 export const projectRoutes = (db: MinniDB) =>
 	new Elysia({ prefix: "/api/projects" })
@@ -63,6 +62,21 @@ export const projectRoutes = (db: MinniDB) =>
 					200: projectSelectSchema,
 					400: ErrorResponse,
 					409: ErrorResponse,
+				},
+			},
+		)
+		.get(
+			"/:id/enriched",
+			async ({ params, status }) => {
+				const result = await getEnrichedProject(db, params.id);
+				if (!result) return status(404, { error: "Project not found" });
+				return result;
+			},
+			{
+				params: z.object({ id: z.coerce.number().int() }),
+				response: {
+					200: ProjectEnrichedResponseSchema,
+					404: ErrorResponse,
 				},
 			},
 		)
@@ -125,6 +139,83 @@ export const projectRoutes = (db: MinniDB) =>
 				body: ProjectPatchBody,
 				response: {
 					200: projectSelectSchema,
+					400: ErrorResponse,
+					404: ErrorResponse,
+					409: ErrorResponse,
+				},
+			},
+		)
+		.put(
+			"/:id/composition",
+			async ({ params, body, status }) => {
+				const current = await db.select().from(projects).where(eq(projects.id, params.id)).limit(1);
+				if (!current[0]) return status(404, { error: "Project not found" });
+
+				const name = normalizeProjectName(body.name);
+				if (!name)
+					return status(400, { error: "Name must contain at least one alphanumeric character" });
+
+				if (name !== current[0].name) {
+					const existing = await db.select().from(projects).where(eq(projects.name, name)).limit(1);
+					if (existing[0]) return status(409, { error: `Project "${name}" already exists` });
+				}
+
+				const memoryIds = uniqueMemoryIds(body.memoryIds);
+				const missing = await getUnavailableMemoryIds(db, memoryIds);
+				if (missing.length > 0) {
+					return status(400, {
+						error: `Cannot associate missing or locked memories: ${missing.join(", ")}`,
+					});
+				}
+
+				await withTransaction(db, async () => {
+					await db
+						.update(projects)
+						.set({
+							name,
+							description: body.description || null,
+							stack: body.stack.length ? JSON.stringify(body.stack) : null,
+							permission: body.permission,
+							updatedAt: new Date(),
+						})
+						.where(eq(projects.id, params.id));
+
+					await db
+						.delete(rules)
+						.where(
+							and(eq(rules.projectId, params.id), inArray(rules.kind, ["convention", "gotcha"])),
+						);
+
+					if (body.rules.length > 0) {
+						await db.insert(rules).values(
+							body.rules.map((rule, sortOrder) => ({
+								devModeId: null,
+								projectId: params.id,
+								kind: rule.kind,
+								statement: rule.statement,
+								rationale: rule.rationale ?? null,
+								severity: rule.severity,
+								permission: rule.permission,
+								example: rule.example ?? null,
+								sortOrder,
+								createdAt: new Date(),
+								updatedAt: new Date(),
+							})),
+						);
+					}
+
+					await replaceProjectMemoryAssociations(db, params.id, memoryIds);
+				});
+
+				const result = await getEnrichedProject(db, params.id);
+				if (!result) return status(404, { error: "Project not found" });
+				return result;
+			},
+			{
+				params: z.object({ id: z.coerce.number().int() }),
+				body: ProjectCompositionBody,
+				response: {
+					200: ProjectEnrichedResponseSchema,
 					400: ErrorResponse,
 					404: ErrorResponse,
 					409: ErrorResponse,

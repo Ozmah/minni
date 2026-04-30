@@ -63,10 +63,6 @@ function ProjectDetail() {
 			open={true}
 			onClose={handleClose}
 			title={editing ? `Edit ${project?.name ?? "Project"}` : (project?.name ?? "Project")}
-			footer={
-				project &&
-				(editing ? null : <ProjectActions project={project} onEdit={() => setEditing(true)} />)
-			}
 		>
 			{isLoading && <LoadingState message="Loading project..." />}
 			{error && <ErrorState error={error} />}
@@ -81,7 +77,7 @@ function ProjectDetail() {
 					/>
 				) : (
 					<div className="space-y-6">
-						<ProjectMetadata project={project} />
+						<ProjectMetadata project={project} onEdit={() => setEditing(true)} />
 						<ProjectDescription project={project} />
 					</div>
 				))}
@@ -217,19 +213,23 @@ function ProjectEditForm({
 	);
 }
 
-function ProjectMetadata({ project }: { project: Project }) {
+function ProjectMetadata({ project, onEdit }: { project: Project; onEdit: () => void }) {
 	const stack = parseJsonArray(project.stack);
 
 	return (
 		<div className="space-y-6">
 			{/* Header */}
-			<div className="flex items-start gap-3">
-				<div className="rounded-lg bg-gray-800 p-2">
-					<FolderKanban size={24} className="text-gray-400" />
+			<div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-800/70 pb-4">
+				<div className="flex min-w-0 items-start gap-3">
+					<div className="rounded-lg bg-gray-800 p-2">
+						<FolderKanban size={24} className="text-gray-400" aria-hidden="true" />
+					</div>
+					<div className="min-w-0 flex-1">
+						<h3 className="truncate text-xl font-semibold text-white">{project.name}</h3>
+						<p className="mt-1 text-sm text-gray-500">Permission: {project.permission}</p>
+					</div>
 				</div>
-				<div className="flex-1">
-					<h3 className="text-xl font-semibold text-white">{project.name}</h3>
-				</div>
+				<ProjectActions project={project} onEdit={onEdit} />
 			</div>
 
 			{/* Stack */}
@@ -275,15 +275,17 @@ function ProjectDescription({ project }: { project: Project }) {
 
 function ProjectActions({ project, onEdit }: { project: Project; onEdit: () => void }) {
 	return (
-		<div className="flex justify-between gap-2">
+		<div className="ml-auto flex shrink-0 items-center gap-1">
 			<button
+				type="button"
 				onClick={onEdit}
-				className="flex items-center gap-2 rounded-md border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
+				className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-800 hover:text-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 motion-reduce:transition-none"
 			>
-				<Pencil size={16} />
-				Edit Project
+				<Pencil size={14} aria-hidden="true" />
+				Edit
 			</button>
 			<button
+				type="button"
 				onClick={() =>
 					setDeleteTarget({
 						type: "project",
@@ -291,10 +293,10 @@ function ProjectActions({ project, onEdit }: { project: Project; onEdit: () => v
 						name: project.name,
 					})
 				}
-				className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20"
+				className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-gray-400 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 motion-reduce:transition-none"
 			>
-				<Trash2 size={16} />
-				Delete Project
+				<Trash2 size={14} aria-hidden="true" />
+				Delete
 			</button>
 		</div>
 	);

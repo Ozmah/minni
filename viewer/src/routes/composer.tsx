@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { Cog, Hammer, Sparkles } from "lucide-react";
+import { Cog, FolderKanban, Hammer, Sparkles } from "lucide-react";
 
 import { api, unwrap } from "@/lib/api";
 
@@ -10,8 +10,18 @@ export const Route = createFileRoute("/composer")({
 
 function ComposerRoute() {
 	const pathname = useRouterState({ select: (state) => state.location.pathname });
+	const isCreationOverlay = pathname === "/composer/dev-modes/new";
 
-	return pathname === "/composer" ? <ComposerIndex /> : <Outlet />;
+	if (pathname === "/composer") return <ComposerIndex />;
+	if (isCreationOverlay)
+		return (
+			<>
+				<ComposerIndex />
+				<Outlet />
+			</>
+		);
+
+	return <Outlet />;
 }
 
 function ComposerIndex() {
@@ -26,6 +36,14 @@ function ComposerIndex() {
 	} = useQuery({
 		queryKey: ["dev-modes"],
 		queryFn: () => api.api["dev-modes"].get().then(unwrap),
+	});
+	const {
+		data: projects,
+		isLoading: projectsLoading,
+		error: projectsError,
+	} = useQuery({
+		queryKey: ["projects"],
+		queryFn: () => api.api.projects.get().then(unwrap),
 	});
 
 	return (
@@ -43,22 +61,82 @@ function ComposerIndex() {
 				</div>
 			</div>
 
-			{hud?.devMode && (
-				<Link
-					to="/composer/dev-modes/$id"
-					params={{ id: String(hud.devMode.id) }}
-					className="mb-6 flex items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-left hover:border-emerald-400/40"
-				>
-					<div className="flex items-center gap-3">
-						<Sparkles size={18} className="text-emerald-300" aria-hidden="true" />
-						<div>
-							<p className="text-sm font-medium text-emerald-100">Open active dev mode</p>
-							<p className="text-sm text-emerald-200/70">{hud.devMode.name}</p>
+			<div className="mb-6 grid gap-3 md:grid-cols-2">
+				{hud?.project && (
+					<Link
+						to="/composer/projects/$id"
+						params={{ id: String(hud.project.id) }}
+						className="flex items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-left hover:border-emerald-400/40"
+					>
+						<div className="flex items-center gap-3">
+							<FolderKanban size={18} className="text-emerald-300" aria-hidden="true" />
+							<div>
+								<p className="text-sm font-medium text-emerald-100">Open active project</p>
+								<p className="text-sm text-emerald-200/70">{hud.project.name}</p>
+							</div>
 						</div>
+						<span className="text-sm text-emerald-200">Compose →</span>
+					</Link>
+				)}
+
+				{hud?.devMode && (
+					<Link
+						to="/composer/dev-modes/$id"
+						params={{ id: String(hud.devMode.id) }}
+						className="flex items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-left hover:border-emerald-400/40"
+					>
+						<div className="flex items-center gap-3">
+							<Sparkles size={18} className="text-emerald-300" aria-hidden="true" />
+							<div>
+								<p className="text-sm font-medium text-emerald-100">Open active dev mode</p>
+								<p className="text-sm text-emerald-200/70">{hud.devMode.name}</p>
+							</div>
+						</div>
+						<span className="text-sm text-emerald-200">Compose →</span>
+					</Link>
+				)}
+			</div>
+
+			<section className="mb-8">
+				<div className="mb-3 flex items-center justify-between gap-3">
+					<h3 className="text-sm font-medium tracking-wide text-gray-500 uppercase">Projects</h3>
+					<Link
+						to="/projects/new"
+						className="rounded-md border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
+					>
+						New Project
+					</Link>
+				</div>
+
+				{projectsLoading && <p className="text-sm text-gray-400">Loading projects...</p>}
+				{projectsError && <p className="text-sm text-red-400">Failed to load projects.</p>}
+
+				{projects && projects.length > 0 ? (
+					<div className="grid gap-3 md:grid-cols-2">
+						{projects.map((project) => (
+							<Link
+								key={project.id}
+								to="/composer/projects/$id"
+								params={{ id: String(project.id) }}
+								className="rounded-lg border border-gray-700 bg-gray-800/50 p-4 hover:border-gray-600 hover:bg-gray-800"
+							>
+								<div className="flex items-start gap-3">
+									<FolderKanban size={18} className="mt-0.5 text-gray-400" aria-hidden="true" />
+									<div className="min-w-0">
+										<p className="truncate font-medium text-white">{project.name}</p>
+										{project.description && (
+											<p className="mt-1 line-clamp-2 text-sm text-gray-400">
+												{project.description}
+											</p>
+										)}
+										<p className="mt-2 text-xs text-gray-500">Permission: {project.permission}</p>
+									</div>
+								</div>
+							</Link>
+						))}
 					</div>
-					<span className="text-sm text-emerald-200">Compose →</span>
-				</Link>
-			)}
+				) : null}
+			</section>
 
 			<section>
 				<div className="mb-3 flex items-center justify-between gap-3">

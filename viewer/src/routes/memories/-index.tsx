@@ -20,8 +20,12 @@ export function MemoriesPage() {
 	const [filters, setFilters] = useState<MemoryFilters>(INITIAL_FILTERS);
 	const [groupBy, setGroupBy] = useState<GroupBy>("type");
 	const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+	const queryFilters = useMemo(
+		() => ({ ...filters, onlyActive: groupBy === "context" }),
+		[filters, groupBy],
+	);
 
-	const { data, isLoading, error } = useQuery(memoriesEnrichedQueryOptions(filters));
+	const { data, isLoading, error } = useQuery(memoriesEnrichedQueryOptions(queryFilters));
 	const groups = useMemo(() => groupItems(data?.items ?? [], groupBy), [data?.items, groupBy]);
 
 	const toggle = (key: string) =>

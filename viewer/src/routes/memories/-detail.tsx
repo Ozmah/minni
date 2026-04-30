@@ -26,7 +26,6 @@ import { setDeleteTarget, setEditTarget } from "@/stores/ui";
 
 import { memoryDetailQueryOptions, useMemoryStatusMutation } from "./-queries";
 import {
-	formatRelative,
 	NEXT_STATUS_ON_DEGRADE,
 	NEXT_STATUS_ON_PROMOTE,
 	PERMISSION_DOT,
@@ -48,7 +47,6 @@ export function MemoryDetailRoute({ id }: { id: number }) {
 			onClose={handleClose}
 			title={memory?.title ?? "Memory"}
 			content={memory ? <MemoryContent memory={memory} /> : undefined}
-			footer={memory ? <MemoryFooter memory={memory} /> : undefined}
 		>
 			{isLoading && <LoadingState message="Loading memory..." />}
 			{error && <ErrorState error={error} />}
@@ -60,7 +58,10 @@ export function MemoryDetailRoute({ id }: { id: number }) {
 function MemoryHeader({ memory }: { memory: MemoryDetail }) {
 	return (
 		<div className="space-y-3 border-b border-gray-800/70 pb-4">
-			<MemoryEyebrow memory={memory} />
+			<div className="flex flex-wrap items-start justify-between gap-3">
+				<MemoryEyebrow memory={memory} />
+				<MemoryTopActions memory={memory} />
+			</div>
 			<StatusActions memory={memory} />
 		</div>
 	);
@@ -73,7 +74,7 @@ function MemoryEyebrow({ memory }: { memory: MemoryDetail }) {
 	const inActive = inActiveProject || inActiveDevMode;
 
 	return (
-		<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+		<div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
 			<span className="inline-flex items-center gap-1.5 text-sm text-gray-300">
 				<TypeIcon size={14} className="text-gray-500" aria-hidden="true" />
 				{TYPE_LABEL[memory.type]}
@@ -103,9 +104,47 @@ function MemoryEyebrow({ memory }: { memory: MemoryDetail }) {
 					</span>
 				</>
 			)}
-			<span className="ml-auto text-xs text-gray-500 tabular-nums">
-				Updated {formatRelative(memory.updatedAt)}
-			</span>
+		</div>
+	);
+}
+
+function MemoryTopActions({ memory }: { memory: MemoryDetail }) {
+	const handleCopyMarkdown = () => copyWithAdapter(memory, memoryDetailToMarkdown);
+	const handleCopyId = () => copyText(String(memory.id));
+
+	return (
+		<div className="ml-auto flex shrink-0 items-center gap-1">
+			<CopyIconButton icon={Copy} label="Copy as Markdown" onCopy={handleCopyMarkdown} />
+			<CopyIconButton icon={Hash} label="Copy ID" onCopy={handleCopyId} />
+			<span aria-hidden="true" className="mx-1 h-5 w-px bg-gray-800" />
+			<button
+				type="button"
+				onClick={() =>
+					setEditTarget({
+						type: "memory",
+						id: memory.id,
+						data: {
+							title: memory.title,
+							content: memory.content,
+							type: memory.type,
+							status: memory.status,
+							permission: memory.permission,
+						},
+					})
+				}
+				className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-800 hover:text-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 motion-reduce:transition-none"
+			>
+				<Pencil size={14} aria-hidden="true" />
+				Edit
+			</button>
+			<button
+				type="button"
+				onClick={() => setDeleteTarget({ type: "memory", id: memory.id, name: memory.title })}
+				className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-gray-400 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 motion-reduce:transition-none"
+			>
+				<Trash2 size={14} aria-hidden="true" />
+				Delete
+			</button>
 		</div>
 	);
 }
@@ -360,49 +399,5 @@ function MemoryFootnote({ memory }: { memory: MemoryDetail }) {
 			<span>Updated {formatDate(memory.updatedAt)}</span>
 			<span>ID #{memory.id}</span>
 		</footer>
-	);
-}
-
-function MemoryFooter({ memory }: { memory: MemoryDetail }) {
-	const handleCopyMarkdown = () => copyWithAdapter(memory, memoryDetailToMarkdown);
-	const handleCopyId = () => copyText(String(memory.id));
-
-	return (
-		<div className="flex items-center gap-2">
-			<div className="flex items-center gap-0.5">
-				<CopyIconButton icon={Copy} label="Copy as Markdown" onCopy={handleCopyMarkdown} />
-				<CopyIconButton icon={Hash} label="Copy ID" onCopy={handleCopyId} />
-			</div>
-			<div className="ml-auto flex items-center gap-2">
-				<button
-					type="button"
-					onClick={() =>
-						setEditTarget({
-							type: "memory",
-							id: memory.id,
-							data: {
-								title: memory.title,
-								content: memory.content,
-								type: memory.type,
-								status: memory.status,
-								permission: memory.permission,
-							},
-						})
-					}
-					className="inline-flex items-center gap-2 rounded-md bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-200 ring-1 ring-gray-700 transition-colors ring-inset hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 motion-reduce:transition-none"
-				>
-					<Pencil size={14} aria-hidden="true" />
-					Edit
-				</button>
-				<button
-					type="button"
-					onClick={() => setDeleteTarget({ type: "memory", id: memory.id, name: memory.title })}
-					className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-gray-400 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 motion-reduce:transition-none"
-				>
-					<Trash2 size={14} aria-hidden="true" />
-					Delete
-				</button>
-			</div>
-		</div>
 	);
 }

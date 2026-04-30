@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Save } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Save } from "lucide-react";
 import { useState } from "react";
 
+import { Drawer } from "@/components/Drawer";
 import { api, unwrap } from "@/lib/api";
 
 import type { DevMode, Permission } from "../../../src/schema";
@@ -19,6 +20,7 @@ function NewDevModePage() {
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
 	const [permission, setPermission] = useState<Permission>("guarded");
+	const close = () => navigate({ to: "/composer" });
 
 	const createMutation = useMutation({
 		mutationFn: () =>
@@ -36,23 +38,15 @@ function NewDevModePage() {
 	});
 
 	return (
-		<form
-			className="mx-auto max-w-3xl p-6"
-			onSubmit={(event) => {
-				event.preventDefault();
-				if (name.trim()) createMutation.mutate();
-			}}
-		>
-			<Link
-				to="/composer"
-				className="mb-6 inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-300"
+		<Drawer open={true} onClose={close} title="New Dev Mode">
+			<form
+				className="space-y-4"
+				onSubmit={(event) => {
+					event.preventDefault();
+					if (name.trim()) createMutation.mutate();
+				}}
 			>
-				<ArrowLeft size={14} aria-hidden="true" /> Composer
-			</Link>
-
-			<div className="rounded-xl border border-gray-800 bg-gray-900/70 p-5">
 				<div className="mb-5">
-					<h2 className="text-2xl font-semibold tracking-tight text-white">New Dev Mode</h2>
 					<p className="mt-1 text-sm text-gray-500">
 						Create the shell, then compose principles and memories.
 					</p>
@@ -113,7 +107,7 @@ function NewDevModePage() {
 						{createMutation.isPending ? "Creating..." : "Create"}
 					</button>
 				</div>
-			</div>
-		</form>
+			</form>
+		</Drawer>
 	);
 }

@@ -1,7 +1,7 @@
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { Brain, FolderKanban, Hammer, PanelLeft } from "lucide-react";
+import { Brain, FolderKanban, Gauge, Hammer, PanelLeft } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
@@ -12,10 +12,11 @@ import { api } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 
 const navItems = [
-	{ to: "/projects", label: "Projects", icon: FolderKanban },
-	{ to: "/composer", label: "Composer", icon: Hammer },
-	{ to: "/memories", label: "Memories", icon: Brain },
-	{ to: "/canvas", label: "Canvas", icon: PanelLeft },
+	{ to: "/", label: "Cockpit", icon: Gauge, exact: true },
+	{ to: "/projects", label: "Projects", icon: FolderKanban, exact: false },
+	{ to: "/composer", label: "Composer", icon: Hammer, exact: false },
+	{ to: "/memories", label: "Memories", icon: Brain, exact: false },
+	{ to: "/canvas", label: "Canvas", icon: PanelLeft, exact: false },
 ] as const;
 
 export const Route = createRootRoute({
@@ -96,10 +97,11 @@ function Sidebar() {
 			</div>
 			<nav className="p-2">
 				<ul className="space-y-1">
-					{navItems.map(({ to, label, icon: Icon }) => (
+					{navItems.map(({ to, label, icon: Icon, exact }) => (
 						<li key={to}>
 							<Link
 								to={to}
+								activeOptions={{ exact: Boolean(exact) }}
 								className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-300 transition-colors hover:bg-gray-700 hover:text-white [&.active]:bg-gray-700 [&.active]:text-white"
 							>
 								<Icon size={18} />

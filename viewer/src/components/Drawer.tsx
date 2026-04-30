@@ -50,10 +50,12 @@ export function Drawer({ open, onClose, title, children, content, footer }: Draw
 				<header className="flex items-center justify-between border-b border-gray-700 px-6 py-4">
 					<h2 className="text-lg font-semibold text-white">{title}</h2>
 					<button
+						type="button"
 						onClick={onClose}
+						aria-label="Close drawer"
 						className="rounded-md p-1 text-gray-400 hover:bg-gray-800 hover:text-white"
 					>
-						<X size={20} />
+						<X size={20} aria-hidden="true" />
 					</button>
 				</header>
 

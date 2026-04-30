@@ -1,6 +1,6 @@
 import { tool } from "@opencode-ai/plugin";
 import { Result } from "better-result";
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import {
 	type MinniDB,
@@ -10,7 +10,36 @@ import {
 	setActiveProject,
 	validateEnum,
 } from "../helpers";
-import { PERMISSION, projects, type Permission } from "../schema";
+import { memories, PERMISSION, projectMemories, projects, rules, type Permission } from "../schema";
+
+async function getProjectComposition(db: MinniDB, projectId: number) {
+	const [projectRules, associatedMemories] = await Promise.all([
+		db
+			.select({
+				id: rules.id,
+				kind: rules.kind,
+				statement: rules.statement,
+				severity: rules.severity,
+			})
+			.from(rules)
+			.where(and(eq(rules.projectId, projectId), inArray(rules.kind, ["convention", "gotcha"])))
+			.orderBy(asc(rules.kind), asc(rules.sortOrder), asc(rules.id)),
+		db
+			.select({
+				id: memories.id,
+				title: memories.title,
+				type: memories.type,
+				status: memories.status,
+				permission: memories.permission,
+			})
+			.from(projectMemories)
+			.innerJoin(memories, eq(memories.id, projectMemories.memoryId))
+			.where(and(eq(projectMemories.projectId, projectId), sql`${memories.permission} != 'locked'`))
+			.orderBy(asc(projectMemories.sortOrder), asc(memories.title)),
+	]);
+
+	return { projectRules, associatedMemories };
+}
 
 export function projectTools(db: MinniDB) {
 	return {
@@ -89,6 +118,33 @@ async function handleLoad(db: MinniDB, args: LoadArgs): Promise<string> {
 		sections.push(`Stack: ${parsed}`);
 	}
 	sections.push(`Permission: ${proj[0].permission}`);
+
+	const { projectRules, associatedMemories } = await getProjectComposition(db, proj[0].id);
+	const conventions = projectRules.filter((rule) => rule.kind === "convention");
+	const gotchas = projectRules.filter((rule) => rule.kind === "gotcha");
+
+	if (conventions.length > 0) {
+		sections.push("", "### Conventions");
+		for (const convention of conventions) {
+			sections.push(`- [R${convention.id}] [${convention.severity}] ${convention.statement}`);
+		}
+	}
+
+	if (gotchas.length > 0) {
+		sections.push("", "### Gotchas");
+		for (const gotcha of gotchas) {
+			sections.push(`- [R${gotcha.id}] [${gotcha.severity}] ${gotcha.statement}`);
+		}
+	}
+
+	if (associatedMemories.length > 0) {
+		sections.push("", "### Associated Memories");
+		for (const memory of associatedMemories) {
+			sections.push(
+				`- [M${memory.id}] ${memory.title} (${memory.type}, ${memory.status}, ${memory.permission})`,
+			);
+		}
+	}
 
 	return sections.join("\n");
 }
@@ -192,5 +248,15 @@ async function handleList(db: MinniDB): Promise<string> {
 	const all = await db.select().from(projects).orderBy(desc(projects.updatedAt));
 
 	if (all.length === 0) return "No projects.";
-	return all.map((p) => `[P${p.id}] ${p.name}`).join("\n");
+	const lines: string[] = [];
+	for (const project of all) {
+		const { projectRules, associatedMemories } = await getProjectComposition(db, project.id);
+		const conventionCount = projectRules.filter((rule) => rule.kind === "convention").length;
+		const gotchaCount = projectRules.filter((rule) => rule.kind === "gotcha").length;
+		lines.push(
+			`[P${project.id}] ${project.name} — ${conventionCount} conventions, ${gotchaCount} gotchas, ${associatedMemories.length} memories`,
+		);
+	}
+
+	return lines.join("\n");
 }

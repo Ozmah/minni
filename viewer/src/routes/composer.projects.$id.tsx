@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+	AlertTriangle,
 	ArrowDown,
 	ArrowLeft,
 	ArrowUp,
 	CheckCircle2,
-	Cog,
+	FolderKanban,
 	LinkIcon,
 	Plus,
 	Save,
@@ -16,43 +17,45 @@ import { useEffect, useMemo, useState } from "react";
 
 import { InjectionPreview } from "@/components/InjectionPreview";
 import { api, unwrap } from "@/lib/api";
+import { moveItem } from "@/lib/dev-modes";
 import {
-	buildDraftPreview,
-	createComposerDraft,
-	createEmptyPrinciple,
-	moveItem,
-	type DevModeComposerDraft,
-	type DevModeMemorySummary,
-	type EnrichedDevMode,
-	type PrincipleDraft,
-} from "@/lib/dev-modes";
+	buildProjectDraftPreview,
+	createEmptyProjectRule,
+	createProjectComposerDraft,
+	parseStackInput,
+	type EnrichedProject,
+	type ProjectComposerDraft,
+	type ProjectMemorySummary,
+	type ProjectRuleDraft,
+	type ProjectRuleKind,
+} from "@/lib/projects";
 
 import type { Memory, Permission, RuleSeverity } from "../../../src/schema";
 
-export const Route = createFileRoute("/composer/dev-modes/$id")({
-	component: DevModeComposer,
+export const Route = createFileRoute("/composer/projects/$id")({
+	component: ProjectComposer,
 });
 
 const PERMISSIONS: Permission[] = ["open", "guarded", "read_only", "locked"];
 const SEVERITIES: RuleSeverity[] = ["critical", "strong", "default"];
 
-function DevModeComposer() {
+function ProjectComposer() {
 	const { id } = Route.useParams();
 	const numericId = Number(id);
 	const qc = useQueryClient();
-	const [draft, setDraft] = useState<DevModeComposerDraft | null>(null);
+	const [draft, setDraft] = useState<ProjectComposerDraft | null>(null);
 	const [loadedId, setLoadedId] = useState<number | null>(null);
 	const [memoryQuery, setMemoryQuery] = useState("");
 	const [selectedMemoryId, setSelectedMemoryId] = useState("");
-	const [expandedPrincipleKey, setExpandedPrincipleKey] = useState<string | null>(null);
 
 	const { data, isLoading, error } = useQuery({
-		queryKey: ["dev-mode", String(numericId), "enriched"],
+		queryKey: ["project", String(numericId), "enriched"],
 		queryFn: () =>
-			api.api["dev-modes"]({ id: numericId })
+			api.api
+				.projects({ id: numericId })
 				.enriched.get()
 				.then(unwrap)
-				.then((value) => value as EnrichedDevMode),
+				.then((value) => value as EnrichedProject),
 		refetchOnWindowFocus: false,
 	});
 
@@ -64,59 +67,59 @@ function DevModeComposer() {
 
 	useEffect(() => {
 		if (!data) return;
-		if (loadedId === data.devMode.id) return;
-		setDraft(createComposerDraft(data));
-		setLoadedId(data.devMode.id);
-		setExpandedPrincipleKey(null);
+		if (loadedId === data.project.id) return;
+		setDraft(createProjectComposerDraft(data));
+		setLoadedId(data.project.id);
 	}, [data, loadedId]);
 
 	const saveMutation = useMutation({
-		mutationFn: async (nextDraft: DevModeComposerDraft) => {
+		mutationFn: async (nextDraft: ProjectComposerDraft) => {
 			const composition = {
 				name: nextDraft.name.trim(),
 				description: nextDraft.description.trim(),
+				stack: parseStackInput(nextDraft.stack),
 				permission: nextDraft.permission,
 				memoryIds: nextDraft.memoryIds,
-				principles: nextDraft.principles
-					.filter((principle) => principle.statement.trim())
-					.map((principle) => ({
-						id: principle.id,
-						statement: principle.statement.trim(),
-						rationale: principle.rationale.trim() || null,
-						severity: principle.severity,
-						permission: principle.permission,
-						example: principle.example.trim() || null,
+				rules: nextDraft.rules
+					.filter((rule) => rule.statement.trim())
+					.map((rule) => ({
+						id: rule.id,
+						kind: rule.kind,
+						statement: rule.statement.trim(),
+						rationale: rule.rationale.trim() || null,
+						severity: rule.severity,
+						permission: rule.permission,
+						example: rule.example.trim() || null,
 					})),
 			};
 
-			return api.api["dev-modes"]({ id: numericId }).composition.put(composition).then(unwrap);
+			return api.api.projects({ id: numericId }).composition.put(composition).then(unwrap);
 		},
 		onSuccess: async (updated) => {
-			const enriched = updated as EnrichedDevMode;
-			setDraft(createComposerDraft(enriched));
-			setLoadedId(enriched.devMode.id);
-			setExpandedPrincipleKey(null);
+			const enriched = updated as EnrichedProject;
+			setDraft(createProjectComposerDraft(enriched));
+			setLoadedId(enriched.project.id);
 			await Promise.all([
-				qc.invalidateQueries({ queryKey: ["dev-mode", String(numericId)] }),
-				qc.invalidateQueries({ queryKey: ["dev-modes"] }),
+				qc.invalidateQueries({ queryKey: ["project", String(numericId)] }),
+				qc.invalidateQueries({ queryKey: ["projects"] }),
 				qc.invalidateQueries({ queryKey: ["hud"] }),
 			]);
 		},
 	});
 
 	const activateMutation = useMutation({
-		mutationFn: () => api.api["dev-modes"]({ id: numericId }).activate.post().then(unwrap),
+		mutationFn: () => api.api.projects({ id: numericId }).activate.post().then(unwrap),
 		onSuccess: async () => {
 			await Promise.all([
-				qc.invalidateQueries({ queryKey: ["dev-mode", String(numericId)] }),
-				qc.invalidateQueries({ queryKey: ["dev-modes"] }),
+				qc.invalidateQueries({ queryKey: ["project", String(numericId)] }),
+				qc.invalidateQueries({ queryKey: ["projects"] }),
 				qc.invalidateQueries({ queryKey: ["hud"] }),
 			]);
 		},
 	});
 
 	const memoryLookup = useMemo(() => {
-		const map = new Map<number, Memory | DevModeMemorySummary>();
+		const map = new Map<number, Memory | ProjectMemorySummary>();
 		for (const memory of data?.memories ?? []) map.set(memory.id, memory);
 		for (const memory of availableMemories ?? []) map.set(memory.id, memory);
 		return map;
@@ -134,42 +137,18 @@ function DevModeComposer() {
 		});
 	}, [availableMemories, memoryQuery, selectedMemoryIds]);
 
-	const baseline = data ? createComposerDraft(data) : null;
+	const baseline = data ? createProjectComposerDraft(data) : null;
 	const isDirty = draft && baseline ? JSON.stringify(draft) !== JSON.stringify(baseline) : false;
-	const preview = draft ? buildDraftPreview(draft) : data?.injectionPreview;
+	const preview = draft ? buildProjectDraftPreview(draft) : data?.injectionPreview;
 	const canSave = Boolean(draft?.name.trim()) && !saveMutation.isPending;
 
 	if (isLoading) return <div className="p-6 text-sm text-gray-400">Loading composer...</div>;
-	if (error) return <div className="p-6 text-sm text-red-400">Failed to load dev mode.</div>;
-	if (!data || !draft) return <div className="p-6 text-sm text-gray-400">Dev mode not found.</div>;
-	const enrichedDevMode = data;
+	if (error) return <div className="p-6 text-sm text-red-400">Failed to load project.</div>;
+	if (!data || !draft) return <div className="p-6 text-sm text-gray-400">Project not found.</div>;
+	const enrichedProject = data;
 
-	function updateDraft(mutator: (current: DevModeComposerDraft) => DevModeComposerDraft) {
+	function updateDraft(mutator: (current: ProjectComposerDraft) => ProjectComposerDraft) {
 		setDraft((current) => (current ? mutator(current) : current));
-	}
-
-	function addPrinciple() {
-		if (!draft) return;
-		const emptyNewPrinciple = draft.principles.find(isEmptyNewPrinciple);
-		if (emptyNewPrinciple) {
-			setExpandedPrincipleKey(emptyNewPrinciple.clientKey);
-			return;
-		}
-
-		const principle = createEmptyPrinciple();
-		updateDraft((current) => ({ ...current, principles: [principle, ...current.principles] }));
-		setExpandedPrincipleKey(principle.clientKey);
-	}
-
-	function openPrinciple(clientKey: string) {
-		if (expandedPrincipleKey === clientKey) return;
-		updateDraft((current) => ({
-			...current,
-			principles: current.principles.filter(
-				(principle) => principle.clientKey === clientKey || !isEmptyNewPrinciple(principle),
-			),
-		}));
-		setExpandedPrincipleKey(clientKey);
 	}
 
 	function addSelectedMemory() {
@@ -180,10 +159,9 @@ function DevModeComposer() {
 	}
 
 	function resetDraft() {
-		setDraft(createComposerDraft(enrichedDevMode));
+		setDraft(createProjectComposerDraft(enrichedProject));
 		setMemoryQuery("");
 		setSelectedMemoryId("");
-		setExpandedPrincipleKey(null);
 	}
 
 	return (
@@ -206,14 +184,14 @@ function DevModeComposer() {
 						</Link>
 						<div className="flex items-center gap-3">
 							<div className="rounded-lg border border-gray-700 bg-gray-800 p-2 text-gray-300">
-								<Cog size={20} aria-hidden="true" />
+								<FolderKanban size={20} aria-hidden="true" />
 							</div>
 							<div className="min-w-0">
 								<h2 className="truncate text-2xl font-semibold tracking-tight text-white">
-									{draft.name || data.devMode.name}
+									{draft.name || data.project.name}
 								</h2>
 								<div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-									<span>Dev Mode</span>
+									<span>Project</span>
 									<span>·</span>
 									<span>{draft.permission}</span>
 									{data.isActive && (
@@ -258,7 +236,7 @@ function DevModeComposer() {
 
 			<main className="grid gap-6 p-6 xl:grid-cols-[minmax(0,1fr)_380px]">
 				<div className="space-y-6">
-					<Panel title="Identity" description="The metadata that names and guards this dev mode.">
+					<Panel title="Identity" description="The project metadata injected into active context.">
 						<div className="grid gap-4 md:grid-cols-2">
 							<label className="block md:col-span-2">
 								<span className="mb-1 block text-sm font-medium text-gray-300">Name</span>
@@ -279,8 +257,22 @@ function DevModeComposer() {
 									onChange={(event) =>
 										updateDraft((current) => ({ ...current, description: event.target.value }))
 									}
-									rows={4}
+									rows={5}
+									maxLength={5000}
 									className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-base text-white outline-none focus:border-gray-500"
+								/>
+								<p className="mt-1 text-xs text-gray-600">{draft.description.length}/5000</p>
+							</label>
+
+							<label className="block">
+								<span className="mb-1 block text-sm font-medium text-gray-300">Stack</span>
+								<input
+									value={draft.stack}
+									onChange={(event) =>
+										updateDraft((current) => ({ ...current, stack: event.target.value }))
+									}
+									placeholder="TanStack Start, ElysiaJS, Bun"
+									className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
 								/>
 							</label>
 
@@ -306,73 +298,25 @@ function DevModeComposer() {
 						</div>
 					</Panel>
 
-					<Panel
-						title="Principles"
-						description="Behavioral rules injected with this dev mode. Empty principles are ignored on save."
-						action={
-							<button
-								type="button"
-								onClick={addPrinciple}
-								className="inline-flex min-h-10 items-center gap-2 rounded-md border border-gray-700 px-3 text-sm text-gray-300 hover:bg-gray-800"
-							>
-								<Plus size={16} aria-hidden="true" /> Principle
-							</button>
-						}
-					>
-						{draft.principles.length === 0 ? (
-							<p className="rounded-md border border-dashed border-gray-700 p-4 text-sm text-gray-500">
-								No principles yet. Add one to define this dev mode's posture.
-							</p>
-						) : (
-							<div className="space-y-2">
-								{draft.principles.map((principle, index) => (
-									<PrincipleItem
-										key={principle.clientKey}
-										principle={principle}
-										index={index}
-										count={draft.principles.length}
-										expanded={expandedPrincipleKey === principle.clientKey}
-										onOpen={() => openPrinciple(principle.clientKey)}
-										onChange={(next) =>
-											updateDraft((current) => ({
-												...current,
-												principles: current.principles.map((item) =>
-													item.clientKey === principle.clientKey ? next : item,
-												),
-											}))
-										}
-										onMove={(direction) =>
-											updateDraft((current) => ({
-												...current,
-												principles: moveItem(
-													current.principles,
-													index,
-													direction === "up" ? index - 1 : index + 1,
-												),
-											}))
-										}
-										onDelete={() =>
-											updateDraft((current) => ({
-												...current,
-												principles: current.principles.filter(
-													(item) => item.clientKey !== principle.clientKey,
-												),
-											}))
-										}
-										onDeleteAfter={() =>
-											setExpandedPrincipleKey((current) =>
-												current === principle.clientKey ? null : current,
-											)
-										}
-									/>
-								))}
-							</div>
-						)}
-					</Panel>
+					<ProjectRulesPanel
+						title="Conventions"
+						description="Expected project patterns. These should be boring, repeatable defaults."
+						kind="convention"
+						draft={draft}
+						updateDraft={updateDraft}
+					/>
+
+					<ProjectRulesPanel
+						title="Gotchas"
+						description="Sharp edges, traps, and constraints the agent must not rediscover the hard way."
+						kind="gotcha"
+						draft={draft}
+						updateDraft={updateDraft}
+					/>
 
 					<Panel
 						title="Associated memories"
-						description="V1 only attaches existing memories. Create or edit memory content from Memories."
+						description="Attach existing memories that matter whenever this project is active."
 					>
 						<div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
 							<input
@@ -405,7 +349,7 @@ function DevModeComposer() {
 
 						{draft.memoryIds.length === 0 ? (
 							<p className="rounded-md border border-dashed border-gray-700 p-4 text-sm text-gray-500">
-								No memories associated with this dev mode.
+								No memories associated with this project.
 							</p>
 						) : (
 							<div className="space-y-2">
@@ -431,7 +375,7 @@ function DevModeComposer() {
 											onDelete={() =>
 												updateDraft((current) => ({
 													...current,
-													memoryIds: current.memoryIds.filter((id) => id !== memoryId),
+													memoryIds: current.memoryIds.filter((item) => item !== memoryId),
 												}))
 											}
 										/>
@@ -445,7 +389,7 @@ function DevModeComposer() {
 				<aside className="space-y-6 xl:sticky xl:top-28 xl:self-start">
 					<Panel
 						title="Injection preview"
-						description="Approximation of what equip will inject for this dev mode."
+						description="Approximation of what equip will inject for this project."
 					>
 						<InjectionPreview value={preview ?? ""} />
 					</Panel>
@@ -453,11 +397,20 @@ function DevModeComposer() {
 					<Panel title="Summary">
 						<div className="grid grid-cols-2 gap-3 text-sm">
 							<SummaryItem
-								label="Principles"
-								value={draft.principles.filter((p) => p.statement.trim()).length}
+								label="Conventions"
+								value={
+									draft.rules.filter((rule) => rule.kind === "convention" && rule.statement.trim())
+										.length
+								}
+							/>
+							<SummaryItem
+								label="Gotchas"
+								value={
+									draft.rules.filter((rule) => rule.kind === "gotcha" && rule.statement.trim())
+										.length
+								}
 							/>
 							<SummaryItem label="Memories" value={draft.memoryIds.length} />
-							<SummaryItem label="Permission" value={draft.permission} />
 							<SummaryItem label="State" value={isDirty ? "dirty" : "clean"} />
 						</div>
 						{saveMutation.error && (
@@ -470,6 +423,104 @@ function DevModeComposer() {
 			</main>
 		</form>
 	);
+}
+
+function ProjectRulesPanel({
+	title,
+	description,
+	kind,
+	draft,
+	updateDraft,
+}: {
+	title: string;
+	description: string;
+	kind: ProjectRuleKind;
+	draft: ProjectComposerDraft;
+	updateDraft: (mutator: (current: ProjectComposerDraft) => ProjectComposerDraft) => void;
+}) {
+	const rules = draft.rules.filter((rule) => rule.kind === kind);
+
+	return (
+		<Panel
+			title={title}
+			description={description}
+			action={
+				<button
+					type="button"
+					onClick={() =>
+						updateDraft((current) => ({
+							...current,
+							rules: [...current.rules, createEmptyProjectRule(kind)],
+						}))
+					}
+					className="inline-flex min-h-10 items-center gap-2 rounded-md border border-gray-700 px-3 text-sm text-gray-300 hover:bg-gray-800"
+				>
+					<Plus size={16} aria-hidden="true" /> {kind === "gotcha" ? "Gotcha" : "Convention"}
+				</button>
+			}
+		>
+			{rules.length === 0 ? (
+				<p className="rounded-md border border-dashed border-gray-700 p-4 text-sm text-gray-500">
+					No {title.toLowerCase()} yet.
+				</p>
+			) : (
+				<div className="space-y-3">
+					{rules.map((rule, visibleIndex) => {
+						return (
+							<ProjectRuleEditor
+								key={rule.clientKey}
+								rule={rule}
+								index={visibleIndex}
+								count={rules.length}
+								onChange={(next) =>
+									updateDraft((current) => ({
+										...current,
+										rules: current.rules.map((item) =>
+											item.clientKey === rule.clientKey ? next : item,
+										),
+									}))
+								}
+								onMove={(direction) =>
+									updateDraft((current) => ({
+										...current,
+										rules: moveRuleWithinKind(current.rules, rule.clientKey, direction),
+									}))
+								}
+								onDelete={() =>
+									updateDraft((current) => ({
+										...current,
+										rules: current.rules.filter((item) => item.clientKey !== rule.clientKey),
+									}))
+								}
+							/>
+						);
+					})}
+				</div>
+			)}
+		</Panel>
+	);
+}
+
+function moveRuleWithinKind(
+	rules: ProjectRuleDraft[],
+	clientKey: string,
+	direction: "up" | "down",
+) {
+	const currentRule = rules.find((rule) => rule.clientKey === clientKey);
+	if (!currentRule) return rules;
+
+	const sameKindRules = rules.filter((rule) => rule.kind === currentRule.kind);
+	const from = sameKindRules.findIndex((rule) => rule.clientKey === clientKey);
+	const to = direction === "up" ? from - 1 : from + 1;
+	const movedSameKindRules = moveItem(sameKindRules, from, to);
+	let sameKindIndex = 0;
+
+	return rules.map((rule) => {
+		if (rule.kind !== currentRule.kind) return rule;
+		const next = movedSameKindRules[sameKindIndex];
+		sameKindIndex += 1;
+		return next ?? rule;
+	});
 }
 
 function Panel({
@@ -497,100 +548,36 @@ function Panel({
 	);
 }
 
-function isEmptyNewPrinciple(principle: PrincipleDraft) {
-	return (
-		principle.id === undefined &&
-		!principle.statement.trim() &&
-		!principle.rationale.trim() &&
-		!principle.example.trim()
-	);
-}
-
-function PrincipleItem({
-	principle,
-	index,
-	count,
-	expanded,
-	onOpen,
-	onChange,
-	onMove,
-	onDelete,
-	onDeleteAfter,
-}: {
-	principle: PrincipleDraft;
-	index: number;
-	count: number;
-	expanded: boolean;
-	onOpen: () => void;
-	onChange: (principle: PrincipleDraft) => void;
-	onMove: (direction: "up" | "down") => void;
-	onDelete: () => void;
-	onDeleteAfter: () => void;
-}) {
-	function deletePrinciple() {
-		onDelete();
-		onDeleteAfter();
-	}
-
-	if (expanded) {
-		return (
-			<PrincipleEditor
-				principle={principle}
-				index={index}
-				count={count}
-				onChange={onChange}
-				onMove={onMove}
-				onDelete={deletePrinciple}
-			/>
-		);
-	}
-
-	return (
-		<div className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/40 p-3">
-			<button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
-				<p className="truncate text-sm font-medium text-gray-200">
-					{principle.statement.trim() || "Untitled principle"}
-				</p>
-				<p className="mt-1 text-xs text-gray-500">
-					{principle.severity} · {principle.permission}
-				</p>
-			</button>
-			<RowActions
-				index={index}
-				count={count}
-				onMove={onMove}
-				onDelete={deletePrinciple}
-				deleteLabel="Delete principle"
-			/>
-		</div>
-	);
-}
-
-function PrincipleEditor({
-	principle,
+function ProjectRuleEditor({
+	rule,
 	index,
 	count,
 	onChange,
 	onMove,
 	onDelete,
 }: {
-	principle: PrincipleDraft;
+	rule: ProjectRuleDraft;
 	index: number;
 	count: number;
-	onChange: (principle: PrincipleDraft) => void;
+	onChange: (rule: ProjectRuleDraft) => void;
 	onMove: (direction: "up" | "down") => void;
 	onDelete: () => void;
 }) {
 	return (
 		<div className="rounded-lg border border-gray-800 bg-gray-950/40 p-4">
 			<div className="mb-3 flex items-center justify-between gap-3">
-				<p className="text-sm font-medium text-gray-300">Principle {index + 1}</p>
+				<p className="flex items-center gap-2 text-sm font-medium text-gray-300">
+					{rule.kind === "gotcha" && (
+						<AlertTriangle size={14} className="text-amber-300" aria-hidden="true" />
+					)}
+					{rule.kind === "gotcha" ? "Gotcha" : "Convention"} {index + 1}
+				</p>
 				<RowActions
 					index={index}
 					count={count}
 					onMove={onMove}
 					onDelete={onDelete}
-					deleteLabel="Delete principle"
+					deleteLabel={`Delete ${rule.kind}`}
 				/>
 			</div>
 
@@ -598,19 +585,19 @@ function PrincipleEditor({
 				<label className="block md:col-span-2">
 					<span className="mb-1 block text-sm text-gray-400">Statement</span>
 					<input
-						value={principle.statement}
-						onChange={(event) => onChange({ ...principle, statement: event.target.value })}
+						value={rule.statement}
+						onChange={(event) => onChange({ ...rule, statement: event.target.value })}
 						className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
-						placeholder="Fight structural dishonesty before polishing abstractions."
+						placeholder="Use route-level query keys for project data."
 					/>
 				</label>
 
 				<label className="block">
 					<span className="mb-1 block text-sm text-gray-400">Severity</span>
 					<select
-						value={principle.severity}
+						value={rule.severity}
 						onChange={(event) =>
-							onChange({ ...principle, severity: event.target.value as RuleSeverity })
+							onChange({ ...rule, severity: event.target.value as RuleSeverity })
 						}
 						className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
 					>
@@ -625,9 +612,9 @@ function PrincipleEditor({
 				<label className="block">
 					<span className="mb-1 block text-sm text-gray-400">Permission</span>
 					<select
-						value={principle.permission}
+						value={rule.permission}
 						onChange={(event) =>
-							onChange({ ...principle, permission: event.target.value as Permission })
+							onChange({ ...rule, permission: event.target.value as Permission })
 						}
 						className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
 					>
@@ -642,8 +629,8 @@ function PrincipleEditor({
 				<label className="block md:col-span-2">
 					<span className="mb-1 block text-sm text-gray-400">Rationale</span>
 					<textarea
-						value={principle.rationale}
-						onChange={(event) => onChange({ ...principle, rationale: event.target.value })}
+						value={rule.rationale}
+						onChange={(event) => onChange({ ...rule, rationale: event.target.value })}
 						rows={2}
 						className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-base text-white outline-none focus:border-gray-500"
 					/>
@@ -652,8 +639,8 @@ function PrincipleEditor({
 				<label className="block md:col-span-2">
 					<span className="mb-1 block text-sm text-gray-400">Example</span>
 					<textarea
-						value={principle.example}
-						onChange={(event) => onChange({ ...principle, example: event.target.value })}
+						value={rule.example}
+						onChange={(event) => onChange({ ...rule, example: event.target.value })}
 						rows={2}
 						className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-base text-white outline-none focus:border-gray-500"
 					/>
@@ -672,7 +659,7 @@ function MemoryRow({
 	onDelete,
 }: {
 	memoryId: number;
-	memory: Memory | DevModeMemorySummary | undefined;
+	memory: Memory | ProjectMemorySummary | undefined;
 	index: number;
 	count: number;
 	onMove: (direction: "up" | "down") => void;

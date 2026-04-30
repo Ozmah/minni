@@ -110,7 +110,7 @@ export const PLACEMENT_LABEL: Record<MemoryPlacement, string> = {
 	shared: "Shared",
 };
 
-export type GroupBy = "type" | "status" | "updated";
+export type GroupBy = "type" | "status" | "updated" | "context";
 
 export const INITIAL_FILTERS: MemoryFilters = {
 	search: "",
@@ -138,21 +138,6 @@ export function SearchInput({ value, onChange }: { value: string; onChange: (v: 
 				className="w-full rounded-md bg-gray-800 py-1.5 pr-2 pl-7 text-sm text-gray-100 ring-1 ring-gray-700 ring-inset placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-1 focus:outline-emerald-500"
 			/>
 		</div>
-	);
-}
-
-function ToggleOnlyActive({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-	return (
-		<label className="flex cursor-pointer items-center gap-2 text-xs text-gray-400">
-			<input
-				type="checkbox"
-				name="onlyActive"
-				checked={value}
-				onChange={(e) => onChange(e.target.checked)}
-				className="size-3.5 accent-emerald-500"
-			/>
-			Only active context
-		</label>
 	);
 }
 
@@ -317,10 +302,6 @@ export function Toolbar({
 				}
 				onClear={() => setFilters((f) => ({ ...f, permissions: new Set() }))}
 			/>
-			<ToggleOnlyActive
-				value={filters.onlyActive}
-				onChange={(v) => setFilters((f) => ({ ...f, onlyActive: v }))}
-			/>
 		</div>
 	);
 }
@@ -406,6 +387,8 @@ export const STATUS_ORDER: MemoryStatus[] = [
 	"deprecated",
 ];
 
+export const PLACEMENT_ORDER: MemoryPlacement[] = ["shared", "project", "dev_mode", "unaffiliated"];
+
 export type Group = { key: string; title: string; items: MemoryListItem[] };
 
 function updatedBucket(iso: string): { key: string; label: string; order: number } {
@@ -448,6 +431,20 @@ export function groupItems(items: MemoryListItem[], mode: GroupBy): Group[] {
 		}));
 	}
 
+	if (mode === "context") {
+		const map = new Map<MemoryPlacement, MemoryListItem[]>();
+		for (const memory of items) {
+			const entries = map.get(memory.placement) ?? [];
+			entries.push(memory);
+			map.set(memory.placement, entries);
+		}
+		return PLACEMENT_ORDER.filter((placement) => map.has(placement)).map((placement) => ({
+			key: placement,
+			title: PLACEMENT_LABEL[placement],
+			items: (map.get(placement) ?? []).sort(byUpdated),
+		}));
+	}
+
 	const buckets = new Map<string, { label: string; order: number; items: MemoryListItem[] }>();
 	for (const memory of items) {
 		const bucket = updatedBucket(memory.updatedAt);
@@ -472,6 +469,7 @@ export function SegmentedGroupBy({
 		{ value: "type", label: "Type" },
 		{ value: "status", label: "Status" },
 		{ value: "updated", label: "Updated" },
+		{ value: "context", label: "Context" },
 	];
 
 	return (
