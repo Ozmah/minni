@@ -2,27 +2,31 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
 	AlertTriangle,
-	ArrowDown,
 	ArrowLeft,
-	ArrowUp,
 	CheckCircle2,
 	FolderKanban,
 	LinkIcon,
 	Plus,
 	Save,
 	Shield,
-	Trash2,
+	TerminalSquare,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import {
+	ComposerCollapsibleListItem,
+	ComposerRowActions,
+} from "@/components/composer/ComposerListItem";
 import { InjectionPreview } from "@/components/InjectionPreview";
 import { api, unwrap } from "@/lib/api";
 import { moveItem } from "@/lib/dev-modes";
 import {
 	buildProjectDraftPreview,
+	createEmptyProjectCommand,
 	createEmptyProjectRule,
 	createProjectComposerDraft,
 	parseStackInput,
+	type ProjectCommandDraft,
 	type EnrichedProject,
 	type ProjectComposerDraft,
 	type ProjectMemorySummary,
@@ -30,7 +34,14 @@ import {
 	type ProjectRuleKind,
 } from "@/lib/projects";
 
-import type { Memory, Permission, RuleSeverity } from "../../../src/schema";
+import type {
+	CommandGroup,
+	CommandRisk,
+	CommandVisibility,
+	Memory,
+	Permission,
+	RuleSeverity,
+} from "../../../src/schema";
 
 export const Route = createFileRoute("/composer/projects/$id")({
 	component: ProjectComposer,
@@ -38,6 +49,19 @@ export const Route = createFileRoute("/composer/projects/$id")({
 
 const PERMISSIONS: Permission[] = ["open", "guarded", "read_only", "locked"];
 const SEVERITIES: RuleSeverity[] = ["critical", "strong", "default"];
+const COMMAND_GROUPS: CommandGroup[] = [
+	"run",
+	"quality",
+	"build",
+	"test",
+	"db",
+	"infra",
+	"worker",
+	"setup",
+	"misc",
+];
+const COMMAND_RISKS: CommandRisk[] = ["safe", "mutating", "destructive"];
+const COMMAND_VISIBILITIES: CommandVisibility[] = ["primary", "secondary", "hidden"];
 
 function ProjectComposer() {
 	const { id } = Route.useParams();
@@ -47,6 +71,7 @@ function ProjectComposer() {
 	const [loadedId, setLoadedId] = useState<number | null>(null);
 	const [memoryQuery, setMemoryQuery] = useState("");
 	const [selectedMemoryId, setSelectedMemoryId] = useState("");
+	const [expandedCommandKey, setExpandedCommandKey] = useState<string | null>(null);
 
 	const { data, isLoading, error } = useQuery({
 		queryKey: ["project", String(numericId), "enriched"],
@@ -70,6 +95,7 @@ function ProjectComposer() {
 		if (loadedId === data.project.id) return;
 		setDraft(createProjectComposerDraft(data));
 		setLoadedId(data.project.id);
+		setExpandedCommandKey(null);
 	}, [data, loadedId]);
 
 	const saveMutation = useMutation({
@@ -91,6 +117,19 @@ function ProjectComposer() {
 						permission: rule.permission,
 						example: rule.example.trim() || null,
 					})),
+				commands: nextDraft.commands
+					.filter((command) => command.key.trim() && command.command.trim())
+					.map((command) => ({
+						id: command.id,
+						key: command.key.trim(),
+						command: command.command.trim(),
+						summary: command.summary.trim() || null,
+						group: command.group,
+						risk: command.risk,
+						visibility: command.visibility,
+						permission: command.permission,
+						notes: command.notes.trim() || null,
+					})),
 			};
 
 			return api.api.projects({ id: numericId }).composition.put(composition).then(unwrap);
@@ -99,6 +138,7 @@ function ProjectComposer() {
 			const enriched = updated as EnrichedProject;
 			setDraft(createProjectComposerDraft(enriched));
 			setLoadedId(enriched.project.id);
+			setExpandedCommandKey(null);
 			await Promise.all([
 				qc.invalidateQueries({ queryKey: ["project", String(numericId)] }),
 				qc.invalidateQueries({ queryKey: ["projects"] }),
@@ -151,6 +191,30 @@ function ProjectComposer() {
 		setDraft((current) => (current ? mutator(current) : current));
 	}
 
+	function addCommand() {
+		if (!draft) return;
+		const emptyNewCommand = draft.commands.find(isEmptyNewCommand);
+		if (emptyNewCommand) {
+			setExpandedCommandKey(emptyNewCommand.clientKey);
+			return;
+		}
+
+		const command = createEmptyProjectCommand();
+		updateDraft((current) => ({ ...current, commands: [command, ...current.commands] }));
+		setExpandedCommandKey(command.clientKey);
+	}
+
+	function openCommand(clientKey: string) {
+		if (expandedCommandKey === clientKey) return;
+		updateDraft((current) => ({
+			...current,
+			commands: current.commands.filter(
+				(command) => command.clientKey === clientKey || !isEmptyNewCommand(command),
+			),
+		}));
+		setExpandedCommandKey(clientKey);
+	}
+
 	function addSelectedMemory() {
 		const memoryId = Number(selectedMemoryId);
 		if (!memoryId || selectedMemoryIds.has(memoryId)) return;
@@ -162,6 +226,7 @@ function ProjectComposer() {
 		setDraft(createProjectComposerDraft(enrichedProject));
 		setMemoryQuery("");
 		setSelectedMemoryId("");
+		setExpandedCommandKey(null);
 	}
 
 	return (
@@ -314,6 +379,17 @@ function ProjectComposer() {
 						updateDraft={updateDraft}
 					/>
 
+					<ProjectCommandsPanel
+						draft={draft}
+						expandedCommandKey={expandedCommandKey}
+						onAddCommand={addCommand}
+						onOpenCommand={openCommand}
+						onCommandDeleted={(clientKey) =>
+							setExpandedCommandKey((current) => (current === clientKey ? null : current))
+						}
+						updateDraft={updateDraft}
+					/>
+
 					<Panel
 						title="Associated memories"
 						description="Attach existing memories that matter whenever this project is active."
@@ -411,6 +487,13 @@ function ProjectComposer() {
 								}
 							/>
 							<SummaryItem label="Memories" value={draft.memoryIds.length} />
+							<SummaryItem
+								label="Commands"
+								value={
+									draft.commands.filter((command) => command.key.trim() && command.command.trim())
+										.length
+								}
+							/>
 							<SummaryItem label="State" value={isDirty ? "dirty" : "clean"} />
 						</div>
 						{saveMutation.error && (
@@ -523,6 +606,258 @@ function moveRuleWithinKind(
 	});
 }
 
+function isEmptyNewCommand(command: ProjectCommandDraft) {
+	return (
+		command.id === undefined &&
+		!command.key.trim() &&
+		!command.command.trim() &&
+		!command.summary.trim() &&
+		!command.notes.trim()
+	);
+}
+
+function ProjectCommandsPanel({
+	draft,
+	expandedCommandKey,
+	onAddCommand,
+	onOpenCommand,
+	onCommandDeleted,
+	updateDraft,
+}: {
+	draft: ProjectComposerDraft;
+	expandedCommandKey: string | null;
+	onAddCommand: () => void;
+	onOpenCommand: (clientKey: string) => void;
+	onCommandDeleted: (clientKey: string) => void;
+	updateDraft: (mutator: (current: ProjectComposerDraft) => ProjectComposerDraft) => void;
+}) {
+	return (
+		<Panel
+			title="Commands"
+			description="Project command deck shown in Cockpit and active context. Hidden commands stay editable here."
+			action={
+				<button
+					type="button"
+					onClick={onAddCommand}
+					className="inline-flex min-h-10 items-center gap-2 rounded-md border border-gray-700 px-3 text-sm text-gray-300 hover:bg-gray-800"
+				>
+					<Plus size={16} aria-hidden="true" /> Command
+				</button>
+			}
+		>
+			{draft.commands.length === 0 ? (
+				<p className="rounded-md border border-dashed border-gray-700 p-4 text-sm text-gray-500">
+					No commands configured for this project.
+				</p>
+			) : (
+				<div className="space-y-2">
+					{draft.commands.map((command, index) => (
+						<ProjectCommandItem
+							key={command.clientKey}
+							command={command}
+							index={index}
+							count={draft.commands.length}
+							expanded={expandedCommandKey === command.clientKey}
+							onOpen={() => onOpenCommand(command.clientKey)}
+							onChange={(next) =>
+								updateDraft((current) => ({
+									...current,
+									commands: current.commands.map((item) =>
+										item.clientKey === command.clientKey ? next : item,
+									),
+								}))
+							}
+							onMove={(direction) =>
+								updateDraft((current) => ({
+									...current,
+									commands: moveItem(
+										current.commands,
+										index,
+										direction === "up" ? index - 1 : index + 1,
+									),
+								}))
+							}
+							onDelete={() =>
+								updateDraft((current) => ({
+									...current,
+									commands: current.commands.filter((item) => item.clientKey !== command.clientKey),
+								}))
+							}
+							onDeleteAfter={() => onCommandDeleted(command.clientKey)}
+						/>
+					))}
+				</div>
+			)}
+		</Panel>
+	);
+}
+
+function ProjectCommandItem({
+	command,
+	index,
+	count,
+	expanded,
+	onOpen,
+	onChange,
+	onMove,
+	onDelete,
+	onDeleteAfter,
+}: {
+	command: ProjectCommandDraft;
+	index: number;
+	count: number;
+	expanded: boolean;
+	onOpen: () => void;
+	onChange: (command: ProjectCommandDraft) => void;
+	onMove: (direction: "up" | "down") => void;
+	onDelete: () => void;
+	onDeleteAfter: () => void;
+}) {
+	function deleteCommand() {
+		onDelete();
+		onDeleteAfter();
+	}
+
+	return (
+		<ComposerCollapsibleListItem
+			expanded={expanded}
+			onOpen={onOpen}
+			openLabel="Edit command"
+			collapsedTitle={command.key.trim() || "Untitled command"}
+			collapsedMeta={`${command.group} · ${command.risk} · ${command.visibility} · ${command.permission}`}
+			editorTitle={
+				<>
+					<TerminalSquare size={14} className="text-emerald-300" aria-hidden="true" /> Command{" "}
+					{index + 1}
+				</>
+			}
+			index={index}
+			count={count}
+			onMove={onMove}
+			onDelete={deleteCommand}
+			deleteLabel="Delete command"
+		>
+			<ProjectCommandFields command={command} onChange={onChange} />
+		</ComposerCollapsibleListItem>
+	);
+}
+
+function ProjectCommandFields({
+	command,
+	onChange,
+}: {
+	command: ProjectCommandDraft;
+	onChange: (command: ProjectCommandDraft) => void;
+}) {
+	return (
+		<div className="grid gap-3 md:grid-cols-2">
+			<label className="block">
+				<span className="mb-1 block text-sm text-gray-400">Key</span>
+				<input
+					value={command.key}
+					onChange={(event) => onChange({ ...command, key: event.target.value })}
+					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+					placeholder="glados"
+				/>
+			</label>
+
+			<label className="block">
+				<span className="mb-1 block text-sm text-gray-400">Group</span>
+				<select
+					value={command.group}
+					onChange={(event) => onChange({ ...command, group: event.target.value as CommandGroup })}
+					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+				>
+					{COMMAND_GROUPS.map((group) => (
+						<option key={group} value={group}>
+							{group}
+						</option>
+					))}
+				</select>
+			</label>
+
+			<label className="block md:col-span-2">
+				<span className="mb-1 block text-sm text-gray-400">Command</span>
+				<input
+					value={command.command}
+					onChange={(event) => onChange({ ...command, command: event.target.value })}
+					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 font-mono text-base text-white outline-none focus:border-gray-500"
+					placeholder="bun run glados"
+				/>
+			</label>
+
+			<label className="block md:col-span-2">
+				<span className="mb-1 block text-sm text-gray-400">Summary</span>
+				<input
+					value={command.summary}
+					onChange={(event) => onChange({ ...command, summary: event.target.value })}
+					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+					placeholder="Full validation suite"
+				/>
+			</label>
+
+			<label className="block">
+				<span className="mb-1 block text-sm text-gray-400">Risk</span>
+				<select
+					value={command.risk}
+					onChange={(event) => onChange({ ...command, risk: event.target.value as CommandRisk })}
+					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+				>
+					{COMMAND_RISKS.map((risk) => (
+						<option key={risk} value={risk}>
+							{risk}
+						</option>
+					))}
+				</select>
+			</label>
+
+			<label className="block">
+				<span className="mb-1 block text-sm text-gray-400">Visibility</span>
+				<select
+					value={command.visibility}
+					onChange={(event) =>
+						onChange({ ...command, visibility: event.target.value as CommandVisibility })
+					}
+					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+				>
+					{COMMAND_VISIBILITIES.map((visibility) => (
+						<option key={visibility} value={visibility}>
+							{visibility}
+						</option>
+					))}
+				</select>
+			</label>
+
+			<label className="block">
+				<span className="mb-1 block text-sm text-gray-400">Permission</span>
+				<select
+					value={command.permission}
+					onChange={(event) =>
+						onChange({ ...command, permission: event.target.value as Permission })
+					}
+					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+				>
+					{PERMISSIONS.map((permission) => (
+						<option key={permission} value={permission}>
+							{permission}
+						</option>
+					))}
+				</select>
+			</label>
+
+			<label className="block md:col-span-2">
+				<span className="mb-1 block text-sm text-gray-400">Notes</span>
+				<textarea
+					value={command.notes}
+					onChange={(event) => onChange({ ...command, notes: event.target.value })}
+					rows={2}
+					className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-base text-white outline-none focus:border-gray-500"
+				/>
+			</label>
+		</div>
+	);
+}
+
 function Panel({
 	title,
 	description,
@@ -572,7 +907,7 @@ function ProjectRuleEditor({
 					)}
 					{rule.kind === "gotcha" ? "Gotcha" : "Convention"} {index + 1}
 				</p>
-				<RowActions
+				<ComposerRowActions
 					index={index}
 					count={count}
 					onMove={onMove}
@@ -677,58 +1012,13 @@ function MemoryRow({
 						: "This memory is not in the current option list."}
 				</p>
 			</div>
-			<RowActions
+			<ComposerRowActions
 				index={index}
 				count={count}
 				onMove={onMove}
 				onDelete={onDelete}
 				deleteLabel="Detach memory"
 			/>
-		</div>
-	);
-}
-
-function RowActions({
-	index,
-	count,
-	onMove,
-	onDelete,
-	deleteLabel,
-}: {
-	index: number;
-	count: number;
-	onMove: (direction: "up" | "down") => void;
-	onDelete: () => void;
-	deleteLabel: string;
-}) {
-	return (
-		<div className="flex shrink-0 items-center gap-1">
-			<button
-				type="button"
-				onClick={() => onMove("up")}
-				disabled={index === 0}
-				aria-label="Move up"
-				className="inline-flex size-9 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
-			>
-				<ArrowUp size={16} aria-hidden="true" />
-			</button>
-			<button
-				type="button"
-				onClick={() => onMove("down")}
-				disabled={index === count - 1}
-				aria-label="Move down"
-				className="inline-flex size-9 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
-			>
-				<ArrowDown size={16} aria-hidden="true" />
-			</button>
-			<button
-				type="button"
-				onClick={onDelete}
-				aria-label={deleteLabel}
-				className="inline-flex size-9 items-center justify-center rounded-md text-red-300 hover:bg-red-500/10"
-			>
-				<Trash2 size={16} aria-hidden="true" />
-			</button>
 		</div>
 	);
 }

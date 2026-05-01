@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-import { MEMORY_STATUS, MEMORY_TYPE, PERMISSION } from "../../schema";
+import {
+	MEMORY_STATUS,
+	MEMORY_TYPE,
+	PERMISSION,
+	devModeSelectSchema,
+	memorySelectSchema,
+	projectSelectSchema,
+} from "../../schema";
 
 export const MEMORY_PLACEMENT = ["unaffiliated", "project", "dev_mode", "shared"] as const;
 export type MemoryPlacement = (typeof MEMORY_PLACEMENT)[number];
@@ -32,21 +39,20 @@ export const MemoriesEnrichedQuerySchema = z.object({
 	offset: z.coerce.number().int().min(0).optional(),
 });
 
-export const ContextRefSchema = z.object({
-	id: z.number(),
-	name: z.string(),
-});
+export const ContextRefSchema = projectSelectSchema.pick({ id: true, name: true });
 
-export const MemoryAssociationRefSchema = z.object({
-	id: z.number(),
-	name: z.string(),
-	sortOrder: z.number().nullable(),
-});
+export const ProjectAssociationRefSchema = projectSelectSchema
+	.pick({ id: true, name: true })
+	.extend({ sortOrder: z.number().nullable() });
 
-export const MemoryRelationRefSchema = z.object({
-	id: z.number(),
-	title: z.string(),
-	type: z.enum(MEMORY_TYPE),
+export const DevModeAssociationRefSchema = devModeSelectSchema
+	.pick({ id: true, name: true })
+	.extend({ sortOrder: z.number().nullable() });
+
+export const MemoryRelationRefSchema = memorySelectSchema.pick({
+	id: true,
+	title: true,
+	type: true,
 });
 
 export const MemoryStatusActionsSchema = z.object({
@@ -76,29 +82,32 @@ export const MemoryStatusActionResponseSchema = z.object({
 
 export const MemoryPlacementSchema = z.enum(MEMORY_PLACEMENT);
 
-export const MemoryListItemSchema = z.object({
-	id: z.number(),
-	title: z.string(),
-	excerpt: z.string(),
-	type: z.enum(MEMORY_TYPE),
-	status: z.enum(MEMORY_STATUS),
-	permission: z.enum(PERMISSION),
-	createdAt: z.date(),
-	updatedAt: z.date(),
-	tags: z.array(z.string()),
-	associations: z.object({
-		projects: z.array(MemoryAssociationRefSchema),
-		devModes: z.array(MemoryAssociationRefSchema),
-	}),
-	relationCount: z.number(),
-	activeContext: z.object({
-		inActiveProject: z.boolean(),
-		inActiveDevMode: z.boolean(),
-	}),
-	placement: MemoryPlacementSchema,
-	actions: MemoryStatusActionsSchema,
-	summary: MemorySummarySchema,
-});
+export const MemoryListItemSchema = memorySelectSchema
+	.pick({
+		id: true,
+		title: true,
+		type: true,
+		status: true,
+		permission: true,
+		createdAt: true,
+		updatedAt: true,
+	})
+	.extend({
+		excerpt: z.string(),
+		tags: z.array(z.string()),
+		associations: z.object({
+			projects: z.array(ProjectAssociationRefSchema),
+			devModes: z.array(DevModeAssociationRefSchema),
+		}),
+		relationCount: z.number(),
+		activeContext: z.object({
+			inActiveProject: z.boolean(),
+			inActiveDevMode: z.boolean(),
+		}),
+		placement: MemoryPlacementSchema,
+		actions: MemoryStatusActionsSchema,
+		summary: MemorySummarySchema,
+	});
 
 const TypeFacetSchema = z.object({ value: z.enum(MEMORY_TYPE), count: z.number() });
 const StatusFacetSchema = z.object({ value: z.enum(MEMORY_STATUS), count: z.number() });
@@ -122,30 +131,33 @@ export const MemoriesEnrichedListResponseSchema = z.object({
 	}),
 });
 
-export const MemoryDetailResponseSchema = z.object({
-	id: z.number(),
-	title: z.string(),
-	content: z.string(),
-	type: z.enum(MEMORY_TYPE),
-	status: z.enum(MEMORY_STATUS),
-	permission: z.enum(PERMISSION),
-	createdAt: z.date(),
-	updatedAt: z.date(),
-	tags: z.array(z.string()),
-	associations: z.object({
-		projects: z.array(MemoryAssociationRefSchema),
-		devModes: z.array(MemoryAssociationRefSchema),
-	}),
-	relations: z.object({
-		outgoing: z.array(MemoryRelationRefSchema),
-		incoming: z.array(MemoryRelationRefSchema),
-	}),
-	activeContext: z.object({
-		inActiveProject: z.boolean(),
-		inActiveDevMode: z.boolean(),
-	}),
-	placement: MemoryPlacementSchema,
-});
+export const MemoryDetailResponseSchema = memorySelectSchema
+	.pick({
+		id: true,
+		title: true,
+		content: true,
+		type: true,
+		status: true,
+		permission: true,
+		createdAt: true,
+		updatedAt: true,
+	})
+	.extend({
+		tags: z.array(z.string()),
+		associations: z.object({
+			projects: z.array(ProjectAssociationRefSchema),
+			devModes: z.array(DevModeAssociationRefSchema),
+		}),
+		relations: z.object({
+			outgoing: z.array(MemoryRelationRefSchema),
+			incoming: z.array(MemoryRelationRefSchema),
+		}),
+		activeContext: z.object({
+			inActiveProject: z.boolean(),
+			inActiveDevMode: z.boolean(),
+		}),
+		placement: MemoryPlacementSchema,
+	});
 
 export type EnrichedMemoryListQuery = z.infer<typeof MemoriesEnrichedQuerySchema>;
 export type MemoriesEnrichedListResponse = z.infer<typeof MemoriesEnrichedListResponseSchema>;

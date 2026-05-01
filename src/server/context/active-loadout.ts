@@ -11,13 +11,17 @@ import {
 	projects,
 	rules,
 } from "../../schema";
+import { listInjectableProjectCommands } from "../commands/service";
 import {
+	formatCommandContextBlock,
+	formatCommandLoadoutSubtitle,
 	formatDevModeOverview,
 	formatMemoryContextBlock,
 	formatMemoryLoadoutSubtitle,
 	formatProjectOverview,
 	formatRuleContextBlock,
 	joinContextBlocks,
+	parseProjectStack,
 } from "./formatters";
 
 function resolveMemoryPlacement(
@@ -50,7 +54,7 @@ export async function buildActiveContextLoadout(db: MinniDB): Promise<ActiveCont
 			.where(eq(projects.id, activeProject.id))
 			.limit(1);
 		if (project) {
-			const [projectRules, associatedMemories] = await Promise.all([
+			const [projectRules, associatedMemories, projectCommands] = await Promise.all([
 				db
 					.select()
 					.from(rules)
@@ -64,10 +68,13 @@ export async function buildActiveContextLoadout(db: MinniDB): Promise<ActiveCont
 					.innerJoin(memories, eq(memories.id, projectMemories.memoryId))
 					.where(and(eq(projectMemories.projectId, project.id), ne(memories.permission, "locked")))
 					.orderBy(asc(projectMemories.sortOrder), asc(projectMemories.memoryId)),
+				listInjectableProjectCommands(db, project.id),
 			]);
 
 			for (const row of associatedMemories) projectMemoryIds.add(row.id);
 
+			const conventionCount = projectRules.filter((rule) => rule.kind === "convention").length;
+			const gotchaCount = projectRules.filter((rule) => rule.kind === "gotcha").length;
 			const overview = formatProjectOverview(project);
 			const ruleItems = projectRules.map((rule) => ({
 				key: `${rule.kind}:${rule.id}`,
@@ -75,6 +82,14 @@ export async function buildActiveContextLoadout(db: MinniDB): Promise<ActiveCont
 				title: rule.statement,
 				subtitle: `${rule.kind} · ${rule.severity} · ${rule.permission}`,
 				text: formatRuleContextBlock(rule.kind as "convention" | "gotcha", rule),
+				rule: {
+					kind: rule.kind as "convention" | "gotcha",
+					statement: rule.statement,
+					rationale: rule.rationale,
+					severity: rule.severity,
+					permission: rule.permission,
+					example: rule.example,
+				},
 			}));
 
 			const items: ContextLoadoutItem[] = [
@@ -82,8 +97,17 @@ export async function buildActiveContextLoadout(db: MinniDB): Promise<ActiveCont
 					key: `project:${project.id}:overview`,
 					kind: "overview",
 					title: `Project: ${project.name}`,
-					subtitle: `${projectRules.filter((rule) => rule.kind === "convention").length} conventions · ${projectRules.filter((rule) => rule.kind === "gotcha").length} gotchas`,
+					subtitle: `${conventionCount} conventions · ${gotchaCount} gotchas`,
 					text: overview,
+					overview: {
+						type: "project",
+						name: project.name,
+						description: project.description,
+						permission: project.permission,
+						stack: parseProjectStack(project.stack),
+						conventionCount,
+						gotchaCount,
+					},
 				},
 				...ruleItems,
 			];
@@ -95,6 +119,34 @@ export async function buildActiveContextLoadout(db: MinniDB): Promise<ActiveCont
 				items,
 				text: joinContextBlocks(items.map((item) => item.text)),
 			});
+
+			if (projectCommands.length > 0) {
+				const commandItems = projectCommands.map((command) => ({
+					key: `command:${command.id}`,
+					kind: "command" as const,
+					title: command.key,
+					subtitle: formatCommandLoadoutSubtitle(command),
+					text: formatCommandContextBlock(command),
+					command: {
+						key: command.key,
+						command: command.command,
+						summary: command.summary,
+						group: command.group,
+						risk: command.risk,
+						visibility: command.visibility,
+						permission: command.permission,
+						notes: command.notes,
+					},
+				}));
+
+				sections.push({
+					key: "commands",
+					title: "Commands",
+					description: `${projectCommands.length} project commands`,
+					items: commandItems,
+					text: joinContextBlocks(commandItems.map((item) => item.text)),
+				});
+			}
 		}
 	}
 
@@ -128,6 +180,14 @@ export async function buildActiveContextLoadout(db: MinniDB): Promise<ActiveCont
 				title: principle.statement,
 				subtitle: `${principle.severity} · ${principle.permission}`,
 				text: formatRuleContextBlock("principle", principle),
+				rule: {
+					kind: "principle" as const,
+					statement: principle.statement,
+					rationale: principle.rationale,
+					severity: principle.severity,
+					permission: principle.permission,
+					example: principle.example,
+				},
 			}));
 
 			const items: ContextLoadoutItem[] = [
@@ -137,6 +197,13 @@ export async function buildActiveContextLoadout(db: MinniDB): Promise<ActiveCont
 					title: `Dev Mode: ${devMode.name}`,
 					subtitle: `${principles.length} principles`,
 					text: overview,
+					overview: {
+						type: "dev-mode",
+						name: devMode.name,
+						description: devMode.description,
+						permission: devMode.permission,
+						principleCount: principles.length,
+					},
 				},
 				...principleItems,
 			];
@@ -168,6 +235,15 @@ export async function buildActiveContextLoadout(db: MinniDB): Promise<ActiveCont
 				subtitle: formatMemoryLoadoutSubtitle(memory, placement),
 				text: formatMemoryContextBlock(memory, placement),
 				memoryId: memory.id,
+				memory: {
+					id: memory.id,
+					title: memory.title,
+					type: memory.type,
+					status: memory.status,
+					permission: memory.permission,
+					placement,
+					content: memory.content,
+				},
 			};
 		});
 
@@ -190,6 +266,7 @@ export async function buildActiveContextLoadout(db: MinniDB): Promise<ActiveCont
 			sections: sections.length,
 			items: sections.reduce((total, section) => total + section.items.length, 0),
 			memories: memoryIds.length,
+			commands: sections.find((section) => section.key === "commands")?.items.length ?? 0,
 		},
 	};
 }

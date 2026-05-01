@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
 
 import {
@@ -63,4 +63,14 @@ export const ruleInsertSchema = createInsertSchema(rules, {
 	permission: z.enum(PERMISSION).default("guarded"),
 	example: (s) => s.max(2000).optional(),
 	sortOrder: z.number().int().default(0),
+});
+
+export const ruleUpdateSchema = createUpdateSchema(rules, {
+	kind: z.enum(RULE_KIND),
+	statement: (s) => s.min(1),
+	rationale: (s) => s.max(2000).optional(),
+	severity: z.enum(RULE_SEVERITY),
+	permission: z.enum(PERMISSION),
+	example: (s) => s.max(2000).optional(),
+	sortOrder: z.number().int(),
 });

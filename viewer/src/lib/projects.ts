@@ -1,4 +1,8 @@
 import type {
+	Command,
+	CommandGroup,
+	CommandRisk,
+	CommandVisibility,
 	MemoryStatus,
 	MemoryType,
 	Permission,
@@ -38,11 +42,13 @@ export type EnrichedProject = {
 	project: Project;
 	rules: ProjectRule[];
 	memories: ProjectMemorySummary[];
+	commands: Command[];
 	isActive: boolean;
 	summary: {
 		conventionCount: number;
 		gotchaCount: number;
 		memoryCount: number;
+		commandCount: number;
 	};
 	injectionPreview: string;
 };
@@ -65,6 +71,20 @@ export type ProjectComposerDraft = {
 	permission: Permission;
 	rules: ProjectRuleDraft[];
 	memoryIds: number[];
+	commands: ProjectCommandDraft[];
+};
+
+export type ProjectCommandDraft = {
+	clientKey: string;
+	id?: number;
+	key: string;
+	command: string;
+	summary: string;
+	group: CommandGroup;
+	risk: CommandRisk;
+	visibility: CommandVisibility;
+	permission: Permission;
+	notes: string;
 };
 
 export function createProjectComposerDraft(data: EnrichedProject): ProjectComposerDraft {
@@ -84,6 +104,18 @@ export function createProjectComposerDraft(data: EnrichedProject): ProjectCompos
 			example: rule.example ?? "",
 		})),
 		memoryIds: data.memories.map((memory) => memory.id),
+		commands: data.commands.map((command) => ({
+			clientKey: `command-${command.id}`,
+			id: command.id,
+			key: command.key,
+			command: command.command,
+			summary: command.summary ?? "",
+			group: command.group,
+			risk: command.risk,
+			visibility: command.visibility,
+			permission: command.permission,
+			notes: command.notes ?? "",
+		})),
 	};
 }
 
@@ -96,6 +128,20 @@ export function createEmptyProjectRule(kind: ProjectRuleKind): ProjectRuleDraft 
 		severity: "default",
 		permission: "guarded",
 		example: "",
+	};
+}
+
+export function createEmptyProjectCommand(): ProjectCommandDraft {
+	return {
+		clientKey: `new-command-${crypto.randomUUID()}`,
+		key: "",
+		command: "",
+		summary: "",
+		group: "misc",
+		risk: "safe",
+		visibility: "secondary",
+		permission: "guarded",
+		notes: "",
 	};
 }
 
@@ -135,6 +181,11 @@ export function buildProjectDraftPreview(draft: ProjectComposerDraft): string {
 
 	if (draft.memoryIds.length > 0) {
 		lines.push("", `Associated memories: ${draft.memoryIds.length}`);
+	}
+
+	const commands = draft.commands.filter((command) => command.key.trim() && command.command.trim());
+	if (commands.length > 0) {
+		lines.push("", `Configured commands: ${commands.length}`);
 	}
 
 	lines.push(`[/PROJECT:${name}]`);

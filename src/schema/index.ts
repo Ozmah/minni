@@ -52,14 +52,14 @@ export type { MemoryRelation } from "./memory-relations";
 export type { CanvasPage, NewCanvasPage } from "./canvas";
 
 // Zod Schemas
-export { devModeSelectSchema, devModeInsertSchema } from "./dev-modes";
-export { projectSelectSchema, projectInsertSchema } from "./projects";
+export { devModeSelectSchema, devModeInsertSchema, devModeUpdateSchema } from "./dev-modes";
+export { projectSelectSchema, projectInsertSchema, projectUpdateSchema } from "./projects";
 export { activeStateSelectSchema, activeStateInsertSchema } from "./active-state";
-export { memorySelectSchema, memoryInsertSchema } from "./memories";
+export { memorySelectSchema, memoryInsertSchema, memoryUpdateSchema } from "./memories";
 export { projectMemorySelectSchema } from "./project-memories";
 export { devModeMemorySelectSchema } from "./dev-mode-memories";
-export { commandSelectSchema, commandInsertSchema } from "./commands";
-export { ruleSelectSchema, ruleInsertSchema } from "./rules";
+export { commandSelectSchema, commandInsertSchema, commandUpdateSchema } from "./commands";
+export { ruleSelectSchema, ruleInsertSchema, ruleUpdateSchema } from "./rules";
 export { tagSelectSchema, tagInsertSchema } from "./tags";
 export { settingsSelectSchema } from "./settings";
 export { memoryRelationSelectSchema } from "./memory-relations";

@@ -3,6 +3,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import type { MinniDB } from "../../helpers";
 
 import { activeState, memories, projectMemories, projects, rules } from "../../schema";
+import { listProjectCommands } from "../commands/service";
 import { buildProjectInjectionPreview } from "../context/formatters";
 
 /** Loads the Project Composer payload, including rules, memory summaries, and preview text. */
@@ -10,7 +11,7 @@ export async function getEnrichedProject(db: MinniDB, id: number) {
 	const [project] = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
 	if (!project) return null;
 
-	const [projectRules, associatedMemories, active] = await Promise.all([
+	const [projectRules, associatedMemories, projectCommands, active] = await Promise.all([
 		db
 			.select()
 			.from(rules)
@@ -29,6 +30,7 @@ export async function getEnrichedProject(db: MinniDB, id: number) {
 			.innerJoin(memories, eq(memories.id, projectMemories.memoryId))
 			.where(eq(projectMemories.projectId, id))
 			.orderBy(asc(projectMemories.sortOrder), asc(memories.title)),
+		listProjectCommands(db, id),
 		db.select().from(activeState).where(eq(activeState.id, 1)).limit(1),
 	]);
 
@@ -36,16 +38,19 @@ export async function getEnrichedProject(db: MinniDB, id: number) {
 		project,
 		rules: projectRules,
 		memories: associatedMemories,
+		commands: projectCommands,
 		isActive: active[0]?.activeProjectId === id,
 		summary: {
 			conventionCount: projectRules.filter((rule) => rule.kind === "convention").length,
 			gotchaCount: projectRules.filter((rule) => rule.kind === "gotcha").length,
 			memoryCount: associatedMemories.length,
+			commandCount: projectCommands.length,
 		},
 		injectionPreview: buildProjectInjectionPreview({
 			project,
 			projectRules,
 			memoryCount: associatedMemories.length,
+			commandCount: projectCommands.length,
 		}),
 	};
 }

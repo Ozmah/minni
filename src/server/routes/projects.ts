@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import { normalizeProjectName, type MinniDB } from "../../helpers";
 import { activeState, projects, projectSelectSchema, rules } from "../../schema";
+import { ProjectCommandsBody, ProjectCommandsResponseSchema } from "../commands/contracts";
+import { listProjectCommands, replaceProjectCommands } from "../commands/service";
 import {
 	getUnavailableMemoryIds,
 	replaceProjectMemoryAssociations,
@@ -76,6 +78,46 @@ export const projectRoutes = (db: MinniDB) =>
 				params: z.object({ id: z.coerce.number().int() }),
 				response: {
 					200: ProjectEnrichedResponseSchema,
+					404: ErrorResponse,
+				},
+			},
+		)
+		.get(
+			"/:id/commands",
+			async ({ params, status }) => {
+				const project = await db.select().from(projects).where(eq(projects.id, params.id)).limit(1);
+				if (!project[0]) return status(404, { error: "Project not found" });
+				return listProjectCommands(db, params.id);
+			},
+			{
+				params: z.object({ id: z.coerce.number().int() }),
+				response: {
+					200: ProjectCommandsResponseSchema,
+					404: ErrorResponse,
+				},
+			},
+		)
+		.put(
+			"/:id/commands",
+			async ({ params, body, status }) => {
+				const project = await db.select().from(projects).where(eq(projects.id, params.id)).limit(1);
+				if (!project[0]) return status(404, { error: "Project not found" });
+
+				await withTransaction(db, async () => {
+					await replaceProjectCommands(db, params.id, body.commands);
+					await db
+						.update(projects)
+						.set({ updatedAt: new Date() })
+						.where(eq(projects.id, params.id));
+				});
+
+				return listProjectCommands(db, params.id);
+			},
+			{
+				params: z.object({ id: z.coerce.number().int() }),
+				body: ProjectCommandsBody,
+				response: {
+					200: ProjectCommandsResponseSchema,
 					404: ErrorResponse,
 				},
 			},
@@ -205,6 +247,7 @@ export const projectRoutes = (db: MinniDB) =>
 					}
 
 					await replaceProjectMemoryAssociations(db, params.id, memoryIds);
+					await replaceProjectCommands(db, params.id, body.commands);
 				});
 
 				const result = await getEnrichedProject(db, params.id);

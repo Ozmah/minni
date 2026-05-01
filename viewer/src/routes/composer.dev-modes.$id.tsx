@@ -1,19 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-	ArrowDown,
-	ArrowLeft,
-	ArrowUp,
-	CheckCircle2,
-	Cog,
-	LinkIcon,
-	Plus,
-	Save,
-	Shield,
-	Trash2,
-} from "lucide-react";
+import { ArrowLeft, CheckCircle2, Cog, LinkIcon, Plus, Save, Shield } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import {
+	ComposerCollapsibleListItem,
+	ComposerRowActions,
+} from "@/components/composer/ComposerListItem";
 import { InjectionPreview } from "@/components/InjectionPreview";
 import { api, unwrap } from "@/lib/api";
 import {
@@ -532,133 +525,97 @@ function PrincipleItem({
 		onDeleteAfter();
 	}
 
-	if (expanded) {
-		return (
-			<PrincipleEditor
-				principle={principle}
-				index={index}
-				count={count}
-				onChange={onChange}
-				onMove={onMove}
-				onDelete={deletePrinciple}
-			/>
-		);
-	}
-
 	return (
-		<div className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/40 p-3">
-			<button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
-				<p className="truncate text-sm font-medium text-gray-200">
-					{principle.statement.trim() || "Untitled principle"}
-				</p>
-				<p className="mt-1 text-xs text-gray-500">
-					{principle.severity} · {principle.permission}
-				</p>
-			</button>
-			<RowActions
-				index={index}
-				count={count}
-				onMove={onMove}
-				onDelete={deletePrinciple}
-				deleteLabel="Delete principle"
-			/>
-		</div>
+		<ComposerCollapsibleListItem
+			expanded={expanded}
+			onOpen={onOpen}
+			openLabel="Edit principle"
+			collapsedTitle={principle.statement.trim() || "Untitled principle"}
+			collapsedMeta={`${principle.severity} · ${principle.permission}`}
+			editorTitle={`Principle ${index + 1}`}
+			index={index}
+			count={count}
+			onMove={onMove}
+			onDelete={deletePrinciple}
+			deleteLabel="Delete principle"
+		>
+			<PrincipleFields principle={principle} onChange={onChange} />
+		</ComposerCollapsibleListItem>
 	);
 }
 
-function PrincipleEditor({
+function PrincipleFields({
 	principle,
-	index,
-	count,
 	onChange,
-	onMove,
-	onDelete,
 }: {
 	principle: PrincipleDraft;
-	index: number;
-	count: number;
 	onChange: (principle: PrincipleDraft) => void;
-	onMove: (direction: "up" | "down") => void;
-	onDelete: () => void;
 }) {
 	return (
-		<div className="rounded-lg border border-gray-800 bg-gray-950/40 p-4">
-			<div className="mb-3 flex items-center justify-between gap-3">
-				<p className="text-sm font-medium text-gray-300">Principle {index + 1}</p>
-				<RowActions
-					index={index}
-					count={count}
-					onMove={onMove}
-					onDelete={onDelete}
-					deleteLabel="Delete principle"
+		<div className="grid gap-3 md:grid-cols-2">
+			<label className="block md:col-span-2">
+				<span className="mb-1 block text-sm text-gray-400">Statement</span>
+				<input
+					value={principle.statement}
+					onChange={(event) => onChange({ ...principle, statement: event.target.value })}
+					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+					placeholder="Fight structural dishonesty before polishing abstractions."
 				/>
-			</div>
+			</label>
 
-			<div className="grid gap-3 md:grid-cols-2">
-				<label className="block md:col-span-2">
-					<span className="mb-1 block text-sm text-gray-400">Statement</span>
-					<input
-						value={principle.statement}
-						onChange={(event) => onChange({ ...principle, statement: event.target.value })}
-						className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
-						placeholder="Fight structural dishonesty before polishing abstractions."
-					/>
-				</label>
+			<label className="block">
+				<span className="mb-1 block text-sm text-gray-400">Severity</span>
+				<select
+					value={principle.severity}
+					onChange={(event) =>
+						onChange({ ...principle, severity: event.target.value as RuleSeverity })
+					}
+					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+				>
+					{SEVERITIES.map((severity) => (
+						<option key={severity} value={severity}>
+							{severity}
+						</option>
+					))}
+				</select>
+			</label>
 
-				<label className="block">
-					<span className="mb-1 block text-sm text-gray-400">Severity</span>
-					<select
-						value={principle.severity}
-						onChange={(event) =>
-							onChange({ ...principle, severity: event.target.value as RuleSeverity })
-						}
-						className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
-					>
-						{SEVERITIES.map((severity) => (
-							<option key={severity} value={severity}>
-								{severity}
-							</option>
-						))}
-					</select>
-				</label>
+			<label className="block">
+				<span className="mb-1 block text-sm text-gray-400">Permission</span>
+				<select
+					value={principle.permission}
+					onChange={(event) =>
+						onChange({ ...principle, permission: event.target.value as Permission })
+					}
+					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+				>
+					{PERMISSIONS.map((permission) => (
+						<option key={permission} value={permission}>
+							{permission}
+						</option>
+					))}
+				</select>
+			</label>
 
-				<label className="block">
-					<span className="mb-1 block text-sm text-gray-400">Permission</span>
-					<select
-						value={principle.permission}
-						onChange={(event) =>
-							onChange({ ...principle, permission: event.target.value as Permission })
-						}
-						className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
-					>
-						{PERMISSIONS.map((permission) => (
-							<option key={permission} value={permission}>
-								{permission}
-							</option>
-						))}
-					</select>
-				</label>
+			<label className="block md:col-span-2">
+				<span className="mb-1 block text-sm text-gray-400">Rationale</span>
+				<textarea
+					value={principle.rationale}
+					onChange={(event) => onChange({ ...principle, rationale: event.target.value })}
+					rows={2}
+					className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-base text-white outline-none focus:border-gray-500"
+				/>
+			</label>
 
-				<label className="block md:col-span-2">
-					<span className="mb-1 block text-sm text-gray-400">Rationale</span>
-					<textarea
-						value={principle.rationale}
-						onChange={(event) => onChange({ ...principle, rationale: event.target.value })}
-						rows={2}
-						className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-base text-white outline-none focus:border-gray-500"
-					/>
-				</label>
-
-				<label className="block md:col-span-2">
-					<span className="mb-1 block text-sm text-gray-400">Example</span>
-					<textarea
-						value={principle.example}
-						onChange={(event) => onChange({ ...principle, example: event.target.value })}
-						rows={2}
-						className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-base text-white outline-none focus:border-gray-500"
-					/>
-				</label>
-			</div>
+			<label className="block md:col-span-2">
+				<span className="mb-1 block text-sm text-gray-400">Example</span>
+				<textarea
+					value={principle.example}
+					onChange={(event) => onChange({ ...principle, example: event.target.value })}
+					rows={2}
+					className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-base text-white outline-none focus:border-gray-500"
+				/>
+			</label>
 		</div>
 	);
 }
@@ -690,58 +647,13 @@ function MemoryRow({
 						: "This memory is not in the current option list."}
 				</p>
 			</div>
-			<RowActions
+			<ComposerRowActions
 				index={index}
 				count={count}
 				onMove={onMove}
 				onDelete={onDelete}
 				deleteLabel="Detach memory"
 			/>
-		</div>
-	);
-}
-
-function RowActions({
-	index,
-	count,
-	onMove,
-	onDelete,
-	deleteLabel,
-}: {
-	index: number;
-	count: number;
-	onMove: (direction: "up" | "down") => void;
-	onDelete: () => void;
-	deleteLabel: string;
-}) {
-	return (
-		<div className="flex shrink-0 items-center gap-1">
-			<button
-				type="button"
-				onClick={() => onMove("up")}
-				disabled={index === 0}
-				aria-label="Move up"
-				className="inline-flex size-9 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
-			>
-				<ArrowUp size={16} aria-hidden="true" />
-			</button>
-			<button
-				type="button"
-				onClick={() => onMove("down")}
-				disabled={index === count - 1}
-				aria-label="Move down"
-				className="inline-flex size-9 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
-			>
-				<ArrowDown size={16} aria-hidden="true" />
-			</button>
-			<button
-				type="button"
-				onClick={onDelete}
-				aria-label={deleteLabel}
-				className="inline-flex size-9 items-center justify-center rounded-md text-red-300 hover:bg-red-500/10"
-			>
-				<Trash2 size={16} aria-hidden="true" />
-			</button>
 		</div>
 	);
 }

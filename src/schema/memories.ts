@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
 
 import {
@@ -44,4 +44,12 @@ export const memoryInsertSchema = createInsertSchema(memories, {
 	content: (s) => s.min(1),
 	status: z.enum(MEMORY_STATUS).default("draft"),
 	permission: z.enum(PERMISSION).default("guarded"),
+});
+
+export const memoryUpdateSchema = createUpdateSchema(memories, {
+	type: z.enum(MEMORY_TYPE),
+	title: (s) => s.min(1).max(200),
+	content: (s) => s.min(1),
+	status: z.enum(MEMORY_STATUS),
+	permission: z.enum(PERMISSION),
 });

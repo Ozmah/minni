@@ -6,10 +6,9 @@ import type { MinniDB } from "../../helpers";
 
 import {
 	memories,
+	memoryInsertSchema,
 	memorySelectSchema,
-	MEMORY_TYPE,
-	MEMORY_STATUS,
-	PERMISSION,
+	memoryUpdateSchema,
 	projectMemories,
 } from "../../schema";
 import {
@@ -24,20 +23,22 @@ import {
 } from "../lib/memories";
 import { ErrorResponse, SuccessResponse } from "../types";
 
-const MemoryPatchBody = z.object({
-	title: z.string().min(1).max(200).optional(),
-	content: z.string().min(1).optional(),
-	type: z.enum(MEMORY_TYPE).optional(),
-	status: z.enum(MEMORY_STATUS).optional(),
-	permission: z.enum(PERMISSION).optional(),
-});
+const MemoryPatchBody = memoryUpdateSchema
+	.pick({
+		title: true,
+		content: true,
+		type: true,
+		status: true,
+		permission: true,
+	})
+	.partial();
 
-const MemoryCreateBody = z.object({
-	title: z.string().min(1).max(200),
-	content: z.string().min(1),
-	type: z.enum(MEMORY_TYPE).default("note"),
-	status: z.enum(MEMORY_STATUS).default("draft"),
-	permission: z.enum(PERMISSION).default("guarded"),
+const MemoryCreateBody = memoryInsertSchema.pick({
+	title: true,
+	content: true,
+	type: true,
+	status: true,
+	permission: true,
 });
 
 export const memoryRoutes = (db: MinniDB) =>

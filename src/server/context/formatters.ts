@@ -1,6 +1,6 @@
 import type { ContextMemoryPlacement } from "./types";
 
-import { devModes, memories, projects, rules } from "../../schema";
+import { commands, devModes, memories, projects, rules } from "../../schema";
 import { formatContextMemoryPlacement, MEMORY_STATUS_LABEL, MEMORY_TYPE_LABEL } from "./labels";
 
 /** Parses stored project stack JSON while preserving legacy plain-text stack values. */
@@ -72,11 +72,31 @@ export function formatMemoryContextBlock(
 	return lines.join("\n");
 }
 
+/** Formats one project command as inspectable, copyable LLM context. */
+export function formatCommandContextBlock(command: typeof commands.$inferSelect) {
+	const lines = [
+		`[COMMAND:${command.group}/${command.key}]`,
+		`Command: ${command.command}`,
+		`Risk: ${command.risk}`,
+		`Visibility: ${command.visibility}`,
+	];
+	if (command.summary) lines.push(`Summary: ${command.summary}`);
+	if (command.notes) lines.push("", "Notes:", command.notes);
+	lines.push(`[/COMMAND:${command.group}/${command.key}]`);
+	return lines.join("\n");
+}
+
+/** One-line metadata shown in command loadout lists without affecting command execution. */
+export function formatCommandLoadoutSubtitle(command: typeof commands.$inferSelect) {
+	return `${command.group} · ${command.risk} · ${command.visibility}`;
+}
+
 /** Compact project preview used by Composer cards; not the full active-context loadout. */
 export function buildProjectInjectionPreview(args: {
 	project: typeof projects.$inferSelect;
 	projectRules: Array<typeof rules.$inferSelect>;
 	memoryCount: number;
+	commandCount: number;
 }) {
 	const lines = [`[PROJECT:${args.project.name}]`];
 	if (args.project.description) lines.push(args.project.description);
@@ -100,6 +120,7 @@ export function buildProjectInjectionPreview(args: {
 	}
 
 	if (args.memoryCount > 0) lines.push("", `Associated memories: ${args.memoryCount}`);
+	if (args.commandCount > 0) lines.push("", `Configured commands: ${args.commandCount}`);
 
 	lines.push(`[/PROJECT:${args.project.name}]`);
 	return lines.join("\n");

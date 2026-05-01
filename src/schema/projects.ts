@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
 
 import { timestamp, PERMISSION, type Permission } from "./base";
@@ -22,6 +22,12 @@ export const projectSelectSchema = createSelectSchema(projects, {
 
 export const projectInsertSchema = createInsertSchema(projects, {
 	name: (s) => s.min(1).max(100),
-	description: (s) => s.max(500).optional(),
+	description: (s) => s.max(5000).optional(),
 	permission: z.enum(PERMISSION).default("guarded"),
+});
+
+export const projectUpdateSchema = createUpdateSchema(projects, {
+	name: (s) => s.min(1).max(100),
+	description: (s) => s.max(5000).optional(),
+	permission: z.enum(PERMISSION),
 });

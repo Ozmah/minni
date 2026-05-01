@@ -1,5 +1,5 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
 
 import {
@@ -61,4 +61,16 @@ export const commandInsertSchema = createInsertSchema(commands, {
 	permission: z.enum(PERMISSION).default("guarded"),
 	notes: (s) => s.max(2000).optional(),
 	sortOrder: z.number().int().default(0),
+});
+
+export const commandUpdateSchema = createUpdateSchema(commands, {
+	key: (s) => s.min(1).max(100),
+	command: (s) => s.min(1),
+	summary: (s) => s.max(500).optional(),
+	group: z.enum(COMMAND_GROUP),
+	risk: z.enum(COMMAND_RISK),
+	visibility: z.enum(COMMAND_VISIBILITY),
+	permission: z.enum(PERMISSION),
+	notes: (s) => s.max(2000).optional(),
+	sortOrder: z.number().int(),
 });
