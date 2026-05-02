@@ -114,14 +114,14 @@ function Cockpit() {
 					</div>
 				</header>
 
-				<div className="grid min-h-[calc(100vh-14rem)] gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-					<aside className="min-h-0 rounded-xl border border-gray-800 bg-gray-900/70 p-4">
+				<div className="grid min-h-[calc(100vh-14rem)] gap-5 lg:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
+					<aside className="min-h-0 rounded-xl border border-gray-800 bg-gray-900/70 p-4 lg:sticky lg:top-6 lg:self-start">
 						<div className="mb-4 flex items-center justify-between gap-3">
 							<h3 className="font-medium text-white">Loadout slots</h3>
 							<span className="text-xs text-gray-500 tabular-nums">{items.length} items</span>
 						</div>
 
-						<div className="max-h-[calc(100vh-18rem)] space-y-4 overflow-auto pr-1">
+						<div className="max-h-[24rem] space-y-4 overflow-auto pr-1 lg:max-h-[calc(100vh-18rem)]">
 							{sections.length === 0 ? (
 								<EmptyState message="Select a project and dev mode to assemble context." />
 							) : (
@@ -137,7 +137,7 @@ function Cockpit() {
 						</div>
 					</aside>
 
-					<main className="grid min-h-0 gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
+					<main className="grid min-h-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
 						<section className="min-h-0 rounded-xl border border-gray-800 bg-gray-900/70 p-5">
 							<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
 								<div>
@@ -160,7 +160,7 @@ function Cockpit() {
 							<SelectedContextDisplay item={selectedItem} view={selectedView} />
 						</section>
 
-						<aside className="min-h-0 space-y-5">
+						<aside className="grid min-h-0 gap-5 md:grid-cols-2 2xl:block 2xl:space-y-5">
 							<Panel title="Selected item">
 								{selectedItem ? (
 									<div className="space-y-3">
@@ -182,19 +182,28 @@ function Cockpit() {
 							</Panel>
 
 							<Panel title="Copy by layer">
-								<div className="space-y-2">
-									{sections.map((section) => (
-										<button
-											key={section.key}
-											type="button"
-											onClick={() => void copyText(section.text)}
-											className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/40 px-3 text-left text-sm text-gray-300 hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
-										>
-											<span>{section.title}</span>
-											<Copy size={14} aria-hidden="true" />
-										</button>
-									))}
-								</div>
+								{(loadout?.copyLayers ?? []).length === 0 ? (
+									<EmptyState message="No active layers to copy." />
+								) : (
+									<div className="space-y-2">
+										{(loadout?.copyLayers ?? []).map((layer) => (
+											<button
+												key={layer.key}
+												type="button"
+												onClick={() => void copyText(layer.text)}
+												className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+											>
+												<span className="min-w-0">
+													<span className="block truncate">{layer.title}</span>
+													<span className="mt-0.5 block truncate text-xs text-gray-600">
+														{layer.description}
+													</span>
+												</span>
+												<Copy size={14} aria-hidden="true" />
+											</button>
+										))}
+									</div>
+								)}
 							</Panel>
 
 							<Panel title="Context health">
@@ -280,7 +289,7 @@ function SelectedContextDisplay({
 
 function AgentRawBlock({ value }: { value: string }) {
 	return (
-		<pre className="max-h-[calc(100vh-23rem)] min-h-[28rem] overflow-auto rounded-lg border border-gray-800 bg-gray-950 p-4 text-sm leading-6 whitespace-pre-wrap text-gray-300">
+		<pre className="max-h-[calc(100vh-23rem)] min-h-[22rem] overflow-auto rounded-lg border border-gray-800 bg-gray-950 p-4 text-sm leading-6 whitespace-pre-wrap text-gray-300 lg:min-h-[28rem]">
 			{value}
 		</pre>
 	);
@@ -295,7 +304,7 @@ function HumanLoadoutItem({ item }: { item: ContextLoadoutItem }) {
 	if (item.kind === "memory" && item.memory) return <HumanMemoryView item={item} />;
 
 	return (
-		<div className="max-h-[calc(100vh-23rem)] min-h-[28rem] overflow-auto rounded-lg border border-gray-800 bg-gray-950 p-5">
+		<div className="max-h-[calc(100vh-23rem)] min-h-[22rem] overflow-auto rounded-lg border border-gray-800 bg-gray-950 p-5 lg:min-h-[28rem]">
 			<p className="text-sm font-medium text-white">{item.title}</p>
 			<p className="mt-1 text-sm text-gray-500">{item.subtitle}</p>
 			<p className="mt-4 text-sm text-gray-400">
@@ -512,7 +521,7 @@ function HumanCommandView({ item }: { item: ContextLoadoutItem }) {
 
 function HumanPanel({ children }: { children: ReactNode }) {
 	return (
-		<div className="max-h-[calc(100vh-23rem)] min-h-[28rem] overflow-auto rounded-lg border border-gray-800 bg-gray-950 p-5">
+		<div className="max-h-[calc(100vh-23rem)] min-h-[22rem] overflow-auto rounded-lg border border-gray-800 bg-gray-950 p-5 lg:min-h-[28rem]">
 			{children}
 		</div>
 	);

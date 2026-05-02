@@ -54,10 +54,25 @@ export type ContextLoadoutSection = {
 	text: string;
 };
 
+export type ContextCopyLayer = {
+	key:
+		| "project-profile"
+		| "project-commands"
+		| "dev-mode-profile"
+		| "active-memories"
+		| "project-only-memories"
+		| "dev-mode-only-memories"
+		| "shared-memories";
+	title: string;
+	description: string;
+	text: string;
+};
+
 export type ActiveContextLoadout = {
 	activeProject: { id: number; name: string } | null;
 	activeDevMode: { id: number; name: string } | null;
 	sections: ContextLoadoutSection[];
+	copyLayers: ContextCopyLayer[];
 	text: string;
 	counts: {
 		sections: number;

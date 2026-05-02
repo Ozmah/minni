@@ -132,6 +132,7 @@ interface ActivatorMenuProps {
 	onActivate: (id: number) => void;
 	trigger: React.ReactNode;
 	emptyLabel: string;
+	placement?: "top" | "right";
 	onClear?: () => void;
 	clearLabel?: string;
 	pending?: boolean;
@@ -145,6 +146,7 @@ function ActivatorMenu({
 	onActivate,
 	trigger,
 	emptyLabel,
+	placement = "top",
 	onClear,
 	clearLabel,
 	pending = false,
@@ -171,7 +173,13 @@ function ActivatorMenu({
 		<div ref={containerRef} className="relative">
 			{trigger}
 			{open && (
-				<div className="absolute right-0 bottom-full left-0 z-50 mb-2 max-h-64 overflow-y-auto rounded-md border border-gray-700 bg-gray-800 p-1 shadow-xl">
+				<div
+					className={`absolute z-50 max-h-64 overflow-y-auto rounded-md border border-gray-700 bg-gray-800 p-1 shadow-xl ${
+						placement === "right"
+							? "bottom-0 left-full ml-2 w-64"
+							: "right-0 bottom-full left-0 mb-2"
+					}`}
+				>
 					{onClear && (
 						<>
 							<button
@@ -235,7 +243,7 @@ function ActivatorMenu({
  *  HudWidget — active status for sidebar footer
  * ========================================================================== */
 
-export function HudWidget() {
+export function HudWidget({ collapsed = false }: { collapsed?: boolean }) {
 	const { data: hud } = useHud();
 
 	const [devOpen, setDevOpen] = useState(false);
@@ -251,9 +259,12 @@ export function HudWidget() {
 
 	const devPerm = hud.devMode?.permission ?? null;
 	const projPerm = hud.project?.permission ?? null;
+	const placement = collapsed ? "right" : "top";
 
 	return (
-		<div className="border-t border-gray-700 px-2 pt-2 pb-8">
+		<div
+			className={`border-t border-gray-700 px-2 pt-2 pb-8 ${collapsed ? "flex flex-col items-center" : ""}`}
+		>
 			<div className="space-y-0.5">
 				<ActivatorMenu
 					open={devOpen}
@@ -265,24 +276,34 @@ export function HudWidget() {
 					clearLabel="No active dev mode"
 					pending={activateDev.isPending || clearDev.isPending}
 					emptyLabel="No dev modes yet"
+					placement={placement}
 					trigger={
 						<button
 							type="button"
 							onClick={() => setDevOpen((o) => !o)}
 							aria-expanded={devOpen}
 							aria-haspopup="menu"
-							className="flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left hover:bg-gray-700/40"
-							title="Dev Mode"
+							aria-label={collapsed ? `Dev Mode: ${hud.devMode?.name ?? "none"}` : undefined}
+							className={`flex min-h-11 items-center rounded text-left hover:bg-gray-700/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
+								collapsed ? "relative w-11 justify-center" : "w-full gap-2.5 px-2 py-1.5"
+							}`}
+							title={collapsed ? `Dev Mode: ${hud.devMode?.name ?? "none"}` : "Dev Mode"}
 						>
 							<span
-								className={`size-1.5 shrink-0 rounded-full ${devPerm ? PERMISSION_DOT[devPerm] : "bg-gray-700"}`}
+								className={`shrink-0 rounded-full ${
+									collapsed ? "absolute mt-7 ml-7 size-2" : "size-1.5"
+								} ${devPerm ? PERMISSION_DOT[devPerm] : "bg-gray-700"}`}
 								aria-hidden="true"
 							/>
 							<Cog size={14} className="shrink-0 text-gray-500" />
-							<span className="min-w-0 flex-1 truncate text-sm text-gray-100">
-								{hud.devMode?.name ?? "No dev mode"}
-							</span>
-							<ChevronDown size={12} className="shrink-0 text-gray-600" />
+							{!collapsed && (
+								<>
+									<span className="min-w-0 flex-1 truncate text-sm text-gray-100">
+										{hud.devMode?.name ?? "No dev mode"}
+									</span>
+									<ChevronDown size={12} className="shrink-0 text-gray-600" />
+								</>
+							)}
 						</button>
 					}
 				/>
@@ -297,35 +318,47 @@ export function HudWidget() {
 					clearLabel="No active project"
 					pending={activateProj.isPending || clearProj.isPending}
 					emptyLabel="No projects yet"
+					placement={placement}
 					trigger={
 						<button
 							type="button"
 							onClick={() => setProjOpen((o) => !o)}
 							aria-expanded={projOpen}
 							aria-haspopup="menu"
-							className="flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left hover:bg-gray-700/40"
-							title="Project"
+							aria-label={collapsed ? `Project: ${hud.project?.name ?? "none"}` : undefined}
+							className={`flex min-h-11 items-center rounded text-left hover:bg-gray-700/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
+								collapsed ? "relative w-11 justify-center" : "w-full gap-2.5 px-2 py-1.5"
+							}`}
+							title={collapsed ? `Project: ${hud.project?.name ?? "none"}` : "Project"}
 						>
 							<span
-								className={`size-1.5 shrink-0 rounded-full ${projPerm ? PERMISSION_DOT[projPerm] : "bg-gray-700"}`}
+								className={`shrink-0 rounded-full ${
+									collapsed ? "absolute mt-7 ml-7 size-2" : "size-1.5"
+								} ${projPerm ? PERMISSION_DOT[projPerm] : "bg-gray-700"}`}
 								aria-hidden="true"
 							/>
 							<FolderKanban size={14} className="shrink-0 text-gray-500" />
-							<span className="min-w-0 flex-1 truncate text-sm text-gray-100">
-								{hud.project?.name ?? "No project"}
-							</span>
-							<ChevronDown size={12} className="shrink-0 text-gray-600" />
+							{!collapsed && (
+								<>
+									<span className="min-w-0 flex-1 truncate text-sm text-gray-100">
+										{hud.project?.name ?? "No project"}
+									</span>
+									<ChevronDown size={12} className="shrink-0 text-gray-600" />
+								</>
+							)}
 						</button>
 					}
 				/>
 			</div>
 
-			<div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-gray-800 px-2 pt-2">
-				<Count label="Memories" value={hud.counts.memories} />
-				<Count label="Rules" value={hud.counts.rules} />
-				<Count label="Commands" value={hud.counts.commands} />
-				<Count label="Canvas" value={hud.counts.canvas} />
-			</div>
+			{!collapsed && (
+				<div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-gray-800 px-2 pt-2">
+					<Count label="Memories" value={hud.counts.memories} />
+					<Count label="Rules" value={hud.counts.rules} />
+					<Count label="Commands" value={hud.counts.commands} />
+					<Count label="Canvas" value={hud.counts.canvas} />
+				</div>
+			)}
 		</div>
 	);
 }

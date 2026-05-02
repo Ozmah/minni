@@ -1,6 +1,11 @@
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 
-import type { ActiveContextLoadout, ContextLoadoutItem, ContextMemoryPlacement } from "./types";
+import type {
+	ActiveContextLoadout,
+	ContextCopyLayer,
+	ContextLoadoutItem,
+	ContextMemoryPlacement,
+} from "./types";
 
 import { getActiveDevMode, getActiveProject, type MinniDB } from "../../helpers";
 import {
@@ -35,6 +40,95 @@ function resolveMemoryPlacement(
 	if (inProject) return "project";
 	if (inDevMode) return "dev_mode";
 	return null;
+}
+
+function buildMemoryCopyLayer(
+	key: ContextCopyLayer["key"],
+	title: string,
+	description: string,
+	items: ContextLoadoutItem[],
+): ContextCopyLayer | null {
+	if (items.length === 0) return null;
+	return {
+		key,
+		title,
+		description,
+		text: joinContextBlocks(items.map((item) => item.text)),
+	};
+}
+
+function buildCopyLayers(sections: ActiveContextLoadout["sections"]): ContextCopyLayer[] {
+	const layers: ContextCopyLayer[] = [];
+	const projectSection = sections.find((section) => section.key === "project");
+	const commandSection = sections.find((section) => section.key === "commands");
+	const devModeSection = sections.find((section) => section.key === "dev-mode");
+	const memorySection = sections.find((section) => section.key === "memories");
+
+	if (projectSection) {
+		layers.push({
+			key: "project-profile",
+			title: "Project profile",
+			description: "Project overview, conventions, and gotchas",
+			text: projectSection.text,
+		});
+	}
+
+	if (commandSection) {
+		layers.push({
+			key: "project-commands",
+			title: "Project commands",
+			description: "Injectable commands for the active project",
+			text: commandSection.text,
+		});
+	}
+
+	if (devModeSection) {
+		layers.push({
+			key: "dev-mode-profile",
+			title: "Dev Mode profile",
+			description: "Dev Mode overview and principles",
+			text: devModeSection.text,
+		});
+	}
+
+	if (memorySection) {
+		const memoryItems = memorySection.items;
+		const projectOnly = memoryItems.filter((item) => item.memory?.placement === "project");
+		const devModeOnly = memoryItems.filter((item) => item.memory?.placement === "dev_mode");
+		const shared = memoryItems.filter((item) => item.memory?.placement === "shared");
+
+		layers.push({
+			key: "active-memories",
+			title: "Active memories",
+			description: "All Project + Dev Mode memories in the current loadout",
+			text: memorySection.text,
+		});
+
+		for (const layer of [
+			buildMemoryCopyLayer(
+				"project-only-memories",
+				"Project-only memories",
+				"Memories attached only to the active project",
+				projectOnly,
+			),
+			buildMemoryCopyLayer(
+				"dev-mode-only-memories",
+				"Dev Mode-only memories",
+				"Memories attached only to the active dev mode",
+				devModeOnly,
+			),
+			buildMemoryCopyLayer(
+				"shared-memories",
+				"Shared memories",
+				"Memories attached to both active project and active dev mode",
+				shared,
+			),
+		]) {
+			if (layer) layers.push(layer);
+		}
+	}
+
+	return layers;
 }
 
 /** Builds the canonical active context consumed by Cockpit and `minni_equip(active:true)`. */
@@ -257,10 +351,12 @@ export async function buildActiveContextLoadout(db: MinniDB): Promise<ActiveCont
 	}
 
 	const text = joinContextBlocks(sections.map((section) => section.text));
+	const copyLayers = buildCopyLayers(sections);
 	return {
 		activeProject: activeProject ? { id: activeProject.id, name: activeProject.name } : null,
 		activeDevMode: activeDevMode ? { id: activeDevMode.id, name: activeDevMode.name } : null,
 		sections,
+		copyLayers,
 		text,
 		counts: {
 			sections: sections.length,
