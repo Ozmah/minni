@@ -1,18 +1,13 @@
-import { and, asc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 
 import type { MinniDB } from "../../helpers";
 import type { ProjectCommandInput } from "./contracts";
 
 import { commands } from "../../schema";
 
-/** Sorts commands by loadout relevance while preserving explicit user order inside each group. */
+/** Sorts commands by the explicit order chosen in Project Composer. */
 export function commandOrder() {
-	return [
-		sql`CASE ${commands.visibility} WHEN 'primary' THEN 0 WHEN 'secondary' THEN 1 ELSE 2 END`,
-		asc(commands.group),
-		asc(commands.sortOrder),
-		asc(commands.key),
-	];
+	return [asc(commands.sortOrder), asc(commands.key)];
 }
 
 /** Loads the full project command deck, including hidden commands for Composer editing. */

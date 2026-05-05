@@ -57,7 +57,7 @@ describe("commands service", () => {
 		});
 	});
 
-	test.concurrent("lists only injectable commands in loadout order", async () => {
+	test.concurrent("lists only injectable commands in composer order", async () => {
 		await withTestDb(async ({ db }) => {
 			const project = await insertProject(db);
 			const now = new Date();
@@ -114,7 +114,7 @@ describe("commands service", () => {
 
 			const visible = await listInjectableProjectCommands(db, project.id);
 
-			expect(visible.map((command) => command.key)).toEqual(["primary-quality", "secondary-build"]);
+			expect(visible.map((command) => command.key)).toEqual(["secondary-build", "primary-quality"]);
 		});
 	});
 });

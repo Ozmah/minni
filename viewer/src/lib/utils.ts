@@ -11,6 +11,25 @@ export function parseJsonArray(json: string | null): string[] {
 		.unwrapOr([]);
 }
 
+/** Parses comma-separated project stack input before sending it to the API. */
+export function parseProjectStackInput(value: string): string[] {
+	return value
+		.split(",")
+		.map((item) => item.trim())
+		.filter(Boolean);
+}
+
+/** Parses stored project stack while preserving legacy plain-text stack values. */
+export function parseProjectStackValue(value: string | null): string[] {
+	if (!value) return [];
+	const parsed = Result.try(() => JSON.parse(value))
+		.map((result) => (Array.isArray(result) ? result : null))
+		.unwrapOr(null);
+
+	if (parsed) return parsed.filter((item): item is string => typeof item === "string");
+	return parseProjectStackInput(value);
+}
+
 /**
  * Formats a date for display in the UI.
  * Accepts Date, string, or timestamp number.

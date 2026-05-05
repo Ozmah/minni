@@ -132,7 +132,7 @@ export function SearchInput({ value, onChange }: { value: string; onChange: (v: 
 				type="text"
 				name="search"
 				aria-label="Search memories"
-				placeholder="Search memories"
+				placeholder="Search memories or M15"
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				className="w-full rounded-md bg-gray-800 py-1.5 pr-2 pl-7 text-sm text-gray-100 ring-1 ring-gray-700 ring-inset placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-1 focus:outline-emerald-500"
@@ -346,6 +346,9 @@ export function LibraryRow({
 			/>
 			<div className="pointer-events-none relative min-w-0 flex-1">
 				<div className="flex items-baseline gap-2">
+					<span className="shrink-0 rounded border border-gray-700 bg-gray-900 px-1.5 py-0.5 font-mono text-[10px] text-gray-400 tabular-nums">
+						M{memory.id}
+					</span>
 					<h4 className="truncate text-sm font-medium text-gray-100">{memory.title}</h4>
 					<span className={`shrink-0 text-xs ${status.color}`}>{status.label}</span>
 				</div>

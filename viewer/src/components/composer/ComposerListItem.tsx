@@ -55,12 +55,15 @@ export function ComposerCollapsibleListItem({
 	openLabel,
 	collapsedTitle,
 	collapsedMeta,
+	collapsedExtras,
+	headerActions,
 	editorTitle,
 	index,
 	count,
 	onMove,
 	onDelete,
 	deleteLabel,
+	dragHandle,
 	children,
 }: {
 	expanded: boolean;
@@ -68,34 +71,48 @@ export function ComposerCollapsibleListItem({
 	openLabel: string;
 	collapsedTitle: ReactNode;
 	collapsedMeta?: ReactNode;
+	collapsedExtras?: ReactNode;
+	headerActions?: ReactNode;
 	editorTitle: ReactNode;
 	index: number;
 	count: number;
 	onMove: (direction: ComposerMoveDirection) => void;
 	onDelete: () => void;
 	deleteLabel: string;
+	dragHandle?: ReactNode;
 	children: ReactNode;
 }) {
 	if (!expanded) {
 		return (
-			<div className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/40 p-3">
-				<button
-					type="button"
-					onClick={onOpen}
-					aria-label={openLabel}
-					aria-expanded={false}
-					className="min-w-0 flex-1 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-gray-500"
-				>
-					<p className="truncate text-sm font-medium text-gray-200">{collapsedTitle}</p>
-					{collapsedMeta && <p className="mt-1 truncate text-xs text-gray-500">{collapsedMeta}</p>}
-				</button>
-				<ComposerRowActions
-					index={index}
-					count={count}
-					onMove={onMove}
-					onDelete={onDelete}
-					deleteLabel={deleteLabel}
-				/>
+			<div className="rounded-lg border border-gray-800 bg-gray-950/40 p-3">
+				<div className="flex items-start justify-between gap-3">
+					<div className="flex min-w-0 flex-1 items-center gap-3">
+						{dragHandle}
+						<button
+							type="button"
+							onClick={onOpen}
+							aria-label={openLabel}
+							aria-expanded={false}
+							className="min-w-0 flex-1 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-gray-500"
+						>
+							<p className="truncate text-sm font-medium text-gray-200">{collapsedTitle}</p>
+							{collapsedMeta && (
+								<p className="mt-1 truncate text-xs text-gray-500">{collapsedMeta}</p>
+							)}
+						</button>
+					</div>
+					<div className="flex shrink-0 items-center gap-1">
+						{headerActions}
+						<ComposerRowActions
+							index={index}
+							count={count}
+							onMove={onMove}
+							onDelete={onDelete}
+							deleteLabel={deleteLabel}
+						/>
+					</div>
+				</div>
+				{collapsedExtras && <div className="mt-2 pl-14">{collapsedExtras}</div>}
 			</div>
 		);
 	}
@@ -103,7 +120,12 @@ export function ComposerCollapsibleListItem({
 	return (
 		<div className="rounded-lg border border-gray-800 bg-gray-950/40 p-4">
 			<div className="mb-3 flex items-center justify-between gap-3">
-				<p className="flex items-center gap-2 text-sm font-medium text-gray-300">{editorTitle}</p>
+				<div className="flex min-w-0 items-center gap-2">
+					{dragHandle}
+					<p className="flex min-w-0 items-center gap-2 text-sm font-medium text-gray-300">
+						{editorTitle}
+					</p>
+				</div>
 				<ComposerRowActions
 					index={index}
 					count={count}
