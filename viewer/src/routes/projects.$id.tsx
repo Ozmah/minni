@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Drawer } from "@/components/Drawer";
 import { Section, InfoItem, LoadingState, ErrorState, MarkdownContent } from "@/components/ui";
 import { api, unwrap } from "@/lib/api";
-import { parseJsonArray, formatDate } from "@/lib/utils";
+import { parseProjectStackInput, parseProjectStackValue, formatDate } from "@/lib/utils";
 import { setDeleteTarget } from "@/stores/ui";
 
 import type { Permission, Project } from "../../../src/schema";
@@ -44,7 +44,7 @@ function ProjectDetail() {
 				.patch({
 					name: body.name,
 					description: body.description,
-					stack: parseStackInput(body.stack),
+					stack: parseProjectStackInput(body.stack),
 					permission: body.permission,
 				})
 				.then(unwrap),
@@ -92,13 +92,6 @@ type ProjectFormState = {
 	permission: Permission;
 };
 
-function parseStackInput(value: string) {
-	return value
-		.split(",")
-		.map((item) => item.trim())
-		.filter(Boolean);
-}
-
 function ProjectEditForm({
 	project,
 	pending,
@@ -115,15 +108,17 @@ function ProjectEditForm({
 	const [form, setForm] = useState<ProjectFormState>(() => ({
 		name: project.name,
 		description: project.description ?? "",
-		stack: parseJsonArray(project.stack).join(", "),
+		stack: parseProjectStackValue(project.stack).join(", "),
 		permission: project.permission,
 	}));
+	const stackItems = parseProjectStackInput(form.stack);
+	const stackTooLarge = stackItems.length > 50;
 
 	useEffect(() => {
 		setForm({
 			name: project.name,
 			description: project.description ?? "",
-			stack: parseJsonArray(project.stack).join(", "),
+			stack: parseProjectStackValue(project.stack).join(", "),
 			permission: project.permission,
 		});
 	}, [project]);
@@ -133,7 +128,7 @@ function ProjectEditForm({
 			className="space-y-4"
 			onSubmit={(event) => {
 				event.preventDefault();
-				if (form.name.trim()) onSubmit(form);
+				if (form.name.trim() && !stackTooLarge) onSubmit(form);
 			}}
 		>
 			<label className="block">
@@ -165,8 +160,13 @@ function ProjectEditForm({
 				<input
 					value={form.stack}
 					onChange={(event) => setForm((current) => ({ ...current, stack: event.target.value }))}
-					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+					className={`min-h-11 w-full rounded-md border bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500 ${
+						stackTooLarge ? "border-red-500/60" : "border-gray-700"
+					}`}
 				/>
+				<p className={`mt-1 text-xs ${stackTooLarge ? "text-red-300" : "text-gray-600"}`}>
+					{stackItems.length}/50 stack items
+				</p>
 			</label>
 
 			<label className="block">
@@ -203,7 +203,7 @@ function ProjectEditForm({
 				</button>
 				<button
 					type="submit"
-					disabled={!form.name.trim() || pending}
+					disabled={!form.name.trim() || stackTooLarge || pending}
 					className="inline-flex min-h-10 items-center gap-2 rounded-md bg-white px-4 text-sm font-medium text-gray-950 hover:bg-gray-200 disabled:opacity-50"
 				>
 					<Save size={16} aria-hidden="true" /> {pending ? "Saving..." : "Save"}
@@ -214,7 +214,7 @@ function ProjectEditForm({
 }
 
 function ProjectMetadata({ project, onEdit }: { project: Project; onEdit: () => void }) {
-	const stack = parseJsonArray(project.stack);
+	const stack = parseProjectStackValue(project.stack);
 
 	return (
 		<div className="space-y-6">

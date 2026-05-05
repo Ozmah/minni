@@ -61,6 +61,7 @@ export function ComposerCollapsibleListItem({
 	onMove,
 	onDelete,
 	deleteLabel,
+	dragHandle,
 	children,
 }: {
 	expanded: boolean;
@@ -74,11 +75,13 @@ export function ComposerCollapsibleListItem({
 	onMove: (direction: ComposerMoveDirection) => void;
 	onDelete: () => void;
 	deleteLabel: string;
+	dragHandle?: ReactNode;
 	children: ReactNode;
 }) {
 	if (!expanded) {
 		return (
 			<div className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/40 p-3">
+				{dragHandle}
 				<button
 					type="button"
 					onClick={onOpen}
@@ -103,7 +106,12 @@ export function ComposerCollapsibleListItem({
 	return (
 		<div className="rounded-lg border border-gray-800 bg-gray-950/40 p-4">
 			<div className="mb-3 flex items-center justify-between gap-3">
-				<p className="flex items-center gap-2 text-sm font-medium text-gray-300">{editorTitle}</p>
+				<div className="flex min-w-0 items-center gap-2">
+					{dragHandle}
+					<p className="flex min-w-0 items-center gap-2 text-sm font-medium text-gray-300">
+						{editorTitle}
+					</p>
+				</div>
 				<ComposerRowActions
 					index={index}
 					count={count}

@@ -312,8 +312,9 @@ export async function listEnrichedMemories(db: MinniDB, query: EnrichedMemoryLis
 
 	const filtered = enriched.filter((item) => {
 		if (search) {
+			const idToken = String(item.base.id);
 			const haystack =
-				`${item.base.title}\n${item.base.content}\n${item.tags.join(" ")}`.toLowerCase();
+				`${idToken}\nM${idToken}\n${item.base.title}\n${item.base.content}\n${item.tags.join(" ")}`.toLowerCase();
 			if (!haystack.includes(search)) return false;
 		}
 

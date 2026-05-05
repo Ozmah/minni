@@ -7,6 +7,7 @@ import {
 	ComposerCollapsibleListItem,
 	ComposerRowActions,
 } from "@/components/composer/ComposerListItem";
+import { MemoryAssociationPicker } from "@/components/composer/MemoryAssociationPicker";
 import { InjectionPreview } from "@/components/InjectionPreview";
 import { api, unwrap } from "@/lib/api";
 import {
@@ -35,8 +36,7 @@ function DevModeComposer() {
 	const qc = useQueryClient();
 	const [draft, setDraft] = useState<DevModeComposerDraft | null>(null);
 	const [loadedId, setLoadedId] = useState<number | null>(null);
-	const [memoryQuery, setMemoryQuery] = useState("");
-	const [selectedMemoryId, setSelectedMemoryId] = useState("");
+	const [memoryPickerOpen, setMemoryPickerOpen] = useState(false);
 	const [expandedPrincipleKey, setExpandedPrincipleKey] = useState<string | null>(null);
 
 	const { data, isLoading, error } = useQuery({
@@ -115,18 +115,6 @@ function DevModeComposer() {
 		return map;
 	}, [availableMemories, data?.memories]);
 
-	const selectedMemoryIds = useMemo(() => new Set(draft?.memoryIds ?? []), [draft?.memoryIds]);
-	const attachableMemories = useMemo(() => {
-		const query = memoryQuery.trim().toLowerCase();
-		return (availableMemories ?? []).filter((memory) => {
-			if (selectedMemoryIds.has(memory.id)) return false;
-			if (!query) return true;
-			return (
-				memory.title.toLowerCase().includes(query) || memory.type.toLowerCase().includes(query)
-			);
-		});
-	}, [availableMemories, memoryQuery, selectedMemoryIds]);
-
 	const baseline = data ? createComposerDraft(data) : null;
 	const isDirty = draft && baseline ? JSON.stringify(draft) !== JSON.stringify(baseline) : false;
 	const preview = draft ? buildDraftPreview(draft) : data?.injectionPreview;
@@ -165,17 +153,9 @@ function DevModeComposer() {
 		setExpandedPrincipleKey(clientKey);
 	}
 
-	function addSelectedMemory() {
-		const memoryId = Number(selectedMemoryId);
-		if (!memoryId || selectedMemoryIds.has(memoryId)) return;
-		updateDraft((current) => ({ ...current, memoryIds: [...current.memoryIds, memoryId] }));
-		setSelectedMemoryId("");
-	}
-
 	function resetDraft() {
 		setDraft(createComposerDraft(enrichedDevMode));
-		setMemoryQuery("");
-		setSelectedMemoryId("");
+		setMemoryPickerOpen(false);
 		setExpandedPrincipleKey(null);
 	}
 
@@ -187,6 +167,15 @@ function DevModeComposer() {
 				if (canSave) saveMutation.mutate(draft);
 			}}
 		>
+			<MemoryAssociationPicker
+				open={memoryPickerOpen}
+				onClose={() => setMemoryPickerOpen(false)}
+				scopeLabel="dev mode"
+				memories={(availableMemories ?? []) as Memory[]}
+				selectedMemoryIds={draft.memoryIds}
+				onApply={(memoryIds) => updateDraft((current) => ({ ...current, memoryIds }))}
+			/>
+
 			<header className="sticky top-0 z-10 border-b border-gray-800 bg-gray-900/95 px-6 py-4 backdrop-blur">
 				<div className="flex flex-wrap items-center justify-between gap-4">
 					<div className="min-w-0">
@@ -366,36 +355,16 @@ function DevModeComposer() {
 					<Panel
 						title="Associated memories"
 						description="V1 only attaches existing memories. Create or edit memory content from Memories."
-					>
-						<div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-							<input
-								value={memoryQuery}
-								onChange={(event) => setMemoryQuery(event.target.value)}
-								placeholder="Filter existing memories"
-								className="min-h-11 rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
-							/>
-							<select
-								value={selectedMemoryId}
-								onChange={(event) => setSelectedMemoryId(event.target.value)}
-								className="min-h-11 rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
-							>
-								<option value="">Select memory...</option>
-								{attachableMemories.map((memory) => (
-									<option key={memory.id} value={memory.id}>
-										[M{memory.id}] {memory.title}
-									</option>
-								))}
-							</select>
+						action={
 							<button
 								type="button"
-								onClick={addSelectedMemory}
-								disabled={!selectedMemoryId}
-								className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-gray-700 px-3 text-sm text-gray-300 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+								onClick={() => setMemoryPickerOpen(true)}
+								className="inline-flex min-h-10 items-center gap-2 rounded-md border border-gray-700 px-3 text-sm text-gray-300 hover:bg-gray-800"
 							>
-								<LinkIcon size={16} aria-hidden="true" /> Attach
+								<LinkIcon size={16} aria-hidden="true" /> Attach memories
 							</button>
-						</div>
-
+						}
+					>
 						{draft.memoryIds.length === 0 ? (
 							<p className="rounded-md border border-dashed border-gray-700 p-4 text-sm text-gray-500">
 								No memories associated with this dev mode.
