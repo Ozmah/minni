@@ -17,8 +17,6 @@ import {
 	ComposerCollapsibleListItem,
 	ComposerRowActions,
 } from "@/components/composer/ComposerListItem";
-import { MemoryAssociationPicker } from "@/components/composer/MemoryAssociationPicker";
-import { SortableComposerList } from "@/components/composer/SortableComposerList";
 import { InjectionPreview } from "@/components/InjectionPreview";
 import { api, unwrap } from "@/lib/api";
 import { moveItem } from "@/lib/dev-modes";
@@ -71,12 +69,9 @@ function ProjectComposer() {
 	const qc = useQueryClient();
 	const [draft, setDraft] = useState<ProjectComposerDraft | null>(null);
 	const [loadedId, setLoadedId] = useState<number | null>(null);
-	const [memoryPickerOpen, setMemoryPickerOpen] = useState(false);
+	const [memoryQuery, setMemoryQuery] = useState("");
+	const [selectedMemoryId, setSelectedMemoryId] = useState("");
 	const [expandedCommandKey, setExpandedCommandKey] = useState<string | null>(null);
-	const [expandedRuleKeys, setExpandedRuleKeys] = useState<Record<ProjectRuleKind, string | null>>({
-		convention: null,
-		gotcha: null,
-	});
 
 	const { data, isLoading, error } = useQuery({
 		queryKey: ["project", String(numericId), "enriched"],
@@ -101,7 +96,6 @@ function ProjectComposer() {
 		setDraft(createProjectComposerDraft(data));
 		setLoadedId(data.project.id);
 		setExpandedCommandKey(null);
-		setExpandedRuleKeys({ convention: null, gotcha: null });
 	}, [data, loadedId]);
 
 	const saveMutation = useMutation({
@@ -145,7 +139,6 @@ function ProjectComposer() {
 			setDraft(createProjectComposerDraft(enriched));
 			setLoadedId(enriched.project.id);
 			setExpandedCommandKey(null);
-			setExpandedRuleKeys({ convention: null, gotcha: null });
 			await Promise.all([
 				qc.invalidateQueries({ queryKey: ["project", String(numericId)] }),
 				qc.invalidateQueries({ queryKey: ["projects"] }),
@@ -171,6 +164,18 @@ function ProjectComposer() {
 		for (const memory of availableMemories ?? []) map.set(memory.id, memory);
 		return map;
 	}, [availableMemories, data?.memories]);
+
+	const selectedMemoryIds = useMemo(() => new Set(draft?.memoryIds ?? []), [draft?.memoryIds]);
+	const attachableMemories = useMemo(() => {
+		const query = memoryQuery.trim().toLowerCase();
+		return (availableMemories ?? []).filter((memory) => {
+			if (selectedMemoryIds.has(memory.id)) return false;
+			if (!query) return true;
+			return (
+				memory.title.toLowerCase().includes(query) || memory.type.toLowerCase().includes(query)
+			);
+		});
+	}, [availableMemories, memoryQuery, selectedMemoryIds]);
 
 	const baseline = data ? createProjectComposerDraft(data) : null;
 	const isDirty = draft && baseline ? JSON.stringify(draft) !== JSON.stringify(baseline) : false;
@@ -210,35 +215,18 @@ function ProjectComposer() {
 		setExpandedCommandKey(clientKey);
 	}
 
-	function addProjectRule(kind: ProjectRuleKind) {
-		if (!draft) return;
-		const emptyNewRule = draft.rules.find((rule) => rule.kind === kind && isEmptyNewRule(rule));
-		if (emptyNewRule) {
-			setExpandedRuleKeys((current) => ({ ...current, [kind]: emptyNewRule.clientKey }));
-			return;
-		}
-
-		const rule = createEmptyProjectRule(kind);
-		updateDraft((current) => ({ ...current, rules: [rule, ...current.rules] }));
-		setExpandedRuleKeys((current) => ({ ...current, [kind]: rule.clientKey }));
-	}
-
-	function openProjectRule(kind: ProjectRuleKind, clientKey: string) {
-		if (expandedRuleKeys[kind] === clientKey) return;
-		updateDraft((current) => ({
-			...current,
-			rules: current.rules.filter(
-				(rule) => rule.kind !== kind || rule.clientKey === clientKey || !isEmptyNewRule(rule),
-			),
-		}));
-		setExpandedRuleKeys((current) => ({ ...current, [kind]: clientKey }));
+	function addSelectedMemory() {
+		const memoryId = Number(selectedMemoryId);
+		if (!memoryId || selectedMemoryIds.has(memoryId)) return;
+		updateDraft((current) => ({ ...current, memoryIds: [...current.memoryIds, memoryId] }));
+		setSelectedMemoryId("");
 	}
 
 	function resetDraft() {
 		setDraft(createProjectComposerDraft(enrichedProject));
-		setMemoryPickerOpen(false);
+		setMemoryQuery("");
+		setSelectedMemoryId("");
 		setExpandedCommandKey(null);
-		setExpandedRuleKeys({ convention: null, gotcha: null });
 	}
 
 	return (
@@ -249,15 +237,6 @@ function ProjectComposer() {
 				if (canSave) saveMutation.mutate(draft);
 			}}
 		>
-			<MemoryAssociationPicker
-				open={memoryPickerOpen}
-				onClose={() => setMemoryPickerOpen(false)}
-				scopeLabel="project"
-				memories={(availableMemories ?? []) as Memory[]}
-				selectedMemoryIds={draft.memoryIds}
-				onApply={(memoryIds) => updateDraft((current) => ({ ...current, memoryIds }))}
-			/>
-
 			<header className="sticky top-0 z-10 border-b border-gray-800 bg-gray-900/95 px-6 py-4 backdrop-blur">
 				<div className="flex flex-wrap items-center justify-between gap-4">
 					<div className="min-w-0">
@@ -389,15 +368,6 @@ function ProjectComposer() {
 						description="Expected project patterns. These should be boring, repeatable defaults."
 						kind="convention"
 						draft={draft}
-						expandedRuleKey={expandedRuleKeys.convention}
-						onAddRule={() => addProjectRule("convention")}
-						onOpenRule={(clientKey) => openProjectRule("convention", clientKey)}
-						onRuleDeleted={(clientKey) =>
-							setExpandedRuleKeys((current) => ({
-								...current,
-								convention: current.convention === clientKey ? null : current.convention,
-							}))
-						}
 						updateDraft={updateDraft}
 					/>
 
@@ -406,15 +376,6 @@ function ProjectComposer() {
 						description="Sharp edges, traps, and constraints the agent must not rediscover the hard way."
 						kind="gotcha"
 						draft={draft}
-						expandedRuleKey={expandedRuleKeys.gotcha}
-						onAddRule={() => addProjectRule("gotcha")}
-						onOpenRule={(clientKey) => openProjectRule("gotcha", clientKey)}
-						onRuleDeleted={(clientKey) =>
-							setExpandedRuleKeys((current) => ({
-								...current,
-								gotcha: current.gotcha === clientKey ? null : current.gotcha,
-							}))
-						}
 						updateDraft={updateDraft}
 					/>
 
@@ -432,16 +393,36 @@ function ProjectComposer() {
 					<Panel
 						title="Associated memories"
 						description="Attach existing memories that matter whenever this project is active."
-						action={
+					>
+						<div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+							<input
+								value={memoryQuery}
+								onChange={(event) => setMemoryQuery(event.target.value)}
+								placeholder="Filter existing memories"
+								className="min-h-11 rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+							/>
+							<select
+								value={selectedMemoryId}
+								onChange={(event) => setSelectedMemoryId(event.target.value)}
+								className="min-h-11 rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+							>
+								<option value="">Select memory...</option>
+								{attachableMemories.map((memory) => (
+									<option key={memory.id} value={memory.id}>
+										[M{memory.id}] {memory.title}
+									</option>
+								))}
+							</select>
 							<button
 								type="button"
-								onClick={() => setMemoryPickerOpen(true)}
-								className="inline-flex min-h-10 items-center gap-2 rounded-md border border-gray-700 px-3 text-sm text-gray-300 hover:bg-gray-800"
+								onClick={addSelectedMemory}
+								disabled={!selectedMemoryId}
+								className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-gray-700 px-3 text-sm text-gray-300 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
 							>
-								<LinkIcon size={16} aria-hidden="true" /> Attach memories
+								<LinkIcon size={16} aria-hidden="true" /> Attach
 							</button>
-						}
-					>
+						</div>
+
 						{draft.memoryIds.length === 0 ? (
 							<p className="rounded-md border border-dashed border-gray-700 p-4 text-sm text-gray-500">
 								No memories associated with this project.
@@ -532,20 +513,12 @@ function ProjectRulesPanel({
 	description,
 	kind,
 	draft,
-	expandedRuleKey,
-	onAddRule,
-	onOpenRule,
-	onRuleDeleted,
 	updateDraft,
 }: {
 	title: string;
 	description: string;
 	kind: ProjectRuleKind;
 	draft: ProjectComposerDraft;
-	expandedRuleKey: string | null;
-	onAddRule: () => void;
-	onOpenRule: (clientKey: string) => void;
-	onRuleDeleted: (clientKey: string) => void;
 	updateDraft: (mutator: (current: ProjectComposerDraft) => ProjectComposerDraft) => void;
 }) {
 	const rules = draft.rules.filter((rule) => rule.kind === kind);
@@ -557,7 +530,12 @@ function ProjectRulesPanel({
 			action={
 				<button
 					type="button"
-					onClick={onAddRule}
+					onClick={() =>
+						updateDraft((current) => ({
+							...current,
+							rules: [...current.rules, createEmptyProjectRule(kind)],
+						}))
+					}
 					className="inline-flex min-h-10 items-center gap-2 rounded-md border border-gray-700 px-3 text-sm text-gray-300 hover:bg-gray-800"
 				>
 					<Plus size={16} aria-hidden="true" /> {kind === "gotcha" ? "Gotcha" : "Convention"}
@@ -569,16 +547,14 @@ function ProjectRulesPanel({
 					No {title.toLowerCase()} yet.
 				</p>
 			) : (
-				<div className="space-y-2">
+				<div className="space-y-3">
 					{rules.map((rule, visibleIndex) => {
 						return (
-							<ProjectRuleItem
+							<ProjectRuleEditor
 								key={rule.clientKey}
 								rule={rule}
 								index={visibleIndex}
 								count={rules.length}
-								expanded={expandedRuleKey === rule.clientKey}
-								onOpen={() => onOpenRule(rule.clientKey)}
 								onChange={(next) =>
 									updateDraft((current) => ({
 										...current,
@@ -599,7 +575,6 @@ function ProjectRulesPanel({
 										rules: current.rules.filter((item) => item.clientKey !== rule.clientKey),
 									}))
 								}
-								onDeleteAfter={() => onRuleDeleted(rule.clientKey)}
 							/>
 						);
 					})}
@@ -641,15 +616,6 @@ function isEmptyNewCommand(command: ProjectCommandDraft) {
 	);
 }
 
-function isEmptyNewRule(rule: ProjectRuleDraft) {
-	return (
-		rule.id === undefined &&
-		!rule.statement.trim() &&
-		!rule.rationale.trim() &&
-		!rule.example.trim()
-	);
-}
-
 function ProjectCommandsPanel({
 	draft,
 	expandedCommandKey,
@@ -665,9 +631,6 @@ function ProjectCommandsPanel({
 	onCommandDeleted: (clientKey: string) => void;
 	updateDraft: (mutator: (current: ProjectComposerDraft) => ProjectComposerDraft) => void;
 }) {
-	const commandIds = draft.commands.map((command) => command.clientKey);
-	const commandById = new Map(draft.commands.map((command) => [command.clientKey, command]));
-
 	return (
 		<Panel
 			title="Commands"
@@ -687,62 +650,43 @@ function ProjectCommandsPanel({
 					No commands configured for this project.
 				</p>
 			) : (
-				<SortableComposerList
-					ids={commandIds}
-					onReorder={(nextIds) =>
-						updateDraft((current) => {
-							const nextOrder = new Map(nextIds.map((id, index) => [id, index]));
-							return {
-								...current,
-								commands: [...current.commands].sort(
-									(a, b) => (nextOrder.get(a.clientKey) ?? 0) - (nextOrder.get(b.clientKey) ?? 0),
-								),
-							};
-						})
-					}
-					renderItem={({ id, index, dragHandle }) => {
-						const command = commandById.get(id);
-						if (!command) return null;
-						return (
-							<ProjectCommandItem
-								key={command.clientKey}
-								command={command}
-								index={index}
-								count={draft.commands.length}
-								expanded={expandedCommandKey === command.clientKey}
-								dragHandle={dragHandle}
-								onOpen={() => onOpenCommand(command.clientKey)}
-								onChange={(next) =>
-									updateDraft((current) => ({
-										...current,
-										commands: current.commands.map((item) =>
-											item.clientKey === command.clientKey ? next : item,
-										),
-									}))
-								}
-								onMove={(direction) =>
-									updateDraft((current) => ({
-										...current,
-										commands: moveItem(
-											current.commands,
-											index,
-											direction === "up" ? index - 1 : index + 1,
-										),
-									}))
-								}
-								onDelete={() =>
-									updateDraft((current) => ({
-										...current,
-										commands: current.commands.filter(
-											(item) => item.clientKey !== command.clientKey,
-										),
-									}))
-								}
-								onDeleteAfter={() => onCommandDeleted(command.clientKey)}
-							/>
-						);
-					}}
-				/>
+				<div className="space-y-2">
+					{draft.commands.map((command, index) => (
+						<ProjectCommandItem
+							key={command.clientKey}
+							command={command}
+							index={index}
+							count={draft.commands.length}
+							expanded={expandedCommandKey === command.clientKey}
+							onOpen={() => onOpenCommand(command.clientKey)}
+							onChange={(next) =>
+								updateDraft((current) => ({
+									...current,
+									commands: current.commands.map((item) =>
+										item.clientKey === command.clientKey ? next : item,
+									),
+								}))
+							}
+							onMove={(direction) =>
+								updateDraft((current) => ({
+									...current,
+									commands: moveItem(
+										current.commands,
+										index,
+										direction === "up" ? index - 1 : index + 1,
+									),
+								}))
+							}
+							onDelete={() =>
+								updateDraft((current) => ({
+									...current,
+									commands: current.commands.filter((item) => item.clientKey !== command.clientKey),
+								}))
+							}
+							onDeleteAfter={() => onCommandDeleted(command.clientKey)}
+						/>
+					))}
+				</div>
 			)}
 		</Panel>
 	);
@@ -758,7 +702,6 @@ function ProjectCommandItem({
 	onMove,
 	onDelete,
 	onDeleteAfter,
-	dragHandle,
 }: {
 	command: ProjectCommandDraft;
 	index: number;
@@ -769,7 +712,6 @@ function ProjectCommandItem({
 	onMove: (direction: "up" | "down") => void;
 	onDelete: () => void;
 	onDeleteAfter: () => void;
-	dragHandle?: React.ReactNode;
 }) {
 	function deleteCommand() {
 		onDelete();
@@ -794,7 +736,6 @@ function ProjectCommandItem({
 			onMove={onMove}
 			onDelete={deleteCommand}
 			deleteLabel="Delete command"
-			dragHandle={dragHandle}
 		>
 			<ProjectCommandFields command={command} onChange={onChange} />
 		</ComposerCollapsibleListItem>
@@ -942,127 +883,104 @@ function Panel({
 	);
 }
 
-function ProjectRuleItem({
+function ProjectRuleEditor({
 	rule,
 	index,
 	count,
-	expanded,
-	onOpen,
 	onChange,
 	onMove,
 	onDelete,
-	onDeleteAfter,
 }: {
 	rule: ProjectRuleDraft;
 	index: number;
 	count: number;
-	expanded: boolean;
-	onOpen: () => void;
 	onChange: (rule: ProjectRuleDraft) => void;
 	onMove: (direction: "up" | "down") => void;
 	onDelete: () => void;
-	onDeleteAfter: () => void;
 }) {
-	const label = rule.kind === "gotcha" ? "Gotcha" : "Convention";
-	function deleteRule() {
-		onDelete();
-		onDeleteAfter();
-	}
-
 	return (
-		<ComposerCollapsibleListItem
-			expanded={expanded}
-			onOpen={onOpen}
-			openLabel={`Edit ${rule.kind}`}
-			collapsedTitle={rule.statement.trim() || `Untitled ${rule.kind}`}
-			collapsedMeta={`${rule.severity} · ${rule.permission}`}
-			editorTitle={
-				<>
+		<div className="rounded-lg border border-gray-800 bg-gray-950/40 p-4">
+			<div className="mb-3 flex items-center justify-between gap-3">
+				<p className="flex items-center gap-2 text-sm font-medium text-gray-300">
 					{rule.kind === "gotcha" && (
 						<AlertTriangle size={14} className="text-amber-300" aria-hidden="true" />
 					)}
-					{label} {index + 1}
-				</>
-			}
-			index={index}
-			count={count}
-			onMove={onMove}
-			onDelete={deleteRule}
-			deleteLabel={`Delete ${rule.kind}`}
-		>
-			<ProjectRuleFields rule={rule} onChange={onChange} />
-		</ComposerCollapsibleListItem>
-	);
-}
-
-function ProjectRuleFields({
-	rule,
-	onChange,
-}: {
-	rule: ProjectRuleDraft;
-	onChange: (rule: ProjectRuleDraft) => void;
-}) {
-	return (
-		<div className="grid gap-3 md:grid-cols-2">
-			<label className="block md:col-span-2">
-				<span className="mb-1 block text-sm text-gray-400">Statement</span>
-				<input
-					value={rule.statement}
-					onChange={(event) => onChange({ ...rule, statement: event.target.value })}
-					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
-					placeholder="Use route-level query keys for project data."
+					{rule.kind === "gotcha" ? "Gotcha" : "Convention"} {index + 1}
+				</p>
+				<ComposerRowActions
+					index={index}
+					count={count}
+					onMove={onMove}
+					onDelete={onDelete}
+					deleteLabel={`Delete ${rule.kind}`}
 				/>
-			</label>
+			</div>
 
-			<label className="block">
-				<span className="mb-1 block text-sm text-gray-400">Severity</span>
-				<select
-					value={rule.severity}
-					onChange={(event) => onChange({ ...rule, severity: event.target.value as RuleSeverity })}
-					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
-				>
-					{SEVERITIES.map((severity) => (
-						<option key={severity} value={severity}>
-							{severity}
-						</option>
-					))}
-				</select>
-			</label>
+			<div className="grid gap-3 md:grid-cols-2">
+				<label className="block md:col-span-2">
+					<span className="mb-1 block text-sm text-gray-400">Statement</span>
+					<input
+						value={rule.statement}
+						onChange={(event) => onChange({ ...rule, statement: event.target.value })}
+						className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+						placeholder="Use route-level query keys for project data."
+					/>
+				</label>
 
-			<label className="block">
-				<span className="mb-1 block text-sm text-gray-400">Permission</span>
-				<select
-					value={rule.permission}
-					onChange={(event) => onChange({ ...rule, permission: event.target.value as Permission })}
-					className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
-				>
-					{PERMISSIONS.map((permission) => (
-						<option key={permission} value={permission}>
-							{permission}
-						</option>
-					))}
-				</select>
-			</label>
+				<label className="block">
+					<span className="mb-1 block text-sm text-gray-400">Severity</span>
+					<select
+						value={rule.severity}
+						onChange={(event) =>
+							onChange({ ...rule, severity: event.target.value as RuleSeverity })
+						}
+						className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+					>
+						{SEVERITIES.map((severity) => (
+							<option key={severity} value={severity}>
+								{severity}
+							</option>
+						))}
+					</select>
+				</label>
 
-			<label className="block md:col-span-2">
-				<span className="mb-1 block text-sm text-gray-400">Rationale</span>
-				<textarea
-					value={rule.rationale}
-					onChange={(event) => onChange({ ...rule, rationale: event.target.value })}
-					rows={2}
-					className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-base text-white outline-none focus:border-gray-500"
-				/>
-			</label>
+				<label className="block">
+					<span className="mb-1 block text-sm text-gray-400">Permission</span>
+					<select
+						value={rule.permission}
+						onChange={(event) =>
+							onChange({ ...rule, permission: event.target.value as Permission })
+						}
+						className="min-h-11 w-full rounded-md border border-gray-700 bg-gray-950 px-3 text-base text-white outline-none focus:border-gray-500"
+					>
+						{PERMISSIONS.map((permission) => (
+							<option key={permission} value={permission}>
+								{permission}
+							</option>
+						))}
+					</select>
+				</label>
 
-			<label className="block md:col-span-2">
-				<span className="mb-1 block text-sm text-gray-400">Example</span>
-				<textarea
-					value={rule.example}
-					onChange={(event) => onChange({ ...rule, example: event.target.value })}
-					rows={2}
-					className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-base text-white outline-none focus:border-gray-500"
-				/>
-			</label>
+				<label className="block md:col-span-2">
+					<span className="mb-1 block text-sm text-gray-400">Rationale</span>
+					<textarea
+						value={rule.rationale}
+						onChange={(event) => onChange({ ...rule, rationale: event.target.value })}
+						rows={2}
+						className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-base text-white outline-none focus:border-gray-500"
+					/>
+				</label>
+
+				<label className="block md:col-span-2">
+					<span className="mb-1 block text-sm text-gray-400">Example</span>
+					<textarea
+						value={rule.example}
+						onChange={(event) => onChange({ ...rule, example: event.target.value })}
+						rows={2}
+						className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-base text-white outline-none focus:border-gray-500"
+					/>
+				</label>
+			</div>
 		</div>
 	);
 }
